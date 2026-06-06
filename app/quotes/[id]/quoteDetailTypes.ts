@@ -26,10 +26,9 @@ export type QuoteDetail = {
   package_key?: string | null
   customer_name?: string | null
   adult_count?: number | null
-  adults_count?: number | null
   children_under_3_count?: number | null
   children_4_to_12_count?: number | null
-  children_count?: number | null
+  physical_guest_count?: number | null
   billable_guest_count?: number | null
   package_name_pt?: string | null
   package_name_en?: string | null
@@ -41,7 +40,6 @@ export type QuoteDetail = {
   package_unit_price?: number | null
   package_price_per_person?: number | null
   package_image_url?: string | null
-  billable_guests?: number | null
   event_name?: string | null
   event_date?: string | null
   start_time?: string | null

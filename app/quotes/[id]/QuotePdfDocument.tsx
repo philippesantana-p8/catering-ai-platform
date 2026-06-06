@@ -1,11 +1,16 @@
 import React from 'react'
 import {
   Document,
+  Image,
   Page,
   StyleSheet,
   Text,
   View,
 } from '@react-pdf/renderer'
+import {
+  CDL_LOGO_PLACEHOLDER,
+  type PdfLogoSource,
+} from '@/Lib/cdlLogo'
 import {
   BALANCE_PERCENTAGE,
   CANCELLATION_POLICY_SUMMARY,
@@ -53,8 +58,21 @@ const styles = StyleSheet.create({
   coverAccentBar: {
     height: 4,
     backgroundColor: colors.gold,
-    marginBottom: 36,
+    marginBottom: 28,
     width: 120,
+  },
+  coverLogo: {
+    width: 140,
+    height: 140,
+    objectFit: 'contain',
+    marginBottom: 24,
+  },
+  coverLogoPlaceholder: {
+    fontSize: 28,
+    fontFamily: 'Helvetica-Bold',
+    color: colors.gold,
+    letterSpacing: 2,
+    marginBottom: 20,
   },
   coverBrand: {
     fontSize: 42,
@@ -141,20 +159,32 @@ const styles = StyleSheet.create({
     borderBottomWidth: 2,
     borderBottomColor: colors.gold,
     paddingHorizontal: 40,
-    paddingVertical: 10,
+    paddingVertical: 8,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
   },
-  compactHeaderBrand: {
+  compactHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  compactLogo: {
+    width: 32,
+    height: 32,
+    objectFit: 'contain',
+  },
+  compactLogoPlaceholder: {
+    fontSize: 8,
+    fontFamily: 'Helvetica-Bold',
+    color: colors.gold,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  compactHeaderTitle: {
     fontSize: 10,
     fontFamily: 'Helvetica-Bold',
     color: colors.white,
-    letterSpacing: 1,
-  },
-  compactHeaderMeta: {
-    fontSize: 8,
-    color: '#CCCCCC',
+    letterSpacing: 0.6,
   },
   pageFooter: {
     position: 'absolute',
@@ -408,6 +438,35 @@ function RulesBlock({
   )
 }
 
+function PdfLogoMark({
+  logoSrc,
+  variant,
+}: {
+  logoSrc: string | null
+  variant: 'cover' | 'compact'
+}) {
+  if (logoSrc) {
+    return (
+      <Image
+        src={logoSrc}
+        style={variant === 'cover' ? styles.coverLogo : styles.compactLogo}
+      />
+    )
+  }
+
+  return (
+    <Text
+      style={
+        variant === 'cover'
+          ? styles.coverLogoPlaceholder
+          : styles.compactLogoPlaceholder
+      }
+    >
+      {CDL_LOGO_PLACEHOLDER}
+    </Text>
+  )
+}
+
 function PdfPageFooter() {
   return (
     <View style={styles.pageFooter} fixed>
@@ -420,22 +479,31 @@ function PdfPageFooter() {
 
 function PdfCompactHeader({
   quoteNumber,
-  customerName,
+  logoSrc,
 }: {
   quoteNumber: string
-  customerName: string
+  logoSrc: string | null
 }) {
   return (
     <View style={styles.compactHeader} fixed>
-      <Text style={styles.compactHeaderBrand}>BBQ AT HOME</Text>
-      <Text style={styles.compactHeaderMeta}>
-        {quoteNumber} · {customerName}
-      </Text>
+      <View style={styles.compactHeaderLeft}>
+        <PdfLogoMark logoSrc={logoSrc} variant="compact" />
+        <Text style={styles.compactHeaderTitle}>
+          BBQ AT HOME | {quoteNumber}
+        </Text>
+      </View>
     </View>
   )
 }
 
-export function QuotePdfDocument({ quote }: { quote: QuoteDetail }) {
+export function QuotePdfDocument({
+  quote,
+  logo,
+}: {
+  quote: QuoteDetail
+  logo?: PdfLogoSource
+}) {
+  const logoSrc = logo?.src ?? null
   const lang = quote.language ?? 'pt'
   const packageName = getPackageName(quote) ?? '—'
   const packageDescription = getPackageDescription(quote)
@@ -483,6 +551,7 @@ export function QuotePdfDocument({ quote }: { quote: QuoteDetail }) {
       producer="CDL Catering AI Platform"
     >
       <Page size="A4" style={styles.coverPage}>
+        <PdfLogoMark logoSrc={logoSrc} variant="cover" />
         <View style={styles.coverAccentBar} />
         <Text style={styles.coverBrand}>BBQ AT HOME</Text>
         <Text style={styles.coverTagline}>
@@ -510,10 +579,7 @@ export function QuotePdfDocument({ quote }: { quote: QuoteDetail }) {
       </Page>
 
       <Page size="A4" style={styles.contentPage} wrap>
-        <PdfCompactHeader
-          quoteNumber={quoteNumber}
-          customerName={customerName}
-        />
+        <PdfCompactHeader quoteNumber={quoteNumber} logoSrc={logoSrc} />
         <PdfPageFooter />
 
         <View style={styles.overview}>
@@ -557,20 +623,20 @@ export function QuotePdfDocument({ quote }: { quote: QuoteDetail }) {
             />
             <InfoCell
               label="Convidados físicos"
-              value={String(quoteTotals.physicalGuestTotal)}
+              value={String(quoteTotals.physicalGuestCount)}
             />
             <InfoCell
               label="Pessoas cobradas equivalentes"
-              value={String(quoteTotals.billableGuests)}
+              value={String(quoteTotals.billableGuestCount)}
             />
             <InfoCell
               label="Valor do pacote"
               value={formatCurrency(quoteTotals.packageTotal)}
             />
           </View>
-          {packageUnitPrice > 0 && quoteTotals.billableGuests > 0 ? (
+          {packageUnitPrice > 0 && quoteTotals.billableGuestCount > 0 ? (
             <Text style={styles.packageDesc}>
-              {formatCurrency(packageUnitPrice)} × {quoteTotals.billableGuests}{' '}
+              {formatCurrency(packageUnitPrice)} × {quoteTotals.billableGuestCount}{' '}
               pessoas cobradas equivalentes
             </Text>
           ) : null}

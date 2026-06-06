@@ -1,9 +1,9 @@
-import type { QuoteDetail } from '@/app/quotes/[id]/quoteDetailTypes'
+import { fetchQuoteDetail } from '@/Lib/fetchQuoteDetail'
 import {
   generateQuotePdfBuffer,
   getQuotePdfResponseHeaders,
 } from '@/Lib/generateQuotePdf'
-import { supabase } from '@/Lib/supabase'
+import type { QuoteDetail } from '@/app/quotes/[id]/quoteDetailTypes'
 
 export async function GET(
   _request: Request,
@@ -11,11 +11,7 @@ export async function GET(
 ) {
   const { id } = await params
 
-  const { data, error } = await supabase
-    .from('quote_detail_view')
-    .select('*')
-    .eq('id', id)
-    .single()
+  const { data, error } = await fetchQuoteDetail(id)
 
   if (error || !data) {
     return new Response('Cotação não encontrada.', { status: 404 })

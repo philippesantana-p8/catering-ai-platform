@@ -1,4 +1,4 @@
-import { supabase } from '../../../Lib/supabase'
+import { fetchQuoteDetail } from '../../../Lib/fetchQuoteDetail'
 import QuoteDetailView from './QuoteDetailView'
 import type { QuoteDetail } from './quoteDetailTypes'
 
@@ -9,11 +9,7 @@ export default async function QuoteDetailPage({
 }) {
   const { id } = await params
 
-  const { data, error } = await supabase
-    .from('quote_detail_view')
-    .select('*')
-    .eq('id', id)
-    .single()
+  const { data, error } = await fetchQuoteDetail(id)
 
   if (error) {
     return (

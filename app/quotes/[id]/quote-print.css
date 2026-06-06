@@ -28,9 +28,20 @@
   filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.12));
 }
 
-.quote-print-logo .cdl-brand-logo {
+.quote-print-logo .cdl-brand-logo,
+.quote-print-logo [role='img'] {
   width: 7rem;
   height: 7rem;
+  max-width: 100%;
+  object-fit: contain;
+}
+
+.quote-print-logo-mark {
+  max-width: min(9rem, 40vw);
+}
+
+.quote-print-compact-header {
+  display: none;
 }
 
 /* Hero */
@@ -674,9 +685,56 @@
     font-size: 0.68rem !important;
   }
 
-  .quote-print-logo .cdl-brand-logo {
+  .quote-print-compact-header {
+    display: flex !important;
+    align-items: center;
+    gap: 0.5rem;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 9999;
+    background: var(--proposal-dark) !important;
+    border-bottom: 2px solid var(--proposal-gold);
+    padding: 0.35rem 0.85rem;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .quote-print-compact-header-title {
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: #ffffff !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .quote-print-compact-logo.cdl-brand-logo,
+  .quote-print-compact-logo,
+  .quote-print-compact-header [role='img'] {
+    width: 1.75rem !important;
+    height: 1.75rem !important;
+    min-width: 1.75rem !important;
+    max-width: 1.75rem !important;
+    object-fit: contain !important;
+    filter: none !important;
+    padding: 0.1rem !important;
+    font-size: 0.42rem !important;
+    letter-spacing: 0.04em !important;
+  }
+
+  .quote-detail-page {
+    padding-top: 2.1rem !important;
+  }
+
+  .quote-print-logo .cdl-brand-logo,
+  .quote-print-logo [role='img'] {
     width: 3.5rem !important;
     height: 3.5rem !important;
+    max-width: 3.5rem !important;
+    object-fit: contain !important;
     filter: none !important;
   }
 

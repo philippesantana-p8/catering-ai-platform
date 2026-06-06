@@ -33,15 +33,13 @@ export default function GuestBreakdownPanel({
   guestCounts,
   totals,
   variant = 'default',
-  showLegacyNote,
 }: {
   guestCounts: GuestCounts
   totals: Pick<
     QuoteTotals,
-    'billableGuests' | 'physicalGuestTotal' | 'quoteTotal'
+    'billableGuestCount' | 'physicalGuestCount' | 'quoteTotal'
   >
   variant?: 'default' | 'compact' | 'pdf'
-  showLegacyNote?: boolean
 }) {
   if (variant === 'compact') {
     return (
@@ -57,11 +55,11 @@ export default function GuestBreakdownPanel({
         />
         <StatCard
           label="Convidados físicos"
-          value={totals.physicalGuestTotal}
+          value={totals.physicalGuestCount}
         />
         <StatCard
           label="Pessoas cobradas equivalentes"
-          value={totals.billableGuests}
+          value={totals.billableGuestCount}
           highlight
         />
         <StatCard
@@ -75,18 +73,6 @@ export default function GuestBreakdownPanel({
 
   return (
     <div className="space-y-4">
-      {showLegacyNote ? (
-        <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
-          Campos Supabase ausentes:{' '}
-          <code className="text-amber-200">children_under_3_count</code>,{' '}
-          <code className="text-amber-200">children_4_to_12_count</code>,{' '}
-          <code className="text-amber-200">billable_guest_count</code>. Exibindo
-          fallback a partir de <code className="text-amber-200">adults_count</code>,{' '}
-          <code className="text-amber-200">children_count</code> e{' '}
-          <code className="text-amber-200">billable_guests</code>.
-        </p>
-      ) : null}
-
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <StatCard label="Adultos" value={guestCounts.adultCount} />
         <StatCard
@@ -99,11 +85,11 @@ export default function GuestBreakdownPanel({
         />
         <StatCard
           label="Convidados físicos"
-          value={totals.physicalGuestTotal}
+          value={totals.physicalGuestCount}
         />
         <StatCard
           label="Pessoas cobradas equivalentes"
-          value={totals.billableGuests}
+          value={totals.billableGuestCount}
           highlight
         />
         <StatCard

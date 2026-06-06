@@ -24,7 +24,7 @@ import {
 import QuoteDetailToolbar from './QuoteDetailToolbar'
 import {
   calculateQuoteTotalsFromQuoteRecord,
-  resolveGuestCountsFromQuote,
+  readOfficialGuestCountsFromQuote,
 } from '@/Lib/calculateQuoteTotals'
 import GuestBreakdownPanel from '@/components/GuestBreakdownPanel'
 import QuoteDebugPanel from './QuoteDebugPanel'
@@ -192,7 +192,10 @@ export default function QuoteDetailView({ quote }: { quote: QuoteDetail }) {
     .filter(Boolean)
     .join(' · ')
 
-  const guestCounts = resolveGuestCountsFromQuote(quote)
+  const guestCounts = readOfficialGuestCountsFromQuote(
+    quote,
+    `quote-detail:${quote.id}`,
+  )
   const { totals: quoteTotals } = calculateQuoteTotalsFromQuoteRecord(quote)
   const packageUnitPrice = Number(
     quote.package_price_per_person ?? quote.package_unit_price ?? 0,
@@ -224,11 +227,18 @@ export default function QuoteDetailView({ quote }: { quote: QuoteDetail }) {
         </div>
       </div>
 
+      <div className="quote-print-compact-header">
+        <CdlBrandLogo size="sm" className="quote-print-compact-logo" />
+        <span className="quote-print-compact-header-title">
+          BBQ AT HOME | {quoteNumber}
+        </span>
+      </div>
+
       <header className="quote-proposal-hero quote-print-header">
         <div className="quote-proposal-hero-inner">
           <div className="quote-proposal-hero-brand">
             <div className="quote-print-logo">
-              <CdlBrandLogo size="md" />
+              <CdlBrandLogo size="lg" className="quote-print-logo-mark" />
             </div>
             <div className="quote-proposal-hero-copy">
               <h1 className="quote-proposal-title">BBQ AT HOME</h1>
@@ -295,13 +305,13 @@ export default function QuoteDetailView({ quote }: { quote: QuoteDetail }) {
               <div className="quote-proposal-highlight-card">
                 <span className="quote-proposal-label">Convidados físicos</span>
                 <p className="quote-proposal-highlight-value">
-                  {displayValue(quoteTotals.physicalGuestTotal)}
+                  {displayValue(quoteTotals.physicalGuestCount)}
                 </p>
               </div>
               <div className="quote-proposal-highlight-card">
                 <span className="quote-proposal-label">Pessoas cobradas equivalentes</span>
                 <p className="quote-proposal-highlight-value">
-                  {displayValue(quoteTotals.billableGuests)}
+                  {displayValue(quoteTotals.billableGuestCount)}
                 </p>
               </div>
               <div className="quote-proposal-highlight-card quote-proposal-highlight-card--price">
@@ -309,9 +319,9 @@ export default function QuoteDetailView({ quote }: { quote: QuoteDetail }) {
                 <p className="quote-proposal-highlight-value">
                   {formatCurrency(quoteTotals.packageTotal)}
                 </p>
-                {packageUnitPrice > 0 && quoteTotals.billableGuests > 0 && (
+                {packageUnitPrice > 0 && quoteTotals.billableGuestCount > 0 && (
                   <p className="quote-proposal-muted mt-1 text-xs">
-                    {formatCurrency(packageUnitPrice)} × {quoteTotals.billableGuests}
+                    {formatCurrency(packageUnitPrice)} × {quoteTotals.billableGuestCount}
                   </p>
                 )}
               </div>
@@ -322,11 +332,10 @@ export default function QuoteDetailView({ quote }: { quote: QuoteDetail }) {
             <GuestBreakdownPanel
               guestCounts={guestCounts}
               totals={{
-                billableGuests: quoteTotals.billableGuests,
-                physicalGuestTotal: quoteTotals.physicalGuestTotal,
+                billableGuestCount: quoteTotals.billableGuestCount,
+                physicalGuestCount: quoteTotals.physicalGuestCount,
                 quoteTotal: quoteTotals.quoteTotal,
               }}
-              showLegacyNote={guestCounts.usingLegacyFallback}
             />
           </ProposalSection>
 
@@ -556,12 +565,10 @@ export default function QuoteDetailView({ quote }: { quote: QuoteDetail }) {
             package_key: quote.package_key,
             customer_id: quote.customer_id,
             adult_count: quote.adult_count,
-            adults_count: quote.adults_count,
             children_under_3_count: quote.children_under_3_count,
             children_4_to_12_count: quote.children_4_to_12_count,
-            children_count: quote.children_count,
+            physical_guest_count: quote.physical_guest_count,
             billable_guest_count: quote.billable_guest_count,
-            billable_guests: quote.billable_guests,
             package_total: quote.package_total,
             additional_total: quote.additional_total,
             mileage_fee: quote.mileage_fee,

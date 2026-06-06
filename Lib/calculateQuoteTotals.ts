@@ -3,37 +3,16 @@ import {
   MILEAGE_RATE,
   RESERVATION_PERCENTAGE,
 } from './cdlCommercialRules'
+import {
+  buildOfficialGuestPayload,
+  calcBillableGuestCount,
+  calcPhysicalGuestCount,
+  readOfficialGuestCountsFromQuote,
+  type GuestCounts,
+  type QuoteOfficialGuestRecord,
+} from './quoteGuestFields'
 
-/** Campos presentes hoje em quote_detail_view */
-export const SUPABASE_GUEST_FIELDS_EXISTING = [
-  'adults_count',
-  'children_count',
-  'billable_guests',
-] as const
-
-/**
- * Campos desejados ainda não expostos na view/tabela.
- * Fallback temporário em resolveGuestCountsFromQuote().
- */
-export const SUPABASE_GUEST_FIELDS_MISSING = [
-  'adult_count',
-  'children_under_3_count',
-  'children_4_to_12_count',
-  'billable_guest_count',
-] as const
-
-export type GuestCounts = {
-  adultCount: number
-  childrenUnder3Count: number
-  children4To12Count: number
-}
-
-export type GuestCountsSource = 'supabase_split' | 'supabase_legacy_fallback'
-
-export type QuoteGuestCounts = GuestCounts & {
-  source: GuestCountsSource
-  usingLegacyFallback: boolean
-}
+export type { GuestCounts }
 
 export type AdditionalLineInput = {
   quantity: number
@@ -59,10 +38,10 @@ export type QuoteTotals = {
   billableAdults: number
   freeChildren: number
   halfPriceChildren: number
-  /** Pessoas cobradas equivalentes (ex.: 40 adultos + 3 meias = 43) */
-  billableGuests: number
-  /** Total de convidados físicos no evento */
-  physicalGuestTotal: number
+  /** adult_count + (children_4_to_12_count × 0.5) */
+  billableGuestCount: number
+  /** adult_count + children_under_3_count + children_4_to_12_count */
+  physicalGuestCount: number
   packageTotal: number
   additionalTotal: number
   mileageFee: number
@@ -72,15 +51,7 @@ export type QuoteTotals = {
   quoteTotal: number
 }
 
-export type QuoteRecordForGuests = {
-  adult_count?: number | null
-  adults_count?: number | null
-  children_under_3_count?: number | null
-  children_4_to_12_count?: number | null
-  children_count?: number | null
-  billable_guest_count?: number | null
-  billable_guests?: number | null
-}
+export type QuoteRecordForGuests = QuoteOfficialGuestRecord
 
 function roundMoney(value: number) {
   return Math.round(value * 100) / 100
@@ -99,30 +70,16 @@ export function calcMileageFee(
   return roundMoney(billableMiles * toNumber(rate))
 }
 
-export function calcBillableGuests(guestCounts: GuestCounts) {
-  const adultCount = toNumber(guestCounts.adultCount)
-  const children4To12Count = toNumber(guestCounts.children4To12Count)
-  return roundMoney(adultCount + children4To12Count * 0.5)
-}
-
-export function calcPhysicalGuestTotal(guestCounts: GuestCounts) {
-  return (
-    toNumber(guestCounts.adultCount) +
-    toNumber(guestCounts.childrenUnder3Count) +
-    toNumber(guestCounts.children4To12Count)
-  )
-}
-
 export function calcAdditionalLineTotal(
   line: AdditionalLineInput,
-  billableGuests: number,
+  billableGuestCount: number,
 ) {
   const quantity = toNumber(line.quantity)
   if (quantity <= 0) return 0
 
   const unitPrice = toNumber(line.unitPrice)
   if (line.perPerson) {
-    return roundMoney(unitPrice * billableGuests)
+    return roundMoney(unitPrice * billableGuestCount)
   }
   return roundMoney(unitPrice * quantity)
 }
@@ -130,7 +87,7 @@ export function calcAdditionalLineTotal(
 export function calculateQuoteTotals(
   input: CalculateQuoteTotalsInput,
 ): QuoteTotals {
-  const guestCounts = {
+  const guestCounts: GuestCounts = {
     adultCount: toNumber(input.guestCounts.adultCount),
     childrenUnder3Count: toNumber(input.guestCounts.childrenUnder3Count),
     children4To12Count: toNumber(input.guestCounts.children4To12Count),
@@ -139,18 +96,19 @@ export function calculateQuoteTotals(
   const billableAdults = guestCounts.adultCount
   const freeChildren = guestCounts.childrenUnder3Count
   const halfPriceChildren = guestCounts.children4To12Count * 0.5
-  const billableGuests = calcBillableGuests(guestCounts)
-  const physicalGuestTotal = calcPhysicalGuestTotal(guestCounts)
+  const billableGuestCount = calcBillableGuestCount(guestCounts)
+  const physicalGuestCount = calcPhysicalGuestCount(guestCounts)
 
   const packagePricePerPerson = toNumber(input.packagePricePerPerson)
-  const packageTotal = roundMoney(packagePricePerPerson * billableGuests)
+  const packageTotal = roundMoney(packagePricePerPerson * billableGuestCount)
 
   const additionalTotal =
     input.additionalTotalOverride != null
       ? roundMoney(toNumber(input.additionalTotalOverride))
       : roundMoney(
           (input.additionals ?? []).reduce(
-            (sum, line) => sum + calcAdditionalLineTotal(line, billableGuests),
+            (sum, line) =>
+              sum + calcAdditionalLineTotal(line, billableGuestCount),
             0,
           ),
         )
@@ -179,8 +137,8 @@ export function calculateQuoteTotals(
     billableAdults,
     freeChildren,
     halfPriceChildren,
-    billableGuests,
-    physicalGuestTotal,
+    billableGuestCount,
+    physicalGuestCount,
     packageTotal,
     additionalTotal,
     mileageFee,
@@ -191,55 +149,9 @@ export function calculateQuoteTotals(
   }
 }
 
-export function resolveGuestCountsFromQuote(
-  quote: QuoteRecordForGuests,
-): QuoteGuestCounts {
-  const hasSplitFields =
-    quote.children_under_3_count != null ||
-    quote.children_4_to_12_count != null
-
-  const adultCount = toNumber(quote.adult_count ?? quote.adults_count)
-
-  if (hasSplitFields) {
-    return {
-      adultCount,
-      childrenUnder3Count: toNumber(quote.children_under_3_count),
-      children4To12Count: toNumber(quote.children_4_to_12_count),
-      source: 'supabase_split',
-      usingLegacyFallback: false,
-    }
-  }
-
-  const childrenCount = toNumber(quote.children_count)
-  const billableFromDb = quote.billable_guest_count ?? quote.billable_guests
-
-  if (billableFromDb != null) {
-    const children4To12Count = Math.max(
-      0,
-      Math.round((toNumber(billableFromDb) - adultCount) * 2),
-    )
-    const childrenUnder3Count = Math.max(0, childrenCount - children4To12Count)
-
-    return {
-      adultCount,
-      childrenUnder3Count,
-      children4To12Count,
-      source: 'supabase_legacy_fallback',
-      usingLegacyFallback: true,
-    }
-  }
-
-  return {
-    adultCount,
-    childrenUnder3Count: 0,
-    children4To12Count: childrenCount,
-    source: 'supabase_legacy_fallback',
-    usingLegacyFallback: true,
-  }
-}
-
 export function calculateQuoteTotalsFromQuoteRecord(
   quote: QuoteRecordForGuests & {
+    id?: string
     package_price_per_person?: number | null
     package_unit_price?: number | null
     package_total?: number | null
@@ -259,7 +171,10 @@ export function calculateQuoteTotalsFromQuoteRecord(
     }> | null
   },
 ) {
-  const guestCounts = resolveGuestCountsFromQuote(quote)
+  const guestCounts = readOfficialGuestCountsFromQuote(
+    quote,
+    quote.id ? `quote:${quote.id}` : 'quote',
+  )
 
   const additionalTotalFromItems = roundMoney(
     (quote.additional_items ?? []).reduce(
@@ -268,7 +183,7 @@ export function calculateQuoteTotalsFromQuoteRecord(
     ),
   )
 
-  const calculated = calculateQuoteTotals({
+  const totals = calculateQuoteTotals({
     guestCounts,
     packagePricePerPerson: toNumber(
       quote.package_price_per_person ?? quote.package_unit_price,
@@ -287,7 +202,15 @@ export function calculateQuoteTotalsFromQuoteRecord(
 
   return {
     guestCounts,
-    billableGuests: calculated.billableGuests,
-    totals: calculated,
+    officialGuestPayload: buildOfficialGuestPayload(guestCounts),
+    billableGuestCount: totals.billableGuestCount,
+    totals,
   }
+}
+
+export {
+  buildOfficialGuestPayload,
+  calcBillableGuestCount,
+  calcPhysicalGuestCount,
+  readOfficialGuestCountsFromQuote,
 }

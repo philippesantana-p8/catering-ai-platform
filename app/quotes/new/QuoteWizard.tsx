@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import CdlBrandLogo from '../../../components/CdlBrandLogo'
 import { CdlImportantRulesPanel } from '../../../components/CdlImportantRulesPanel'
@@ -15,6 +16,7 @@ import {
   calcAdditionalLineTotal,
   calculateQuoteTotals,
 } from '../../../Lib/calculateQuoteTotals'
+import type { QuoteSaveInput } from '../../../Lib/buildQuoteSavePayload'
 import GuestBreakdownPanel from '../../../components/GuestBreakdownPanel'
 import AddressAutocompleteFields from './AddressAutocompleteFields'
 import {
@@ -726,7 +728,7 @@ function normalizeAdditionalQuantity(item: AdditionalItem, quantity: number) {
 function calcAdditionalLineTotalForItem(
   item: AdditionalItem,
   quantity: number,
-  billableGuests: number,
+  billableGuestCount: number,
 ) {
   const normalizedQty = normalizeAdditionalQuantity(item, quantity)
   if (normalizedQty <= 0) return 0
@@ -737,14 +739,14 @@ function calcAdditionalLineTotalForItem(
       unitPrice: getAdditionalUnitPrice(item),
       perPerson: isPerPersonAdditional(item),
     },
-    billableGuests,
+    billableGuestCount,
   )
 }
 
 function mapSelectedAdditionalRow(
   item: AdditionalItem,
   quantity: number,
-  billableGuests: number,
+  billableGuestCount: number,
 ) {
   const normalizedQty = normalizeAdditionalQuantity(item, quantity)
   return {
@@ -752,7 +754,7 @@ function mapSelectedAdditionalRow(
     quantity: normalizedQty,
     unitPrice: getAdditionalUnitPrice(item),
     perPerson: isPerPersonAdditional(item),
-    totalPrice: calcAdditionalLineTotalForItem(item, normalizedQty, billableGuests),
+    totalPrice: calcAdditionalLineTotalForItem(item, normalizedQty, billableGuestCount),
   }
 }
 
@@ -1023,19 +1025,19 @@ function PackageBlock({
 function AdditionalItemCard({
   item,
   quantity,
-  billableGuests,
+  billableGuestCount,
   onChangeQty,
 }: {
   item: AdditionalItem
   quantity: number
-  billableGuests: number
+  billableGuestCount: number
   onChangeQty: (qty: number) => void
 }) {
   const image = getAdditionalImage(item)
   const unitPrice = getAdditionalUnitPrice(item)
   const perPerson = isPerPersonAdditional(item)
   const normalizedQty = normalizeAdditionalQuantity(item, quantity)
-  const lineTotal = calcAdditionalLineTotalForItem(item, quantity, billableGuests)
+  const lineTotal = calcAdditionalLineTotalForItem(item, quantity, billableGuestCount)
   const isSelected = normalizedQty > 0
   const totalWeight = getAdditionalTotalWeight(item, quantity)
   const packLabel = !perPerson ? getAdditionalPackLabel(item) : null
@@ -1113,9 +1115,9 @@ function AdditionalItemCard({
                 <span className="text-sm font-bold text-cdl-price">
                   {formatCurrency(lineTotal)}
                 </span>
-                {billableGuests > 0 && (
+                {billableGuestCount > 0 && (
                   <p className="mt-0.5 text-xs text-cdl-subtle">
-                    {formatCurrency(unitPrice)} × {billableGuests}
+                    {formatCurrency(unitPrice)} × {billableGuestCount}
                   </p>
                 )}
               </div>
@@ -1189,7 +1191,7 @@ function AdditionalCategorySection({
   expanded,
   selectedCount,
   quantities,
-  billableGuests,
+  billableGuestCount,
   onToggle,
   onChangeQty,
 }: {
@@ -1198,7 +1200,7 @@ function AdditionalCategorySection({
   expanded: boolean
   selectedCount: number
   quantities: Record<string, number>
-  billableGuests: number
+  billableGuestCount: number
   onToggle: () => void
   onChangeQty: (itemId: string, qty: number) => void
 }) {
@@ -1241,7 +1243,7 @@ function AdditionalCategorySection({
                 key={item.id}
                 item={item}
                 quantity={quantities[item.id] ?? 0}
-                billableGuests={billableGuests}
+                billableGuestCount={billableGuestCount}
                 onChangeQty={(qty) => onChangeQty(item.id, qty)}
               />
             ))}
@@ -1663,6 +1665,9 @@ export default function QuoteWizard({
   )
   const [reservationAmountCustomized, setReservationAmountCustomized] =
     useState(false)
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const router = useRouter()
 
   const selectedCustomer = customers.find((c) => c.id === state.customerId) ?? null
   const selectedPackage = packages.find((p) => p.id === state.packageId) ?? null
@@ -1826,7 +1831,7 @@ export default function QuoteWizard({
     reservationAmountCustomized,
   ])
 
-  const billableGuests = quoteTotals.billableGuests
+  const billableGuestCount = quoteTotals.billableGuestCount
   const packageUnitPrice = selectedPackage ? getPackagePrice(selectedPackage) : 0
   const packageTotal = quoteTotals.packageTotal
 
@@ -1840,12 +1845,12 @@ export default function QuoteWizard({
             mapSelectedAdditionalRow(
               item,
               state.additionals[item.id] ?? 0,
-              billableGuests,
+              billableGuestCount,
             ),
           ),
       }))
       .filter(({ items }) => items.length > 0)
-  }, [additionalItemsByCategory, state.additionals, billableGuests])
+  }, [additionalItemsByCategory, state.additionals, billableGuestCount])
 
   const selectedAdditionals = useMemo(
     () => selectedAdditionalsByCategory.flatMap(({ items }) => items),
@@ -1988,6 +1993,73 @@ export default function QuoteWizard({
   )
 
   const quoteReady = isQuoteReadyToSave(stepStatusCtx)
+
+  async function handleSaveQuote() {
+    if (!quoteReady || !selectedCustomer || !selectedPackage || saving) return
+
+    setSaving(true)
+    setSaveError(null)
+
+    const payload: QuoteSaveInput = {
+      customerId: selectedCustomer.id,
+      packageId: selectedPackage.id,
+      eventName: state.eventName,
+      eventDate: state.eventDate,
+      startTime: state.startTime,
+      endTime: state.endTime,
+      adultCount: state.adultCount,
+      childrenUnder3Count: state.childrenUnder3Count,
+      children4To12Count: state.children4To12Count,
+      address: state.address,
+      city: state.city,
+      state: state.state,
+      zipCode: state.zipCode,
+      hasGrill: state.hasGrill,
+      grillPhotoRequired: state.grillPhotoRequired,
+      grillRentalRequired: state.grillRentalRequired,
+      grillRentalQty: state.grillRentalQty,
+      grillNotes: state.grillNotes,
+      baseLocation: state.baseLocation,
+      distance: state.distance,
+      freeLimit: state.freeLimit,
+      rate: state.rate,
+      reservationPercentage: state.reservationPercentage,
+      reservationAmount,
+      packagePricePerPerson: getPackagePrice(selectedPackage),
+      additionals: selectedAdditionals.map(
+        ({ item, quantity, unitPrice, perPerson, totalPrice }) => ({
+          itemId: item.id,
+          quantity,
+          unitPrice,
+          perPerson,
+          totalPrice,
+        }),
+      ),
+    }
+
+    try {
+      const response = await fetch('/api/quotes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+
+      const result = (await response.json()) as { id?: string; error?: string }
+
+      if (!response.ok || !result.id) {
+        console.error('[CDL Quote] Save failed:', result.error ?? response.statusText)
+        setSaveError('Não foi possível salvar a cotação. Tente novamente.')
+        return
+      }
+
+      router.push(`/quotes/${result.id}`)
+    } catch (error) {
+      console.error('[CDL Quote] Save request failed:', error)
+      setSaveError('Não foi possível salvar a cotação. Tente novamente.')
+    } finally {
+      setSaving(false)
+    }
+  }
 
   return (
     <main className="min-h-screen bg-cdl-bg px-4 py-8 text-cdl-fg sm:px-8 sm:py-10">
@@ -2381,7 +2453,7 @@ export default function QuoteWizard({
                     expanded={openAdditionalCategories.has(category)}
                     selectedCount={selectedCountByCategory[category] ?? 0}
                     quantities={state.additionals}
-                    billableGuests={billableGuests}
+                    billableGuestCount={billableGuestCount}
                     onToggle={() => toggleAdditionalCategory(category)}
                     onChangeQty={setAdditionalQty}
                   />
@@ -2561,9 +2633,9 @@ export default function QuoteWizard({
                           <p className="text-xl font-black text-cdl-price sm:text-2xl">
                             {formatCurrency(packageTotal)}
                           </p>
-                          {billableGuests > 0 && (
+                          {billableGuestCount > 0 && (
                             <p className="mt-1 text-xs text-cdl-subtle">
-                              {formatCurrency(packageUnitPrice)} × {billableGuests}
+                              {formatCurrency(packageUnitPrice)} × {billableGuestCount}
                             </p>
                           )}
                         </div>
@@ -2614,8 +2686,8 @@ export default function QuoteWizard({
                       children4To12Count: state.children4To12Count,
                     }}
                     totals={{
-                      billableGuests: quoteTotals.billableGuests,
-                      physicalGuestTotal: quoteTotals.physicalGuestTotal,
+                      billableGuestCount: quoteTotals.billableGuestCount,
+                      physicalGuestCount: quoteTotals.physicalGuestCount,
                       quoteTotal,
                     }}
                     variant="compact"
@@ -2715,7 +2787,7 @@ export default function QuoteWizard({
                                     </p>
                                     <p className="mt-1 text-3xl font-black text-cdl-price sm:text-4xl">
                                       {perPerson
-                                        ? billableGuests
+                                        ? billableGuestCount
                                         : quantity}
                                     </p>
                                     {!perPerson && totalWeight && (
@@ -2732,10 +2804,10 @@ export default function QuoteWizard({
                                     <p className="mt-1 text-xl font-bold text-cdl-price sm:text-2xl">
                                       {formatCurrency(totalPrice)}
                                     </p>
-                                    {perPerson && billableGuests > 0 && (
+                                    {perPerson && billableGuestCount > 0 && (
                                       <p className="mt-1 text-xs text-cdl-subtle">
                                         {formatCurrency(unitPrice)} / pessoa ×{' '}
-                                        {billableGuests}
+                                        {billableGuestCount}
                                       </p>
                                     )}
                                     {!perPerson && (
@@ -2853,12 +2925,16 @@ export default function QuoteWizard({
             <CdlImportantRulesPanel variant="summary" />
 
             <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+              {saveError ? (
+                <p className="text-sm text-red-400 sm:mr-auto">{saveError}</p>
+              ) : null}
               <button
                 type="button"
-                disabled={!quoteReady}
+                onClick={handleSaveQuote}
+                disabled={!quoteReady || saving}
                 className="cdl-btn-primary disabled:cursor-not-allowed disabled:opacity-40"
               >
-                Salvar / Gerar cotação
+                {saving ? 'Salvando…' : 'Salvar / Gerar cotação'}
               </button>
             </div>
           </div>
