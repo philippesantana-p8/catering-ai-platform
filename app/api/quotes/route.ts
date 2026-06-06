@@ -1,5 +1,6 @@
 import { createQuote } from '@/Lib/createQuote'
 import type { QuoteSaveInput } from '@/Lib/buildQuoteSavePayload'
+import { logSaveQuoteError } from '@/Lib/supabaseSaveError'
 
 export async function POST(request: Request) {
   let body: QuoteSaveInput
@@ -20,8 +21,15 @@ export async function POST(request: Request) {
   const { data, error } = await createQuote(body)
 
   if (error || !data?.id) {
+    if (error) logSaveQuoteError(error)
     return Response.json(
-      { error: 'Erro ao gravar cotação no Supabase.' },
+      {
+        error: error?.message ?? 'Erro ao gravar cotação no Supabase.',
+        code: error?.code ?? null,
+        details: error?.details ?? null,
+        hint: error?.hint ?? null,
+        stage: error?.stage ?? null,
+      },
       { status: 500 },
     )
   }

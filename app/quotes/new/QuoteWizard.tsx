@@ -12,6 +12,11 @@ import { calculateQuoteDraftFromSupabasePricing } from '../../../Lib/calculateQu
 import type { QuoteSaveInput } from '../../../Lib/buildQuoteSavePayload'
 import { createQuote } from '../../../Lib/createQuote'
 import { updateQuote } from '../../../Lib/updateQuote'
+import {
+  buildSaveQuoteError,
+  logSaveQuoteError,
+  type SaveQuoteErrorInfo,
+} from '../../../Lib/supabaseSaveError'
 import type { QuoteSnapshotRecord } from '../../../Lib/readQuoteSnapshot'
 import {
   buildPricingFingerprint,
@@ -1429,8 +1434,9 @@ export default function QuoteWizard({
   const [reservationAmountCustomized, setReservationAmountCustomized] =
     useState(false)
   const [saving, setSaving] = useState(false)
-  const [saveError, setSaveError] = useState<string | null>(null)
-  const [saveErrorDetail, setSaveErrorDetail] = useState<string | null>(null)
+  const [saveErrorInfo, setSaveErrorInfo] = useState<SaveQuoteErrorInfo | null>(
+    null,
+  )
   const router = useRouter()
 
   const selectedCustomer = customers.find((c) => c.id === state.customerId) ?? null
@@ -1782,28 +1788,25 @@ export default function QuoteWizard({
     if (saving) return
 
     if (mandatoryPendingSteps.length > 0) {
-      setSaveError(
-        isEditMode
-          ? 'Não foi possível salvar a cotação.'
-          : 'Não foi possível criar a cotação.',
+      const errorInfo = buildSaveQuoteError(
+        'validation',
+        new Error('Existem pendências obrigatórias nas etapas anteriores.'),
       )
-      setSaveErrorDetail('Existem pendências obrigatórias nas etapas anteriores.')
+      setSaveErrorInfo(errorInfo)
       return
     }
 
     if (!selectedCustomer || !selectedPackage) {
-      setSaveError(
-        isEditMode
-          ? 'Não foi possível salvar a cotação.'
-          : 'Não foi possível criar a cotação.',
+      const errorInfo = buildSaveQuoteError(
+        'validation',
+        new Error('Cliente ou pacote não selecionado.'),
       )
-      setSaveErrorDetail('Cliente ou pacote não selecionado.')
+      setSaveErrorInfo(errorInfo)
       return
     }
 
     setSaving(true)
-    setSaveError(null)
-    setSaveErrorDetail(null)
+    setSaveErrorInfo(null)
 
     const currentPricingFingerprint = buildPricingFingerprint(state)
     const recalculateSnapshot =
@@ -1854,15 +1857,11 @@ export default function QuoteWizard({
         : await createQuote(payload)
 
       if (result.error || !result.data?.id) {
-        console.error('Erro ao criar cotação:', result.error)
-        setSaveError(
-          isEditMode
-            ? 'Não foi possível salvar a cotação.'
-            : 'Não foi possível criar a cotação.',
-        )
-        setSaveErrorDetail(
-          result.error?.message ?? 'Erro desconhecido ao gravar no Supabase.',
-        )
+        const errorInfo =
+          result.error ??
+          buildSaveQuoteError('quote', new Error('Cotação não foi criada.'))
+        logSaveQuoteError(errorInfo, result.error)
+        setSaveErrorInfo(errorInfo)
         return
       }
 
@@ -1874,15 +1873,9 @@ export default function QuoteWizard({
       }
       router.push(`/quotes/${createdId}?${params.toString()}`)
     } catch (error) {
-      console.error('Erro ao criar cotação:', error)
-      setSaveError(
-        isEditMode
-          ? 'Não foi possível salvar a cotação.'
-          : 'Não foi possível criar a cotação.',
-      )
-      setSaveErrorDetail(
-        error instanceof Error ? error.message : String(error),
-      )
+      const errorInfo = buildSaveQuoteError('quote', error as Error)
+      logSaveQuoteError(errorInfo, error)
+      setSaveErrorInfo(errorInfo)
     } finally {
       setSaving(false)
     }
@@ -2431,8 +2424,7 @@ export default function QuoteWizard({
             mandatoryPendingSteps={mandatoryPendingSteps}
             quoteReady={quoteReady}
             saving={saving}
-            saveError={saveError}
-            saveErrorDetail={saveErrorDetail}
+            saveErrorInfo={saveErrorInfo}
             isEditMode={isEditMode}
             onGoToStep={setStep}
             onBack={goBack}

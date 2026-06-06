@@ -1,4 +1,5 @@
 import type { QuoteSaveInput } from '@/Lib/buildQuoteSavePayload'
+import { logSaveQuoteError } from '@/Lib/supabaseSaveError'
 import { updateQuote } from '@/Lib/updateQuote'
 
 export async function PATCH(
@@ -24,8 +25,15 @@ export async function PATCH(
   const { data, error } = await updateQuote(id, body)
 
   if (error || !data?.id) {
+    if (error) logSaveQuoteError(error)
     return Response.json(
-      { error: 'Erro ao atualizar cotação no Supabase.' },
+      {
+        error: error?.message ?? 'Erro ao atualizar cotação no Supabase.',
+        code: error?.code ?? null,
+        details: error?.details ?? null,
+        hint: error?.hint ?? null,
+        stage: error?.stage ?? null,
+      },
       { status: 500 },
     )
   }

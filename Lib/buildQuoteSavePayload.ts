@@ -85,31 +85,40 @@ function calcAdditionalBreakdown(
   }
 }
 
-function buildEventAndGrillPayload(input: QuoteSaveInput) {
+/** Dados do evento — tabela `events` (não `quotes`). */
+export function buildEventSavePayload(input: QuoteSaveInput) {
   return {
     customer_id: input.customerId,
-    package_id: input.packageId,
-    event_name: input.eventName,
+    company_id: getCdlCompanyId(),
+    event_name: input.eventName.trim(),
     event_date: input.eventDate || null,
     start_time: input.startTime || null,
     end_time: input.endTime || null,
-    address_line: input.address,
-    city: input.city,
-    state: input.state,
-    zip_code: input.zipCode,
+    address_line: input.address.trim(),
+    city: input.city.trim(),
+    state: input.state.trim(),
+    zip_code: input.zipCode.trim(),
+  }
+}
+
+function buildQuoteGrillAndMileagePayload(input: QuoteSaveInput) {
+  return {
+    customer_id: input.customerId,
+    package_id: input.packageId,
     has_grill: input.hasGrill,
     grill_photo_required: input.grillPhotoRequired,
     grill_rental_required: input.grillRentalRequired,
     grill_rental_qty: input.grillRentalRequired ? input.grillRentalQty : 0,
     grill_notes: input.grillNotes.trim() || null,
-    mileage_base_location: input.baseLocation.trim() || input.pricing.mileageBaseLocation,
+    mileage_base_location:
+      input.baseLocation.trim() || input.pricing.mileageBaseLocation,
     mileage_distance: input.distance,
   }
 }
 
 export function buildQuoteSavePayload(
   input: QuoteSaveInput,
-  options?: { mode?: 'create' | 'update' },
+  options?: { mode?: 'create' | 'update'; eventId?: string | null },
 ) {
   const guestCounts = {
     adultCount: input.adultCount,
@@ -132,19 +141,19 @@ export function buildQuoteSavePayload(
   const quoteDate = now.toISOString().slice(0, 10)
 
   const basePayload = {
-    ...buildEventAndGrillPayload(input),
+    ...buildQuoteGrillAndMileagePayload(input),
     ...officialGuests,
     total_guests: physicalGuestCount,
     additional_per_person_total: additionalBreakdown.additional_per_person_total,
     additional_per_unit_total: additionalBreakdown.additional_per_unit_total,
     updated_at: now.toISOString(),
+    ...(options?.eventId ? { event_id: options.eventId } : {}),
   }
 
   if (!shouldRecalculate && input.existingSnapshot) {
     const existing = input.existingSnapshot
     return {
       ...basePayload,
-      package_unit_price: existing.package_unit_price,
       package_price_per_person:
         existing.package_price_per_person ?? existing.package_unit_price,
       package_total: existing.package_total,
@@ -190,7 +199,6 @@ export function buildQuoteSavePayload(
   return {
     ...basePayload,
     ...createMeta,
-    package_unit_price: draftSnapshot.packageUnitPrice,
     package_price_per_person: draftSnapshot.packageUnitPrice,
     package_total: draftSnapshot.packageTotal,
     additional_total: draftSnapshot.additionalTotal,

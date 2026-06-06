@@ -5,7 +5,9 @@ import type { PendingStepIssue, StepStatusContext } from '@/app/quotes/new/wizar
 import type { QuoteTotals } from '@/Lib/calculateQuoteTotals'
 import type { WizardState } from '@/Lib/quoteWizardTypes'
 import type { CommercialRulesSnapshot } from '@/Lib/supabaseCommercialRules'
+import type { SaveQuoteErrorInfo } from '@/Lib/supabaseSaveError'
 import QuoteReviewLayout from './QuoteReviewLayout'
+import SaveQuoteTechnicalError from './SaveQuoteTechnicalError'
 import WizardCompletionProgress from './WizardCompletionProgress'
 import WizardQuoteValidationPanel from './WizardQuoteValidationPanel'
 import {
@@ -27,8 +29,7 @@ export default function QuoteWizardSummaryStep({
   mandatoryPendingSteps,
   quoteReady,
   saving,
-  saveError,
-  saveErrorDetail,
+  saveErrorInfo,
   isEditMode,
   onGoToStep,
   onBack,
@@ -47,8 +48,7 @@ export default function QuoteWizardSummaryStep({
   mandatoryPendingSteps: PendingStepIssue[]
   quoteReady: boolean
   saving: boolean
-  saveError: string | null
-  saveErrorDetail: string | null
+  saveErrorInfo: SaveQuoteErrorInfo | null
   isEditMode: boolean
   onGoToStep: (stepIndex: number) => void
   onBack: () => void
@@ -94,18 +94,11 @@ export default function QuoteWizardSummaryStep({
         onGoToStep={onGoToStep}
       />
 
-      {saveError ? (
-        <div
-          role="alert"
-          className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3"
-        >
-          <p className="text-sm font-semibold text-red-300">{saveError}</p>
-          {saveErrorDetail ? (
-            <p className="mt-1 font-mono text-xs text-red-400/80">
-              {saveErrorDetail}
-            </p>
-          ) : null}
-        </div>
+      {saveErrorInfo ? (
+        <SaveQuoteTechnicalError
+          errorInfo={saveErrorInfo}
+          isEditMode={isEditMode}
+        />
       ) : null}
 
       <div className="overflow-hidden rounded-2xl border border-cdl-border bg-cdl-bg shadow-cdl">
