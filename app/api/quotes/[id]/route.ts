@@ -1,6 +1,24 @@
 import type { QuoteSaveInput } from '@/Lib/buildQuoteSavePayload'
+import { deactivateQuote } from '@/Lib/deactivateQuote'
 import { logSaveQuoteError } from '@/Lib/supabaseSaveError'
 import { updateQuote } from '@/Lib/updateQuote'
+
+export async function DELETE(
+  _request: Request,
+  context: { params: Promise<{ id: string }> },
+) {
+  const { id } = await context.params
+  const { data, error } = await deactivateQuote(id)
+
+  if (error || !data?.id) {
+    return Response.json(
+      { error: error?.message ?? 'Erro ao excluir cotação.' },
+      { status: 500 },
+    )
+  }
+
+  return Response.json({ id: data.id })
+}
 
 export async function PATCH(
   request: Request,

@@ -1322,6 +1322,7 @@ function QuantityField({
   placeholder = '0',
   min = 0,
   disabled = false,
+  completion,
 }: {
   label: string
   value: number
@@ -1330,6 +1331,7 @@ function QuantityField({
   placeholder?: string
   min?: number
   disabled?: boolean
+  completion?: FieldCompletion
 }) {
   const [draft, setDraft] = useState(String(value))
   const [focused, setFocused] = useState(false)
@@ -1341,31 +1343,34 @@ function QuantityField({
   return (
     <label className={`flex flex-col gap-2 ${className}`}>
       <span className="cdl-eyebrow">{label}</span>
-      <input
-        type="text"
-        inputMode="numeric"
-        value={draft}
-        placeholder={placeholder}
-        disabled={disabled}
-        onFocus={() => setFocused(true)}
-        onBlur={() => {
-          setFocused(false)
-          const next =
-            draft === ''
-              ? min
-              : Math.max(min, Number.parseInt(draft, 10) || min)
-          onChange(next)
-          setDraft(String(next))
-        }}
-        onChange={(e) => {
-          const raw = e.target.value.replace(/\D/g, '')
-          setDraft(raw)
-          if (raw !== '') {
-            onChange(Math.max(min, Number.parseInt(raw, 10) || min))
-          }
-        }}
-        className="rounded-xl border border-cdl-border bg-cdl-inset px-4 py-3.5 text-base text-cdl-fg shadow-cdl outline-none transition-colors placeholder:text-cdl-faint focus:border-cdl-accent-border disabled:cursor-not-allowed disabled:opacity-40"
-      />
+      <div className="relative">
+        <input
+          type="text"
+          inputMode="numeric"
+          value={draft}
+          placeholder={placeholder}
+          disabled={disabled}
+          onFocus={() => setFocused(true)}
+          onBlur={() => {
+            setFocused(false)
+            const next =
+              draft === ''
+                ? min
+                : Math.max(min, Number.parseInt(draft, 10) || min)
+            onChange(next)
+            setDraft(String(next))
+          }}
+          onChange={(e) => {
+            const raw = e.target.value.replace(/\D/g, '')
+            setDraft(raw)
+            if (raw !== '') {
+              onChange(Math.max(min, Number.parseInt(raw, 10) || min))
+            }
+          }}
+          className={`w-full rounded-xl border px-4 py-3.5 pr-10 text-base text-cdl-fg shadow-cdl outline-none transition-colors placeholder:text-cdl-faint focus:border-cdl-accent-border disabled:cursor-not-allowed disabled:opacity-40 ${fieldCompletionClass(completion)}`}
+        />
+        <FieldCheck show={completion === 'filled'} />
+      </div>
     </label>
   )
 }
@@ -1989,7 +1994,30 @@ export default function QuoteWizard({
           </div>
         )}
 
-        {step === 0 && (
+        {step === 0 && isEditMode && selectedCustomer ? (
+          <SectionCard title="Etapa 1 — Cliente">
+            <div className="sm:col-span-2 rounded-xl border border-cdl-border bg-cdl-inset p-5">
+              <p className="text-xs font-bold uppercase tracking-wider text-cdl-muted">
+                Cliente da cotação (somente leitura)
+              </p>
+              <p className="mt-2 text-xl font-black text-cdl-title">
+                {getCustomerName(selectedCustomer)}
+              </p>
+              {selectedCustomer.email ? (
+                <p className="mt-1 text-sm text-cdl-muted">{selectedCustomer.email}</p>
+              ) : null}
+              {selectedCustomer.phone ? (
+                <p className="text-sm text-cdl-muted">{selectedCustomer.phone}</p>
+              ) : null}
+              <p className="mt-4 text-sm text-cdl-text-secondary">
+                O cliente não pode ser alterado nesta tela. Para trocar o
+                cliente, use o cadastro de clientes no futuro.
+              </p>
+            </div>
+          </SectionCard>
+        ) : null}
+
+        {step === 0 && !isEditMode && (
           <SectionCard title="Etapa 1 — Cliente">
             <div className="sm:col-span-2">
               <InputField
@@ -2049,6 +2077,14 @@ export default function QuoteWizard({
           </SectionCard>
         )}
 
+        {step === 0 && isEditMode && !selectedCustomer ? (
+          <SectionCard title="Etapa 1 — Cliente">
+            <p className="text-sm text-cdl-action sm:col-span-2">
+              Cliente não encontrado para esta cotação.
+            </p>
+          </SectionCard>
+        ) : null}
+
         {step === 1 && (
           <SectionCard title="Etapa 2 — Evento">
             <div className="grid grid-cols-1 gap-4 sm:col-span-2 sm:grid-cols-2">
@@ -2098,6 +2134,7 @@ export default function QuoteWizard({
                 label="Adultos"
                 value={state.adultCount}
                 onChange={(v) => updateState({ adultCount: v })}
+                completion={getFieldCompletion(state.adultCount)}
               />
               <QuantityField
                 label="Crianças até 3 anos"
@@ -2297,12 +2334,22 @@ export default function QuoteWizard({
 
         {step === 5 && (
           <SectionCard title="Etapa 6 — Milhagem">
+            <div className="sm:col-span-2 rounded-xl border border-cdl-warning-border bg-cdl-warning-soft px-4 py-3">
+              <p className="text-sm leading-relaxed text-cdl-text-secondary">
+                Base atual: {commercialRules.mileageBaseLocation}. Até{' '}
+                {commercialRules.mileageFreeLimit} mi grátis. Acima de{' '}
+                {commercialRules.mileageFreeLimit} mi, aplicar regra comercial
+                configurada.
+              </p>
+              {/* TODO: Future: calculate mileage automatically using event destination address and base location. */}
+            </div>
             <div className="grid grid-cols-1 gap-4 sm:col-span-2 sm:grid-cols-2">
               <InputField
                 label="Base Location"
                 value={state.baseLocation}
                 onChange={(v) => updateState({ baseLocation: v })}
                 placeholder="Local base"
+                completion={getFieldCompletion(state.baseLocation)}
               />
               <InputField
                 label="Distance (mi)"
@@ -2311,6 +2358,7 @@ export default function QuoteWizard({
                 onChange={(v) =>
                   updateState({ distance: Math.max(0, Number(v) || 0) })
                 }
+                completion={getFieldCompletion(state.distance)}
               />
               <InputField
                 label="Free Limit (mi)"

@@ -98,6 +98,9 @@ export function getStepIssues(
       if (!isFilled(state.city)) issues.push('Informe a cidade.')
       if (!isFilled(state.state)) issues.push('Informe o estado.')
       if (!isFilled(state.zipCode)) issues.push('Informe o CEP / zip code.')
+      if (!(state.adultCount > 0)) {
+        issues.push('Informe o número de adultos (mínimo 1).')
+      }
       break
     case 2:
       if (!state.grillSetupAnswered) {

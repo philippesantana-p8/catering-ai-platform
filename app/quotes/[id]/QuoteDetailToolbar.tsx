@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import DeleteQuoteButton from '@/components/DeleteQuoteButton'
 import QuotePdfDownload from './QuotePdfDownload'
 
 export default function QuoteDetailToolbar({
@@ -48,6 +49,7 @@ export default function QuoteDetailToolbar({
         >
           Imprimir / PDF
         </button>
+        <DeleteQuoteButton quoteId={quoteId} />
         <QuotePdfDownload
           quoteId={quoteId}
           quoteNumber={quoteNumber}

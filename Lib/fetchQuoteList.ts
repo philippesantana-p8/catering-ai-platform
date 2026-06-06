@@ -42,6 +42,8 @@ type QuoteRow = {
   quote_status: string | null
   created_at: string
   customer_id: string | null
+  event_id: string | null
+  package_id: string | null
   active: boolean | null
   reservation_amount: number | null
   balance_due: number | null
@@ -65,6 +67,19 @@ type CustomerRow = {
   ab_name?: string | null
 }
 
+type EventRow = {
+  id: string
+  event_date?: string | null
+  city?: string | null
+  state?: string | null
+}
+
+type PackageRow = {
+  id: string
+  package_name?: string | null
+  label_pt?: string | null
+}
+
 type GrillViewRow = {
   id: string
   has_grill?: boolean | null
@@ -72,19 +87,27 @@ type GrillViewRow = {
   grill_rental_required?: boolean | null
 }
 
-/** Colunas base de `quotes` usadas na listagem (sem campos de churrasqueira). */
+/** Colunas base de `quotes` — sem filtro por source ou quote_status. */
 const QUOTE_LIST_SELECT =
-  'id, quote_number, quote_total, quote_status, created_at, customer_id, active, reservation_amount, balance_due, physical_guest_count, billable_guest_count, additional_total, mileage_fee'
-
-function isActiveQuote(row: Pick<QuoteRow, 'active'>): row is QuoteRow & { active: true } {
-  return row.active === true
-}
+  'id, quote_number, quote_total, quote_status, created_at, customer_id, event_id, package_id, active, reservation_amount, balance_due, physical_guest_count, billable_guest_count, additional_total, mileage_fee'
 
 function resolveCustomerName(
   abName: string | null | undefined,
   detailName: string | null | undefined,
 ): string {
   return abName?.trim() || detailName?.trim() || 'Cliente não informado'
+}
+
+function resolvePackageName(
+  viewName: string | null | undefined,
+  packageRow: PackageRow | undefined,
+): string | null {
+  return (
+    viewName?.trim() ||
+    packageRow?.package_name?.trim() ||
+    packageRow?.label_pt?.trim() ||
+    null
+  )
 }
 
 function resolveGrillFields(
@@ -126,18 +149,15 @@ async function fetchGrillFieldsByQuoteId(
 }
 
 export function sortQuoteListItems(items: QuoteListItem[]): QuoteListItem[] {
-  return [...items].sort((a, b) => {
-    const eventA = a.event_date ? new Date(a.event_date).getTime() : 0
-    const eventB = b.event_date ? new Date(b.event_date).getTime() : 0
-    if (eventA !== eventB) return eventB - eventA
-    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-  })
+  return [...items].sort(
+    (a, b) =>
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+  )
 }
 
 /**
- * Lista cotações ativas da tabela `quotes`.
- * Usa `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_ANON_KEY` (Lib/supabase.ts).
- * Campos de churrasqueira vêm de `quote_detail_view` quando disponíveis; senão, defaults seguros.
+ * Lista cotações ativas da tabela `quotes` (active = true).
+ * Inclui draft, wizard e qualquer source — sem filtrar quote_status ou source.
  */
 export async function fetchQuoteList() {
   const companyId = getCdlCompanyId()
@@ -153,7 +173,7 @@ export async function fetchQuoteList() {
     return { data: null as QuoteListItem[] | null, error }
   }
 
-  const rows = ((quotes ?? []) as QuoteRow[]).filter(isActiveQuote)
+  const rows = (quotes ?? []) as QuoteRow[]
   if (rows.length === 0) {
     return { data: [], error: null }
   }
@@ -162,21 +182,50 @@ export async function fetchQuoteList() {
   const customerIds = [
     ...new Set(rows.map((row) => row.customer_id).filter(Boolean)),
   ] as string[]
+  const eventIds = [
+    ...new Set(rows.map((row) => row.event_id).filter(Boolean)),
+  ] as string[]
+  const packageIds = [
+    ...new Set(rows.map((row) => row.package_id).filter(Boolean)),
+  ] as string[]
 
-  const [customersRes, listViewRes, grillMap] = await Promise.all([
-    customerIds.length > 0
-      ? supabase.from('customers').select('id, ab_name').in('id', customerIds)
-      : Promise.resolve({ data: [] as CustomerRow[], error: null }),
-    supabase
-      .from('quote_list_view')
-      .select('id, event_date, customer_name, city, state, package_name')
-      .in('id', quoteIds),
-    fetchGrillFieldsByQuoteId(quoteIds),
-  ])
+  const [customersRes, listViewRes, eventsRes, packagesRes, grillMap] =
+    await Promise.all([
+      customerIds.length > 0
+        ? supabase.from('customers').select('id, ab_name').in('id', customerIds)
+        : Promise.resolve({ data: [] as CustomerRow[], error: null }),
+      supabase
+        .from('quote_list_view')
+        .select('id, event_date, customer_name, city, state, package_name')
+        .in('id', quoteIds),
+      eventIds.length > 0
+        ? supabase
+            .from('events')
+            .select('id, event_date, city, state')
+            .in('id', eventIds)
+        : Promise.resolve({ data: [] as EventRow[], error: null }),
+      packageIds.length > 0
+        ? supabase
+            .from('packages')
+            .select('id, package_name, label_pt')
+            .in('id', packageIds)
+        : Promise.resolve({ data: [] as PackageRow[], error: null }),
+      fetchGrillFieldsByQuoteId(quoteIds),
+    ])
+
+  if (customersRes.error) {
+    console.warn(
+      '[CDL Quote] customers enrichment failed; using fallbacks:',
+      customersRes.error.message,
+    )
+  }
 
   let listViewRows = (listViewRes.data ?? []) as ListViewRow[]
   if (listViewRes.error) {
-    console.warn('[CDL Quote] quote_list_view enrichment failed:', listViewRes.error.message)
+    console.warn(
+      '[CDL Quote] quote_list_view enrichment failed:',
+      listViewRes.error.message,
+    )
     const { data: detailRows } = await supabase
       .from('quote_detail_view')
       .select('id, event_date, customer_name, city, state, package_name_pt')
@@ -191,20 +240,38 @@ export async function fetchQuoteList() {
     }))
   }
 
-  if (customersRes.error) {
-    return { data: null, error: customersRes.error }
+  if (eventsRes.error) {
+    console.warn(
+      '[CDL Quote] events enrichment failed:',
+      eventsRes.error.message,
+    )
+  }
+
+  if (packagesRes.error) {
+    console.warn(
+      '[CDL Quote] packages enrichment failed:',
+      packagesRes.error.message,
+    )
   }
 
   const customerMap = new Map(
-    (customersRes.data ?? []).map((customer) => [
+    ((customersRes.data ?? []) as CustomerRow[]).map((customer) => [
       customer.id,
       customer.ab_name,
     ]),
   )
   const listViewMap = new Map(listViewRows.map((row) => [row.id, row]))
+  const eventMap = new Map(
+    ((eventsRes.data ?? []) as EventRow[]).map((row) => [row.id, row]),
+  )
+  const packageMap = new Map(
+    ((packagesRes.data ?? []) as PackageRow[]).map((row) => [row.id, row]),
+  )
 
   const data = rows.map((row) => {
     const view = listViewMap.get(row.id)
+    const event = row.event_id ? eventMap.get(row.event_id) : undefined
+    const pkg = row.package_id ? packageMap.get(row.package_id) : undefined
     const abName = row.customer_id
       ? customerMap.get(row.customer_id)
       : undefined
@@ -215,11 +282,11 @@ export async function fetchQuoteList() {
       quote_number: row.quote_number ?? '—',
       customer_name: resolveCustomerName(abName, view?.customer_name),
       quote_status: row.quote_status,
-      event_date: view?.event_date ?? null,
+      event_date: view?.event_date ?? event?.event_date ?? null,
       created_at: row.created_at,
-      city: view?.city ?? null,
-      state: view?.state ?? null,
-      package_name: view?.package_name ?? null,
+      city: view?.city ?? event?.city ?? null,
+      state: view?.state ?? event?.state ?? null,
+      package_name: resolvePackageName(view?.package_name, pkg),
       quote_total: row.quote_total,
       reservation_amount: row.reservation_amount,
       balance_due: row.balance_due,

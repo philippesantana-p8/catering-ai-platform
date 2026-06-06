@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import DeleteQuoteButton from '@/components/DeleteQuoteButton'
 import type { QuoteListItem } from '@/Lib/fetchQuoteList'
 import { QuoteBoolBadge } from './QuoteStatusBadge'
 import QuoteStatusBadge from './QuoteStatusBadge'
@@ -137,6 +138,7 @@ export default function QuoteCard({ quote }: { quote: QuoteListItem }) {
         >
           Editar
         </Link>
+        <DeleteQuoteButton quoteId={quote.id} compact />
         <Link
           href={`/quotes/${quote.id}?pdf=1`}
           className="inline-flex min-w-0 flex-1 items-center justify-center rounded-lg border border-cdl-border bg-cdl-inset px-3 py-2 text-xs font-bold uppercase tracking-wider text-cdl-fg transition-colors hover:border-cdl-accent-border sm:flex-none"

@@ -1,0 +1,27 @@
+import { supabase } from './supabase'
+
+export async function deactivateQuote(quoteId: string) {
+  const { data, error } = await supabase
+    .from('quotes')
+    .update({
+      active: false,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', quoteId)
+    .eq('active', true)
+    .select('id')
+    .maybeSingle()
+
+  if (error) {
+    return { data: null, error }
+  }
+
+  if (!data?.id) {
+    return {
+      data: null,
+      error: new Error('Cotação não encontrada ou já excluída.'),
+    }
+  }
+
+  return { data: { id: data.id as string }, error: null }
+}
