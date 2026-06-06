@@ -10,6 +10,8 @@ import { calcAdditionalLineTotal } from '../../../Lib/calculateQuoteTotals'
 import type { CommercialRulesSnapshot } from '../../../Lib/supabaseCommercialRules'
 import { calculateQuoteDraftFromSupabasePricing } from '../../../Lib/calculateQuoteDraftFromSupabasePricing'
 import type { QuoteSaveInput } from '../../../Lib/buildQuoteSavePayload'
+import { createQuote } from '../../../Lib/createQuote'
+import { updateQuote } from '../../../Lib/updateQuote'
 import type { QuoteSnapshotRecord } from '../../../Lib/readQuoteSnapshot'
 import {
   buildPricingFingerprint,
@@ -1428,6 +1430,7 @@ export default function QuoteWizard({
     useState(false)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [saveErrorDetail, setSaveErrorDetail] = useState<string | null>(null)
   const router = useRouter()
 
   const selectedCustomer = customers.find((c) => c.id === state.customerId) ?? null
@@ -1762,6 +1765,9 @@ export default function QuoteWizard({
   }
 
   function goNext() {
+    if (step === 2 && !state.grillSetupAnswered) {
+      updateState({ grillSetupAnswered: true })
+    }
     if (step < STEPS.length - 1) setStep((s) => s + 1)
   }
 
@@ -1773,10 +1779,31 @@ export default function QuoteWizard({
   const quoteReady = isQuoteReadyToSave(stepStatusCtx)
 
   async function handleSaveQuote(openReview = false) {
-    if (!quoteReady || !selectedCustomer || !selectedPackage || saving) return
+    if (saving) return
+
+    if (mandatoryPendingSteps.length > 0) {
+      setSaveError(
+        isEditMode
+          ? 'Não foi possível salvar a cotação.'
+          : 'Não foi possível criar a cotação.',
+      )
+      setSaveErrorDetail('Existem pendências obrigatórias nas etapas anteriores.')
+      return
+    }
+
+    if (!selectedCustomer || !selectedPackage) {
+      setSaveError(
+        isEditMode
+          ? 'Não foi possível salvar a cotação.'
+          : 'Não foi possível criar a cotação.',
+      )
+      setSaveErrorDetail('Cliente ou pacote não selecionado.')
+      return
+    }
 
     setSaving(true)
     setSaveError(null)
+    setSaveErrorDetail(null)
 
     const currentPricingFingerprint = buildPricingFingerprint(state)
     const recalculateSnapshot =
@@ -1822,39 +1849,39 @@ export default function QuoteWizard({
     }
 
     try {
-      const response = await fetch(
-        isEditMode ? `/api/quotes/${quoteId}` : '/api/quotes',
-        {
-          method: isEditMode ? 'PATCH' : 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        },
-      )
+      const result = isEditMode
+        ? await updateQuote(quoteId!, payload)
+        : await createQuote(payload)
 
-      const result = (await response.json()) as { id?: string; error?: string }
-
-      if (!response.ok || !result.id) {
-        console.error('[CDL Quote] Save failed:', result.error ?? response.statusText)
+      if (result.error || !result.data?.id) {
+        console.error('Erro ao criar cotação:', result.error)
         setSaveError(
           isEditMode
-            ? 'Não foi possível atualizar a cotação. Tente novamente.'
-            : 'Não foi possível salvar a cotação. Tente novamente.',
+            ? 'Não foi possível salvar a cotação.'
+            : 'Não foi possível criar a cotação.',
+        )
+        setSaveErrorDetail(
+          result.error?.message ?? 'Erro desconhecido ao gravar no Supabase.',
         )
         return
       }
 
+      const createdId = result.data.id
       const params = new URLSearchParams()
       params.set(isEditMode ? 'updated' : 'created', '1')
       if (openReview) {
         params.set('review', '1')
       }
-      router.push(`/quotes/${result.id}?${params.toString()}`)
+      router.push(`/quotes/${createdId}?${params.toString()}`)
     } catch (error) {
-      console.error('[CDL Quote] Save request failed:', error)
+      console.error('Erro ao criar cotação:', error)
       setSaveError(
         isEditMode
-          ? 'Não foi possível atualizar a cotação. Tente novamente.'
-          : 'Não foi possível salvar a cotação. Tente novamente.',
+          ? 'Não foi possível salvar a cotação.'
+          : 'Não foi possível criar a cotação.',
+      )
+      setSaveErrorDetail(
+        error instanceof Error ? error.message : String(error),
       )
     } finally {
       setSaving(false)
@@ -2405,6 +2432,7 @@ export default function QuoteWizard({
             quoteReady={quoteReady}
             saving={saving}
             saveError={saveError}
+            saveErrorDetail={saveErrorDetail}
             isEditMode={isEditMode}
             onGoToStep={setStep}
             onBack={goBack}

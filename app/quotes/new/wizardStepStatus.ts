@@ -100,8 +100,8 @@ export function getStepIssues(
       if (!isFilled(state.zipCode)) issues.push('Informe o CEP / zip code.')
       break
     case 2:
-      if (!state.grillSetupAnswered) {
-        issues.push('Informe se o cliente possui churrasqueira.')
+      if (state.hasGrill && !state.grillSetupAnswered) {
+        issues.push('Confirme se o cliente possui churrasqueira.')
       }
       if (state.hasGrill && !state.grillPhotoRequired) {
         issues.push(
