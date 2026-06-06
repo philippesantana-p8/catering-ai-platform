@@ -37,7 +37,7 @@ export default function RootLayout({
       </head>
       <body className="flex min-h-full flex-col bg-cdl-bg text-cdl-fg">
         <ThemeProvider>
-          <div className="pointer-events-none fixed top-4 right-4 z-50 sm:top-6 sm:right-6">
+          <div className="no-print pointer-events-none fixed top-4 right-4 z-50 sm:top-6 sm:right-6">
             <div className="pointer-events-auto">
               <ThemeToggle />
             </div>

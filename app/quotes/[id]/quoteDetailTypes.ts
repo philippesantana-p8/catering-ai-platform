@@ -1,0 +1,168 @@
+export type QuoteAdditionalItem = {
+  item_id: string
+  item_key?: string
+  label_pt?: string
+  label_en?: string
+  label_es?: string
+  category_pt?: string
+  category_en?: string
+  category_es?: string
+  quantity?: number | null
+  unit_price?: number | null
+  total_price?: number | null
+  image_url?: string | null
+  photo_url?: string | null
+  image_status?: string | null
+}
+
+export type QuoteDetail = {
+  id: string
+  quote_number?: string | null
+  quote_status?: string | null
+  created_at?: string | null
+  language?: string | null
+  customer_name?: string | null
+  package_name_pt?: string | null
+  package_name_en?: string | null
+  package_name_es?: string | null
+  package_description_pt?: string | null
+  package_description_en?: string | null
+  package_description_es?: string | null
+  package_description?: string | null
+  package_unit_price?: number | null
+  package_image_url?: string | null
+  billable_guests?: number | null
+  event_name?: string | null
+  event_date?: string | null
+  start_time?: string | null
+  end_time?: string | null
+  venue_name?: string | null
+  address_line?: string | null
+  city?: string | null
+  state?: string | null
+  zip_code?: string | null
+  postal_code?: string | null
+  has_grill?: boolean | null
+  grill_photo_required?: boolean | null
+  grill_rental_required?: boolean | null
+  grill_rental_qty?: number | null
+  grill_notes?: string | null
+  grill_masters_qty?: number | null
+  assistants_qty?: number | null
+  mileage_base_location?: string | null
+  mileage_distance?: number | null
+  mileage_free_limit?: number | null
+  mileage_rate?: number | null
+  mileage_fee?: number | null
+  package_total?: number | null
+  additional_total?: number | null
+  discount?: number | null
+  discount_amount?: number | null
+  reservation_amount?: number | null
+  balance_due?: number | null
+  quote_total?: number | null
+  additional_items?: QuoteAdditionalItem[] | null
+}
+
+export function formatCurrency(value: number | null | undefined) {
+  return `$${Number(value ?? 0).toFixed(2)}`
+}
+
+export function formatDate(value: string | null | undefined) {
+  if (!value) return '—'
+  const normalized = value.includes('T') ? value : `${value}T00:00:00`
+  const date = new Date(normalized)
+  if (Number.isNaN(date.getTime())) return '—'
+  return date.toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+  })
+}
+
+export function formatTime(value: string | null | undefined) {
+  if (!value) return '—'
+  const parts = value.split(':')
+  if (parts.length < 2) return value
+  return `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`
+}
+
+export function formatBool(value: boolean | null | undefined) {
+  if (value === null || value === undefined) return '—'
+  return value ? 'Sim' : 'Não'
+}
+
+export function displayValue(value: unknown) {
+  if (value === null || value === undefined || value === '') return '—'
+  return String(value)
+}
+
+export function getAdditionalLabel(
+  item: QuoteAdditionalItem,
+  language: string,
+) {
+  if (language === 'en') return item.label_en ?? item.label_pt ?? '—'
+  if (language === 'es') return item.label_es ?? item.label_pt ?? '—'
+  return item.label_pt ?? '—'
+}
+
+export function getAdditionalCategory(
+  item: QuoteAdditionalItem,
+  language: string,
+) {
+  if (language === 'en') return item.category_en ?? item.category_pt ?? 'Outros'
+  if (language === 'es') return item.category_es ?? item.category_pt ?? 'Outros'
+  return item.category_pt ?? 'Outros'
+}
+
+export function getPackageName(quote: QuoteDetail) {
+  if (quote.language === 'en') return quote.package_name_en ?? quote.package_name_pt
+  if (quote.language === 'es') return quote.package_name_es ?? quote.package_name_pt
+  return quote.package_name_pt
+}
+
+export function getPackageDescription(quote: QuoteDetail) {
+  if (quote.package_description) return quote.package_description
+  if (quote.language === 'en') return quote.package_description_en
+  if (quote.language === 'es') return quote.package_description_es
+  return quote.package_description_pt
+}
+
+export function getChargedMiles(quote: QuoteDetail) {
+  const distance = Number(quote.mileage_distance ?? 0)
+  const freeLimit = Number(quote.mileage_free_limit ?? 0)
+  return Math.max(0, distance - freeLimit)
+}
+
+export function getDiscount(quote: QuoteDetail) {
+  if (quote.discount_amount != null) return quote.discount_amount
+  return quote.discount ?? 0
+}
+
+export function getZipCode(quote: QuoteDetail) {
+  return quote.zip_code ?? quote.postal_code ?? null
+}
+
+export function getAdditionalImage(item: QuoteAdditionalItem) {
+  if (item.image_status === 'missing') return null
+  return item.image_url ?? item.photo_url ?? null
+}
+
+export function groupAdditionalsByCategory(
+  items: QuoteAdditionalItem[],
+  language: string,
+) {
+  const groups = new Map<string, QuoteAdditionalItem[]>()
+
+  for (const item of items) {
+    const category = getAdditionalCategory(item, language)
+    const list = groups.get(category) ?? []
+    list.push(item)
+    groups.set(category, list)
+  }
+
+  return Array.from(groups.entries()).map(([category, categoryItems]) => ({
+    category,
+    items: categoryItems,
+  }))
+}

@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import CdlBrandLogo from '../../components/CdlBrandLogo'
 import { supabase } from '../../Lib/supabase'
 
 export default async function QuotesPage() {
@@ -21,13 +22,17 @@ export default async function QuotesPage() {
   return (
     <main className="min-h-screen bg-cdl-bg px-6 py-10 text-cdl-fg sm:px-10">
       <div className="mx-auto max-w-4xl">
-        <h1 className="text-4xl font-black text-cdl-title sm:text-5xl">
-          COTAÇÕES CDL
-        </h1>
-
-        <p className="mt-2 text-cdl-text-secondary">
-          Catering AI Platform · BBQ at Home
-        </p>
+        <div className="flex items-center gap-5">
+          <CdlBrandLogo size="sm" className="!h-20 !w-20" />
+          <div>
+            <h1 className="text-4xl font-black text-cdl-title sm:text-5xl">
+              COTAÇÕES CDL
+            </h1>
+            <p className="mt-2 text-cdl-text-secondary">
+              Catering AI Platform · BBQ at Home
+            </p>
+          </div>
+        </div>
 
         <Link
           href="/quotes/new"

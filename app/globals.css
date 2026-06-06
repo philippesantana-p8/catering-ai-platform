@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./quotes/[id]/quote-print.css";
 
 /* ── Dark Premium — CDL BBQ at Home ── */
 :root,
@@ -278,3 +279,4 @@ body {
   color: var(--cdl-fg);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
+

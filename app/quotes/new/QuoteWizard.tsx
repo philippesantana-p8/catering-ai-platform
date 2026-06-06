@@ -2,6 +2,15 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import CdlBrandLogo from '../../../components/CdlBrandLogo'
+import { CdlImportantRulesPanel } from '../../../components/CdlImportantRulesPanel'
+import {
+  MILEAGE_BASE_LOCATION,
+  MILEAGE_FREE_LIMIT,
+  MILEAGE_RATE,
+  RESERVATION_PAYMENT_TEXT,
+  RESERVATION_PERCENTAGE,
+} from '../../../Lib/cdlCommercialRules'
 import AddressAutocompleteFields from './AddressAutocompleteFields'
 import {
   countCompletedSteps,
@@ -135,11 +144,11 @@ const initialState: WizardState = {
   grillNotes: '',
   packageId: null,
   additionals: {},
-  baseLocation: '',
+  baseLocation: MILEAGE_BASE_LOCATION,
   distance: 0,
-  freeLimit: 0,
-  rate: 0,
-  reservationPercentage: 20,
+  freeLimit: MILEAGE_FREE_LIMIT,
+  rate: MILEAGE_RATE,
+  reservationPercentage: RESERVATION_PERCENTAGE,
   reservationAmount: 0,
   reservationNotes: '',
 }
@@ -1872,14 +1881,17 @@ export default function QuoteWizard({
             className="pointer-events-none absolute inset-0 cdl-hero-glow"
             aria-hidden
           />
-          <div className="relative">
-            <span className="cdl-hero-tag">Nova cotação</span>
-            <h1 className="mt-5 text-4xl font-black tracking-tight text-cdl-title sm:text-5xl lg:text-[3.25rem]">
-              BBQ AT HOME
-            </h1>
-            <p className="mt-3 max-w-2xl text-base text-cdl-text-secondary sm:text-lg">
-              Premium Brazilian BBQ Experience · Orlando, Florida
-            </p>
+          <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center">
+            <CdlBrandLogo size="md" />
+            <div className="min-w-0 flex-1">
+              <span className="cdl-hero-tag">Nova cotação</span>
+              <h1 className="mt-4 text-4xl font-black tracking-tight text-cdl-title sm:text-5xl lg:text-[3.25rem]">
+                BBQ AT HOME
+              </h1>
+              <p className="mt-3 max-w-2xl text-base text-cdl-text-secondary sm:text-lg">
+                Premium Brazilian BBQ Experience · Orlando, Florida
+              </p>
+            </div>
           </div>
         </header>
 
@@ -2303,6 +2315,13 @@ export default function QuoteWizard({
           <SectionCard title="Etapa 7 — Reserva">
             <div className="grid grid-cols-1 gap-4 sm:col-span-2 sm:grid-cols-2">
               <div className="sm:col-span-2">
+                <div className="rounded-2xl border border-cdl-accent-border bg-cdl-inset px-4 py-4">
+                  <p className="text-sm leading-relaxed text-cdl-text-secondary">
+                    {RESERVATION_PAYMENT_TEXT}
+                  </p>
+                </div>
+              </div>
+              <div className="sm:col-span-2">
                 <div className="rounded-2xl border border-cdl-border bg-cdl-inset px-4 py-3">
                   <p className="text-xs font-semibold uppercase tracking-wider text-cdl-muted">
                     Total da cotação
@@ -2684,6 +2703,8 @@ export default function QuoteWizard({
                 </span>
               </div>
             </section>
+
+            <CdlImportantRulesPanel variant="summary" />
           </div>
         )}
 

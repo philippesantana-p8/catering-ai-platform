@@ -1,0 +1,942 @@
+/* ── Premium Proposal — screen + print ── */
+
+.quote-proposal {
+  --proposal-red: #d62828;
+  --proposal-gold: #f4b400;
+  --proposal-dark: #111111;
+  --proposal-light: #faf7f2;
+  --proposal-muted: #6b6560;
+  --proposal-border: #e8e2d9;
+  font-family: var(--font-proposal-sans), 'Montserrat', system-ui, sans-serif;
+  color: var(--proposal-dark);
+  background: var(--proposal-light);
+}
+
+.quote-proposal .quote-proposal-title,
+.quote-proposal .quote-proposal-section-title,
+.quote-proposal .quote-proposal-package-name,
+.quote-proposal .quote-proposal-event-name,
+.quote-proposal .quote-proposal-footer-brand {
+  font-family: var(--font-proposal-serif), 'Playfair Display', Georgia, serif;
+}
+
+.quote-proposal-toolbar-wrap {
+  padding-top: 2rem;
+}
+
+.cdl-brand-logo {
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.12));
+}
+
+.quote-print-logo .cdl-brand-logo {
+  width: 7rem;
+  height: 7rem;
+}
+
+/* Hero */
+.quote-proposal-hero {
+  background: linear-gradient(135deg, #111111 0%, #1a1414 55%, #111111 100%);
+  color: #ffffff;
+  border-bottom: 4px solid var(--proposal-gold);
+}
+
+.quote-proposal-hero-inner {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+.quote-proposal-hero-brand {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  align-items: flex-start;
+}
+
+@media (min-width: 640px) {
+  .quote-proposal-hero-brand {
+    flex-direction: row;
+    align-items: center;
+  }
+}
+
+.quote-proposal-title {
+  font-size: clamp(2.25rem, 5vw, 3.5rem);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1.05;
+  color: #ffffff;
+}
+
+.quote-proposal-tagline {
+  margin-top: 0.5rem;
+  font-size: 1rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--proposal-gold);
+}
+
+.quote-proposal-location {
+  margin-top: 0.35rem;
+  font-size: 0.95rem;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.quote-proposal-hero-meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 0.75rem;
+}
+
+.quote-proposal-meta-card {
+  border: 1px solid rgba(244, 180, 0, 0.35);
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 0.85rem 1rem;
+}
+
+.quote-proposal-meta-card--status {
+  border-color: rgba(214, 40, 40, 0.45);
+}
+
+.quote-proposal-label {
+  display: block;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--proposal-muted);
+}
+
+.quote-proposal-hero .quote-proposal-label {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.quote-proposal-meta-value {
+  margin-top: 0.3rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+/* Body */
+.quote-proposal-body {
+  padding-top: 1.5rem;
+}
+
+.quote-proposal-overview {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--proposal-border);
+  border-radius: 1rem;
+  background: #ffffff;
+  box-shadow: 0 8px 24px rgba(17, 17, 17, 0.05);
+}
+
+@media (min-width: 768px) {
+  .quote-proposal-overview {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.quote-proposal-overview-item--total {
+  border-left: 3px solid var(--proposal-red);
+  padding-left: 0.75rem;
+}
+
+.quote-proposal-overview-total {
+  margin-top: 0.25rem;
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--proposal-red);
+}
+
+.quote-proposal-value {
+  margin-top: 0.2rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--proposal-dark);
+  line-height: 1.4;
+}
+
+.quote-proposal-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+@media (min-width: 1024px) {
+  .quote-proposal-grid-2 {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.quote-proposal-section {
+  border: 1px solid var(--proposal-border);
+  border-radius: 1rem;
+  background: #ffffff;
+  padding: 1.25rem 1.35rem;
+  box-shadow: 0 6px 20px rgba(17, 17, 17, 0.04);
+}
+
+.quote-proposal-section--compact {
+  margin-bottom: 1rem;
+}
+
+.quote-proposal-section-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--proposal-dark);
+  padding-bottom: 0.55rem;
+  margin-bottom: 1rem;
+  border-bottom: 2px solid var(--proposal-red);
+  letter-spacing: 0.02em;
+}
+
+.quote-proposal-package-name {
+  font-size: 1.65rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--proposal-dark);
+}
+
+.quote-proposal-package-desc {
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--proposal-muted);
+}
+
+.quote-proposal-highlight-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-top: 1.1rem;
+}
+
+.quote-proposal-highlight-card {
+  border-radius: 0.85rem;
+  border: 1px solid var(--proposal-border);
+  background: var(--proposal-light);
+  padding: 0.9rem 1rem;
+}
+
+.quote-proposal-highlight-card--price {
+  border-color: rgba(214, 40, 40, 0.25);
+  background: linear-gradient(135deg, #fff8f8 0%, #ffffff 100%);
+}
+
+.quote-proposal-highlight-value {
+  margin-top: 0.35rem;
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: var(--proposal-red);
+  line-height: 1.1;
+}
+
+.quote-proposal-highlight-card--price .quote-proposal-highlight-value {
+  color: var(--proposal-dark);
+}
+
+.quote-proposal-event-name {
+  font-size: 1.35rem;
+  font-weight: 700;
+  margin-bottom: 0.85rem;
+}
+
+.quote-proposal-event-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.quote-proposal-event-row {
+  display: flex;
+  gap: 0.85rem;
+  align-items: flex-start;
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.75rem;
+  background: var(--proposal-light);
+  border: 1px solid var(--proposal-border);
+}
+
+.quote-proposal-event-icon {
+  flex-shrink: 0;
+  width: 2.25rem;
+  height: 2.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(214, 40, 40, 0.08);
+  color: var(--proposal-red);
+}
+
+.quote-proposal-info-grid,
+.quote-proposal-mileage-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem;
+}
+
+.quote-proposal-info-cell {
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.65rem;
+  border: 1px solid var(--proposal-border);
+  background: var(--proposal-light);
+}
+
+.quote-proposal-info-cell--wide {
+  grid-column: 1 / -1;
+}
+
+.quote-proposal-team-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.quote-proposal-team-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 1.1rem 0.75rem;
+  border-radius: 0.85rem;
+  border: 1px solid var(--proposal-border);
+  background: linear-gradient(180deg, #ffffff 0%, var(--proposal-light) 100%);
+}
+
+.quote-proposal-team-icon {
+  width: 3.25rem;
+  height: 3.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  margin-bottom: 0.65rem;
+  background: rgba(244, 180, 0, 0.15);
+  color: var(--proposal-dark);
+}
+
+.quote-proposal-team-value {
+  margin-top: 0.35rem;
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--proposal-red);
+  line-height: 1;
+}
+
+.quote-proposal-muted {
+  color: var(--proposal-muted);
+  font-size: 0.95rem;
+}
+
+.quote-proposal-additionals {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.quote-proposal-category-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--proposal-red);
+  margin-bottom: 0.65rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid var(--proposal-border);
+}
+
+.quote-proposal-additional-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+
+@media (min-width: 640px) {
+  .quote-proposal-additional-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.quote-proposal-additional-card {
+  overflow: hidden;
+  border-radius: 0.85rem;
+  border: 1px solid var(--proposal-border);
+  background: #ffffff;
+}
+
+.quote-proposal-additional-image {
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: #ece7df;
+}
+
+.quote-proposal-placeholder {
+  aspect-ratio: 16 / 9;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  background: linear-gradient(145deg, #f3efe8 0%, #ebe4da 100%);
+  color: #9a9288;
+  border-bottom: 1px solid var(--proposal-border);
+}
+
+.quote-proposal-placeholder-icon {
+  width: 2rem;
+  height: 2rem;
+  opacity: 0.65;
+}
+
+.quote-proposal-placeholder span {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.quote-proposal-additional-body {
+  padding: 0.85rem 0.95rem;
+}
+
+.quote-proposal-additional-name {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--proposal-dark);
+}
+
+.quote-proposal-additional-metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  margin-top: 0.65rem;
+}
+
+.quote-proposal-additional-metric {
+  margin-top: 0.15rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--proposal-dark);
+}
+
+.quote-proposal-additional-total {
+  margin-top: 0.65rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid var(--proposal-border);
+}
+
+.quote-proposal-additional-price {
+  margin-top: 0.15rem;
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--proposal-red);
+}
+
+/* Pricing */
+.quote-proposal-pricing {
+  margin-top: 1rem;
+  border: 1px solid var(--proposal-border);
+  border-radius: 1rem;
+  background: #ffffff;
+  padding: 1.25rem 1.35rem;
+  box-shadow: 0 8px 28px rgba(17, 17, 17, 0.06);
+}
+
+.quote-proposal-pricing-card {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+@media (min-width: 768px) {
+  .quote-proposal-pricing-card {
+    grid-template-columns: 1.2fr 0.8fr;
+    align-items: stretch;
+  }
+}
+
+.quote-proposal-pricing-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.quote-proposal-pricing-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: 0.55rem;
+  font-size: 0.92rem;
+  font-weight: 600;
+  background: var(--proposal-light);
+  border: 1px solid transparent;
+}
+
+.quote-proposal-pricing-row span:last-child {
+  font-weight: 700;
+  color: var(--proposal-dark);
+}
+
+.quote-proposal-pricing-row--accent span:last-child {
+  color: var(--proposal-red);
+}
+
+.quote-proposal-pricing-row--highlight {
+  border-color: rgba(244, 180, 0, 0.45);
+  background: rgba(244, 180, 0, 0.08);
+}
+
+.quote-proposal-total-box {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  gap: 0.35rem;
+  padding: 1.25rem 1rem;
+  border-radius: 0.85rem;
+  border: 2px solid var(--proposal-red);
+  background: linear-gradient(145deg, #fff5f5 0%, #ffffff 55%, #fffdf6 100%);
+}
+
+.quote-proposal-total-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--proposal-muted);
+}
+
+.quote-proposal-total-value {
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+  font-weight: 800;
+  color: var(--proposal-red);
+  line-height: 1.05;
+}
+
+/* Footer */
+.quote-proposal-footer {
+  display: none;
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--proposal-border);
+  text-align: center;
+}
+
+.quote-proposal-footer-brand {
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--proposal-dark);
+}
+
+.quote-proposal-footer-tagline {
+  margin-top: 0.2rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--proposal-gold);
+  font-weight: 600;
+}
+
+.quote-proposal-footer-meta {
+  margin-top: 0.45rem;
+  font-size: 0.68rem;
+  color: var(--proposal-muted);
+}
+
+/* Dark theme screen adjustments */
+[data-theme='dark'] .quote-proposal {
+  background: var(--cdl-bg);
+}
+
+[data-theme='dark'] .quote-proposal-section,
+[data-theme='dark'] .quote-proposal-overview,
+[data-theme='dark'] .quote-proposal-pricing,
+[data-theme='dark'] .quote-proposal-additional-card {
+  background: var(--cdl-surface);
+  border-color: var(--cdl-border);
+}
+
+[data-theme='dark'] .quote-proposal-value,
+[data-theme='dark'] .quote-proposal-section-title,
+[data-theme='dark'] .quote-proposal-package-name,
+[data-theme='dark'] .quote-proposal-event-name,
+[data-theme='dark'] .quote-proposal-additional-name {
+  color: var(--cdl-fg);
+}
+
+[data-theme='dark'] .quote-proposal-info-cell,
+[data-theme='dark'] .quote-proposal-event-row,
+[data-theme='dark'] .quote-proposal-highlight-card,
+[data-theme='dark'] .quote-proposal-pricing-row {
+  background: var(--cdl-inset);
+  border-color: var(--cdl-border);
+}
+
+[data-theme='dark'] .quote-proposal-label {
+  color: var(--cdl-muted);
+}
+
+/* ── Print ── */
+@media print {
+  @page {
+    margin: 0.75cm 0.85cm;
+    size: A4 portrait;
+  }
+
+  body {
+    background: var(--proposal-light) !important;
+    color: var(--proposal-dark) !important;
+    font-size: 10px;
+    line-height: 1.35;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  body .relative.min-h-full.pt-14 {
+    padding-top: 0 !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .quote-detail-page {
+    background: var(--proposal-light) !important;
+    color: var(--proposal-dark) !important;
+    padding: 0 !important;
+  }
+
+  .quote-proposal-body {
+    max-width: 100% !important;
+    padding: 0.5rem 0 0 !important;
+  }
+
+  .quote-proposal-hero {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    margin: -0.75cm -0.85cm 0.55rem !important;
+    width: calc(100% + 1.7cm);
+    border-bottom-width: 3px !important;
+  }
+
+  .quote-proposal-hero-inner {
+    padding: 1rem 1.1rem 0.85rem !important;
+    gap: 0.75rem !important;
+  }
+
+  .quote-proposal-title {
+    font-size: 1.65rem !important;
+  }
+
+  .quote-proposal-tagline {
+    font-size: 0.62rem !important;
+    margin-top: 0.25rem !important;
+  }
+
+  .quote-proposal-location {
+    font-size: 0.68rem !important;
+  }
+
+  .quote-print-logo .cdl-brand-logo {
+    width: 3.5rem !important;
+    height: 3.5rem !important;
+    filter: none !important;
+  }
+
+  .quote-proposal-meta-card {
+    padding: 0.45rem 0.55rem !important;
+  }
+
+  .quote-proposal-meta-value {
+    font-size: 0.82rem !important;
+  }
+
+  .quote-proposal-label {
+    font-size: 0.55rem !important;
+  }
+
+  .quote-proposal-overview {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    margin-bottom: 0.45rem !important;
+    padding: 0.45rem 0.55rem !important;
+    box-shadow: none !important;
+  }
+
+  .quote-proposal-overview-total {
+    font-size: 1rem !important;
+  }
+
+  .quote-print-section,
+  .quote-proposal-section {
+    break-inside: auto;
+    page-break-inside: auto;
+    box-shadow: none !important;
+    padding: 0.45rem 0.55rem !important;
+    margin-bottom: 0.4rem !important;
+    border-radius: 6px !important;
+  }
+
+  .quote-proposal-section-title {
+    font-size: 0.82rem !important;
+    margin-bottom: 0.45rem !important;
+    padding-bottom: 0.3rem !important;
+  }
+
+  .quote-proposal-grid-2 {
+    gap: 0.4rem !important;
+    margin-bottom: 0.4rem !important;
+  }
+
+  .quote-proposal-package-name {
+    font-size: 1rem !important;
+  }
+
+  .quote-proposal-package-desc {
+    font-size: 0.68rem !important;
+    margin-top: 0.2rem !important;
+  }
+
+  .quote-proposal-highlight-grid {
+    margin-top: 0.45rem !important;
+    gap: 0.35rem !important;
+  }
+
+  .quote-proposal-highlight-value {
+    font-size: 1.1rem !important;
+  }
+
+  .quote-proposal-event-name {
+    font-size: 0.9rem !important;
+    margin-bottom: 0.4rem !important;
+  }
+
+  .quote-proposal-event-list {
+    gap: 0.35rem !important;
+  }
+
+  .quote-proposal-event-row {
+    padding: 0.35rem 0.45rem !important;
+  }
+
+  .quote-proposal-event-icon {
+    width: 1.5rem !important;
+    height: 1.5rem !important;
+  }
+
+  .quote-proposal-event-icon svg {
+    width: 0.85rem !important;
+    height: 0.85rem !important;
+  }
+
+  .quote-proposal-value {
+    font-size: 0.72rem !important;
+  }
+
+  .quote-proposal-info-grid,
+  .quote-proposal-mileage-grid {
+    gap: 0.3rem !important;
+  }
+
+  .quote-proposal-info-cell {
+    padding: 0.35rem 0.4rem !important;
+  }
+
+  .quote-proposal-team-grid {
+    gap: 0.35rem !important;
+  }
+
+  .quote-proposal-team-card {
+    padding: 0.55rem 0.4rem !important;
+  }
+
+  .quote-proposal-team-icon {
+    width: 2rem !important;
+    height: 2rem !important;
+    margin-bottom: 0.35rem !important;
+  }
+
+  .quote-proposal-team-icon svg {
+    width: 1.1rem !important;
+    height: 1.1rem !important;
+  }
+
+  .quote-proposal-team-value {
+    font-size: 1.2rem !important;
+  }
+
+  .quote-proposal-mileage-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+
+  .quote-proposal-section--compact {
+    margin-bottom: 0.4rem !important;
+  }
+
+  .quote-proposal-additionals {
+    gap: 0.55rem !important;
+  }
+
+  .quote-proposal-category-title {
+    font-size: 0.68rem !important;
+    margin-bottom: 0.35rem !important;
+  }
+
+  .quote-print-additional-grid,
+  .quote-proposal-additional-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.35rem !important;
+  }
+
+  .quote-proposal-additional-card {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .quote-proposal-additional-image,
+  .quote-proposal-placeholder {
+    aspect-ratio: 16 / 7 !important;
+  }
+
+  .quote-proposal-additional-body {
+    padding: 0.35rem 0.45rem !important;
+  }
+
+  .quote-proposal-additional-name {
+    font-size: 0.72rem !important;
+  }
+
+  .quote-proposal-additional-metric {
+    font-size: 0.75rem !important;
+  }
+
+  .quote-proposal-additional-price {
+    font-size: 0.85rem !important;
+  }
+
+  .quote-proposal-pricing {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    margin-top: 0.45rem !important;
+    padding: 0.5rem 0.55rem !important;
+    box-shadow: none !important;
+  }
+
+  .quote-proposal-pricing-card {
+    grid-template-columns: 1fr 0.75fr !important;
+    gap: 0.45rem !important;
+  }
+
+  .quote-proposal-pricing-row {
+    padding: 0.3rem 0.4rem !important;
+    font-size: 0.72rem !important;
+  }
+
+  .quote-proposal-total-box {
+    padding: 0.55rem 0.45rem !important;
+  }
+
+  .quote-proposal-total-value {
+    font-size: 1.35rem !important;
+  }
+
+  .quote-print-keep {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .quote-print-footer,
+  .quote-proposal-footer {
+    display: block !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+    margin-top: 0.45rem !important;
+    padding-top: 0.4rem !important;
+  }
+
+  .quote-proposal-footer-brand {
+    font-size: 0.82rem !important;
+  }
+
+  .quote-proposal-footer-tagline {
+    font-size: 0.58rem !important;
+  }
+
+  .quote-proposal-footer-meta {
+    font-size: 0.55rem !important;
+  }
+}
+
+/* Commercial rules — screen + print */
+.quote-proposal-rules {
+  margin-top: 2rem;
+}
+
+.quote-proposal-rules-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+@media (min-width: 640px) {
+  .quote-proposal-rules-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.quote-proposal-rules-block {
+  border: 1px solid var(--proposal-border);
+  border-radius: 0.75rem;
+  padding: 0.85rem 1rem;
+  background: #ffffff;
+}
+
+.quote-proposal-rules-subtitle {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--proposal-muted);
+}
+
+.quote-proposal-rules-list {
+  margin: 0.55rem 0 0;
+  padding-left: 1.1rem;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--proposal-dark);
+}
+
+.quote-proposal-rules-list li + li {
+  margin-top: 0.35rem;
+}
+
+.quote-proposal-reservation-note {
+  margin-top: 1rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--proposal-border);
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--proposal-muted);
+}
+
+.quote-proposal-reservation-note p + p {
+  margin-top: 0.35rem;
+}
