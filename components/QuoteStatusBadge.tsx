@@ -1,3 +1,9 @@
+import {
+  deriveGrillPhotoStatus,
+  getGrillPhotoBadgeLabel,
+  getGrillPhotoStatusLabel,
+} from '@/Lib/grillPhotoStatus'
+
 const STATUS_LABELS: Record<string, string> = {
   draft: 'Rascunho',
   sent: 'Enviado',
@@ -82,6 +88,41 @@ export function QuoteBoolBadge({
       className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[0.65rem] font-bold uppercase tracking-wider ${className}`}
     >
       {label}: {text}
+    </span>
+  )
+}
+
+export function QuoteGrillPhotoBadge({
+  hasGrill,
+  grillPhotoRequired,
+  grillPhotoUrl,
+  grillPhotoMediaId,
+}: {
+  hasGrill?: boolean | null
+  grillPhotoRequired?: boolean | null
+  grillPhotoUrl?: string | null
+  grillPhotoMediaId?: string | null
+}) {
+  const status = deriveGrillPhotoStatus({
+    hasGrill,
+    grillPhotoRequired,
+    grillPhotoUrl,
+    grillPhotoMediaId,
+  })
+  const text = getGrillPhotoBadgeLabel(status)
+
+  let className = 'border-cdl-border bg-cdl-inset text-cdl-text-secondary'
+  if (status === 'pending') {
+    className = 'border-cdl-warning-border bg-cdl-warning-soft text-cdl-warning'
+  } else if (status === 'received') {
+    className = 'border-cdl-success-border bg-cdl-success-soft text-cdl-success'
+  }
+
+  return (
+    <span
+      className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[0.65rem] font-bold uppercase tracking-wider ${className}`}
+    >
+      Foto: {text}
     </span>
   )
 }

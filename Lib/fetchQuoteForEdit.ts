@@ -28,6 +28,8 @@ type EventRow = {
   grill_rental_qty?: number | null
   grill_notes?: string | null
   distance_from_base?: number | null
+  grill_photo_url?: string | null
+  grill_photo_media_id?: string | null
 }
 
 type QuoteAdditionalRow = {
@@ -71,6 +73,9 @@ function mergeEventIntoQuote(quote: QuoteDetail, event: EventRow | null): QuoteD
     grill_notes: event.grill_notes ?? quote.grill_notes,
     mileage_distance: event.distance_from_base ?? quote.mileage_distance,
     adult_count: event.adults_count ?? quote.adult_count,
+    grill_photo_url: event.grill_photo_url ?? quote.grill_photo_url,
+    grill_photo_media_id:
+      event.grill_photo_media_id ?? quote.grill_photo_media_id,
   }
 }
 
@@ -195,6 +200,10 @@ export async function fetchQuoteForEdit(
 
   if (customerId && !quote.customer_id) {
     quote = { ...quote, customer_id: customerId }
+  }
+
+  if (packageId && !quote.package_id) {
+    quote = { ...quote, package_id: packageId }
   }
 
   const linkedCustomer = (customerRes.data as Customer | null) ?? null

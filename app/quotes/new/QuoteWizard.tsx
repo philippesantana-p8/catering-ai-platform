@@ -19,6 +19,10 @@ import {
   type SaveQuoteErrorInfo,
 } from '../../../Lib/supabaseSaveError'
 import { getCustomerDisplayName } from '../../../Lib/getCustomerDisplayName'
+import {
+  grillPhotoStatusToRequired,
+  type GrillPhotoStatus,
+} from '../../../Lib/grillPhotoStatus'
 import type { QuoteSnapshotRecord } from '../../../Lib/readQuoteSnapshot'
 import {
   buildPricingFingerprint,
@@ -815,20 +819,26 @@ function PackageCard({
   selected,
   onSelect,
   onSelectAndAdvance,
+  autoAdvanceOnSelect = false,
 }: {
   pkg: Package
   selected: boolean
   onSelect: () => void
   onSelectAndAdvance: () => void
+  autoAdvanceOnSelect?: boolean
 }) {
   const image = getPackageImage(pkg)
 
   return (
     <button
       type="button"
-      onClick={onSelect}
+      onClick={autoAdvanceOnSelect ? onSelectAndAdvance : onSelect}
       onDoubleClick={onSelectAndAdvance}
-      title="Duplo clique para ir aos adicionais"
+      title={
+        autoAdvanceOnSelect
+          ? 'Selecionar pacote e continuar'
+          : 'Duplo clique para ir aos adicionais'
+      }
       className={`relative overflow-hidden rounded-xl border text-left shadow-cdl transition-colors ${
         selected
           ? 'border-cdl-success-border bg-cdl-success-soft'
@@ -900,6 +910,7 @@ function PackageBlock({
   onToggle,
   onSelect,
   onSelectAndAdvance,
+  autoAdvanceOnSelect = false,
 }: {
   title: string
   subtitle: string
@@ -909,6 +920,7 @@ function PackageBlock({
   onToggle: () => void
   onSelect: (id: string) => void
   onSelectAndAdvance: (id: string) => void
+  autoAdvanceOnSelect?: boolean
 }) {
   if (blockPackages.length === 0) return null
 
@@ -962,6 +974,7 @@ function PackageBlock({
                 selected={selectedPackageId === pkg.id}
                 onSelect={() => onSelect(pkg.id)}
                 onSelectAndAdvance={() => onSelectAndAdvance(pkg.id)}
+                autoAdvanceOnSelect={autoAdvanceOnSelect}
               />
             ))}
           </div>
@@ -1289,6 +1302,7 @@ function InputField({
   min,
   max,
   completion,
+  inputRef,
 }: {
   label: string
   type?: string
@@ -1300,12 +1314,14 @@ function InputField({
   min?: string | number
   max?: string | number
   completion?: FieldCompletion
+  inputRef?: React.RefObject<HTMLInputElement | null>
 }) {
   return (
     <label className={`flex flex-col gap-2 ${className}`}>
       <span className="cdl-eyebrow">{label}</span>
       <div className="relative">
         <input
+          ref={inputRef}
           type={type}
           value={value}
           placeholder={placeholder}
@@ -1406,6 +1422,64 @@ function CheckboxField({
   )
 }
 
+function GrillPhotoStatusField({
+  value,
+  disabled,
+  onChange,
+}: {
+  value: GrillPhotoStatus
+  disabled?: boolean
+  onChange: (value: GrillPhotoStatus) => void
+}) {
+  const options: { value: GrillPhotoStatus; label: string }[] = [
+    { value: 'received', label: 'Sim' },
+    { value: 'pending', label: 'Não' },
+    { value: 'not_applicable', label: 'Não se aplica' },
+  ]
+
+  return (
+    <fieldset className="sm:col-span-2">
+      <legend className="cdl-eyebrow">Foto da churrasqueira recebida?</legend>
+      <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+        {options.map((option) => {
+          const selected = value === option.value
+          return (
+            <label
+              key={option.value}
+              className={`inline-flex cursor-pointer items-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold transition-colors ${
+                selected
+                  ? 'border-cdl-accent-border bg-cdl-accent/10 text-cdl-brand'
+                  : 'border-cdl-border bg-cdl-inset text-cdl-text-secondary hover:border-cdl-accent-border'
+              } ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
+            >
+              <input
+                type="radio"
+                name="grill-photo-status"
+                value={option.value}
+                checked={selected}
+                disabled={disabled}
+                onChange={() => onChange(option.value)}
+                className="accent-[var(--cdl-action)]"
+              />
+              {option.label}
+            </label>
+          )
+        })}
+      </div>
+      {value === 'received' ? (
+        <p className="mt-2 text-xs text-cdl-success">
+          Foto confirmada como recebida.
+        </p>
+      ) : null}
+      {value === 'pending' ? (
+        <p className="mt-2 text-xs text-cdl-warning">
+          Foto ainda pendente para validação.
+        </p>
+      ) : null}
+    </fieldset>
+  )
+}
+
 export { getStepVisualStatus } from './wizardStepStatus'
 
 export default function QuoteWizard({
@@ -1420,6 +1494,7 @@ export default function QuoteWizard({
   initialPricingFingerprint,
   existingSnapshot,
   linkedCustomer = null,
+  initialStep = 0,
 }: {
   customers: Customer[]
   packages: Package[]
@@ -1432,9 +1507,12 @@ export default function QuoteWizard({
   initialPricingFingerprint?: string
   existingSnapshot?: QuoteSnapshotRecord
   linkedCustomer?: Customer | null
+  initialStep?: number
 }) {
   const isEditMode = mode === 'edit' && Boolean(quoteId)
-  const [step, setStep] = useState(0)
+  const [step, setStep] = useState(() =>
+    Math.min(Math.max(initialStep, 0), STEPS.length - 1),
+  )
   const [state, setState] = useState<WizardState>(
     () => initialState ?? createInitialWizardState(commercialRules),
   )
@@ -1453,6 +1531,7 @@ export default function QuoteWizard({
     null,
   )
   const router = useRouter()
+  const distanceInputRef = useRef<HTMLInputElement>(null)
 
   const selectedCustomer = isEditMode
     ? linkedCustomer ??
@@ -1771,9 +1850,30 @@ export default function QuoteWizard({
   }
 
   function selectPackageAndAdvance(packageId: string) {
+    const pkg = packages.find((p) => p.id === packageId)
+    if (!pkg) return
     updateState({ packageId })
-    setStep(3)
+    if (!isEditMode) {
+      setStep(3)
+    }
   }
+
+  function setGrillPhotoStatus(status: GrillPhotoStatus) {
+    updateState({
+      grillPhotoStatus: status,
+      grillPhotoRequired: grillPhotoStatusToRequired(status),
+      grillPhotoAnswered: true,
+    })
+  }
+
+  useEffect(() => {
+    if (step !== 5) return
+    const timer = window.setTimeout(() => {
+      distanceInputRef.current?.focus()
+      distanceInputRef.current?.select()
+    }, 0)
+    return () => window.clearTimeout(timer)
+  }, [step])
 
   function setAdditionalQty(itemId: string, quantity: number) {
     const item = additionalItems.find((row) => row.id === itemId)
@@ -1829,7 +1929,7 @@ export default function QuoteWizard({
         null
       : selectedCustomer?.id ?? null
 
-    if (!originalCustomerId || !selectedPackage) {
+    if (!originalCustomerId || !state.packageId) {
       const errorInfo = buildSaveQuoteError(
         'validation',
         new Error(
@@ -1837,6 +1937,20 @@ export default function QuoteWizard({
             ? 'Pacote não selecionado ou cotação sem cliente vinculado.'
             : 'Cliente ou pacote não selecionado.',
         ),
+      )
+      setSaveErrorInfo(errorInfo)
+      return
+    }
+
+    const packageForSave =
+      selectedPackage ??
+      packages.find((pkg) => pkg.id === state.packageId) ??
+      null
+
+    if (!packageForSave) {
+      const errorInfo = buildSaveQuoteError(
+        'validation',
+        new Error('Pacote selecionado não encontrado no catálogo.'),
       )
       setSaveErrorInfo(errorInfo)
       return
@@ -1852,7 +1966,7 @@ export default function QuoteWizard({
 
     const payload: QuoteSaveInput = {
       customerId: originalCustomerId,
-      packageId: selectedPackage.id,
+      packageId: packageForSave.id,
       eventName: state.eventName,
       eventDate: state.eventDate,
       startTime: state.startTime,
@@ -1874,7 +1988,7 @@ export default function QuoteWizard({
       pricing: commercialRules,
       reservationPercentage: state.reservationPercentage,
       reservationAmount,
-      packagePricePerPerson: getPackagePrice(selectedPackage),
+      packagePricePerPerson: getPackagePrice(packageForSave),
       additionals: selectedAdditionals.map(
         ({ item, quantity, unitPrice, perPerson, totalPrice }) => ({
           itemId: item.id,
@@ -2218,6 +2332,7 @@ export default function QuoteWizard({
                   onToggle={() => togglePackageBlock('without-sides')}
                   onSelect={(id) => updateState({ packageId: id })}
                   onSelectAndAdvance={selectPackageAndAdvance}
+                  autoAdvanceOnSelect={!isEditMode}
                 />
                 <PackageBlock
                   title="Com guarnições"
@@ -2228,6 +2343,7 @@ export default function QuoteWizard({
                   onToggle={() => togglePackageBlock('with-sides')}
                   onSelect={(id) => updateState({ packageId: id })}
                   onSelectAndAdvance={selectPackageAndAdvance}
+                  autoAdvanceOnSelect={!isEditMode}
                 />
                 <PackageBlock
                   title="Personalizado"
@@ -2238,6 +2354,7 @@ export default function QuoteWizard({
                   onToggle={() => togglePackageBlock('custom')}
                   onSelect={(id) => updateState({ packageId: id })}
                   onSelectAndAdvance={selectPackageAndAdvance}
+                  autoAdvanceOnSelect={!isEditMode}
                 />
               </div>
             )}
@@ -2300,22 +2417,44 @@ export default function QuoteWizard({
                 label="Cliente tem churrasqueira?"
                 checked={state.hasGrill}
                 onChange={(v) =>
-                  updateState({
-                    hasGrill: v,
-                    grillSetupAnswered: true,
-                    grillPhotoRequired: v ? true : false,
-                  })
+                  updateState(
+                    v
+                      ? {
+                          hasGrill: true,
+                          grillSetupAnswered: true,
+                          grillPhotoStatus: 'pending',
+                          grillPhotoRequired: true,
+                          grillPhotoAnswered: false,
+                        }
+                      : {
+                          hasGrill: false,
+                          grillSetupAnswered: true,
+                          grillPhotoStatus: 'not_applicable',
+                          grillPhotoRequired: false,
+                          grillPhotoAnswered: true,
+                        },
+                  )
                 }
               />
+              <GrillPhotoStatusField
+                value={state.grillPhotoStatus}
+                disabled={!state.hasGrill}
+                onChange={setGrillPhotoStatus}
+              />
               <div className="sm:col-span-2">
-                <CheckboxField
-                  label="Foto da churrasqueira será necessária"
-                  checked={state.grillPhotoRequired}
-                  onChange={(v) => updateState({ grillPhotoRequired: v })}
-                />
+                <button
+                  type="button"
+                  disabled
+                  title="Em breve"
+                  className="inline-flex cursor-not-allowed items-center justify-center rounded-xl border border-dashed border-cdl-border bg-cdl-inset px-4 py-3 text-xs font-bold uppercase tracking-wider text-cdl-muted opacity-70"
+                >
+                  Anexar foto da churrasqueira
+                </button>
+                {/* Future: upload grill photo to Supabase Storage and save media id/url on events.grill_photo_media_id / grill_photo_url. */}
                 <p className="mt-3 rounded-xl border border-cdl-border-subtle bg-cdl-inset px-4 py-3 text-sm leading-relaxed text-cdl-text-secondary">
-                  Se o cliente possui churrasqueira própria, solicite uma foto
-                  para validar tamanho, condição e estrutura antes do evento.
+                  Se o cliente possui churrasqueira própria, confirme se a foto
+                  foi recebida para validar tamanho, condição e estrutura antes
+                  do evento.
                 </p>
               </div>
               <CheckboxField
@@ -2383,6 +2522,7 @@ export default function QuoteWizard({
                 label="Distance (mi)"
                 type="number"
                 value={state.distance}
+                inputRef={distanceInputRef}
                 onChange={(v) =>
                   updateState({ distance: Math.max(0, Number(v) || 0) })
                 }

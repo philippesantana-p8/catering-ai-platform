@@ -1,4 +1,8 @@
 import type { QuoteDetail } from '@/app/quotes/[id]/quoteDetailTypes'
+import {
+  deriveGrillPhotoStatus,
+  grillPhotoStatusToRequired,
+} from '@/Lib/grillPhotoStatus'
 import type { CommercialRulesSnapshot } from './supabaseCommercialRules'
 import {
   buildPricingFingerprint,
@@ -30,6 +34,18 @@ export function mapQuoteDetailToWizardState(
     }
   }
 
+  const grillPhotoUrl =
+    (quote as { grill_photo_url?: string | null }).grill_photo_url ?? null
+  const grillPhotoMediaId =
+    (quote as { grill_photo_media_id?: string | null }).grill_photo_media_id ??
+    null
+  const grillPhotoStatus = deriveGrillPhotoStatus({
+    hasGrill: quote.has_grill,
+    grillPhotoRequired: quote.grill_photo_required,
+    grillPhotoUrl,
+    grillPhotoMediaId,
+  })
+
   const state: WizardState = {
     ...createInitialWizardState(rules),
     customerId: quote.customer_id ?? null,
@@ -46,7 +62,10 @@ export function mapQuoteDetailToWizardState(
     zipCode: quote.zip_code ?? quote.postal_code ?? '',
     hasGrill: quote.has_grill ?? false,
     grillSetupAnswered: quote.has_grill != null,
-    grillPhotoRequired: quote.grill_photo_required ?? false,
+    grillPhotoRequired: grillPhotoStatusToRequired(grillPhotoStatus),
+    grillPhotoStatus,
+    grillPhotoAnswered: quote.has_grill != null,
+    grillPhotoUrl,
     grillRentalRequired: quote.grill_rental_required ?? false,
     grillRentalQty: quote.grill_rental_qty ?? 0,
     grillNotes: quote.grill_notes ?? '',

@@ -1,4 +1,8 @@
 import {
+  deriveGrillPhotoStatus,
+  getGrillPhotoStatusLabel,
+} from '@/Lib/grillPhotoStatus'
+import {
   type QuoteDetail,
   displayValue,
   formatBool,
@@ -233,7 +237,7 @@ export default function QuoteDetailView({ quote }: { quote: QuoteDetail }) {
             quoteNumber={quoteNumber}
             customerName={quote.customer_name}
             eventDate={quote.event_date}
-            editHref={`/quotes/${quote.id}/edit`}
+            editHref={`/quotes/${quote.id}/edit?step=churrasqueira`}
           />
           <Suspense fallback={null}>
             <QuoteFlashBanner />
@@ -402,10 +406,17 @@ export default function QuoteDetailView({ quote }: { quote: QuoteDetail }) {
               </div>
               <div className="quote-proposal-info-cell">
                 <span className="quote-proposal-label">
-                  Foto da churrasqueira pendente para validação
+                  Foto da churrasqueira recebida?
                 </span>
                 <p className="quote-proposal-value">
-                  {formatBool(quote.grill_photo_required)}
+                  {getGrillPhotoStatusLabel(
+                    deriveGrillPhotoStatus({
+                      hasGrill: quote.has_grill,
+                      grillPhotoRequired: quote.grill_photo_required,
+                      grillPhotoUrl: quote.grill_photo_url,
+                      grillPhotoMediaId: quote.grill_photo_media_id,
+                    }),
+                  )}
                 </p>
               </div>
               <div className="quote-proposal-info-cell">

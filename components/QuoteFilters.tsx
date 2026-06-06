@@ -1,8 +1,12 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import type { QuoteListItem } from '@/Lib/fetchQuoteList'
 import { getQuoteStatusLabel } from './QuoteStatusBadge'
+import QuoteDateFiltersSheet, {
+  hasActiveDateFilters,
+  QuoteDateFiltersTrigger,
+} from './QuoteDateFiltersSheet'
 
 export type QuoteSortKey = 'event_date' | 'created_at' | 'quote_total'
 
@@ -92,6 +96,106 @@ export function filterAndSortQuotes(
   return result
 }
 
+function useYearOptions(quotes: QuoteListItem[]) {
+  return useMemo(() => {
+    const values = new Set<string>()
+    for (const quote of quotes) {
+      const date = parseDate(quote.event_date) ?? parseDate(quote.created_at)
+      if (date) values.add(String(date.getFullYear()))
+    }
+    return Array.from(values).sort((a, b) => Number(b) - Number(a))
+  }, [quotes])
+}
+
+function DateFilterFields({
+  filters,
+  yearOptions,
+  onChange,
+}: {
+  filters: QuoteFiltersState
+  yearOptions: string[]
+  onChange: (next: QuoteFiltersState) => void
+}) {
+  return (
+    <>
+      <label className="block min-w-0">
+        <span className="cdl-eyebrow">Mês</span>
+        <select
+          value={filters.month}
+          onChange={(e) => onChange({ ...filters, month: e.target.value })}
+          className="mt-1 w-full rounded-xl border border-cdl-border bg-cdl-inset px-3 py-2.5 text-sm text-cdl-fg"
+        >
+          <option value="">Todos</option>
+          {Array.from({ length: 12 }, (_, index) => {
+            const month = String(index + 1)
+            return (
+              <option key={month} value={month}>
+                {new Date(2026, index, 1).toLocaleDateString('pt-BR', {
+                  month: 'long',
+                })}
+              </option>
+            )
+          })}
+        </select>
+      </label>
+
+      <label className="block min-w-0">
+        <span className="cdl-eyebrow">Ano</span>
+        <select
+          value={filters.year}
+          onChange={(e) => onChange({ ...filters, year: e.target.value })}
+          className="mt-1 w-full rounded-xl border border-cdl-border bg-cdl-inset px-3 py-2.5 text-sm text-cdl-fg"
+        >
+          <option value="">Todos</option>
+          {yearOptions.map((year) => (
+            <option key={year} value={year}>
+              {year}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <label className="block min-w-0">
+        <span className="cdl-eyebrow">Data inicial</span>
+        <input
+          type="date"
+          value={filters.dateFrom}
+          onChange={(e) => onChange({ ...filters, dateFrom: e.target.value })}
+          className="mt-1 w-full rounded-xl border border-cdl-border bg-cdl-inset px-3 py-2.5 text-sm text-cdl-fg"
+        />
+      </label>
+
+      <label className="block min-w-0">
+        <span className="cdl-eyebrow">Data final</span>
+        <input
+          type="date"
+          value={filters.dateTo}
+          onChange={(e) => onChange({ ...filters, dateTo: e.target.value })}
+          className="mt-1 w-full rounded-xl border border-cdl-border bg-cdl-inset px-3 py-2.5 text-sm text-cdl-fg"
+        />
+      </label>
+
+      <label className="block min-w-0">
+        <span className="cdl-eyebrow">Ordenar por</span>
+        <select
+          value={filters.sortBy}
+          onChange={(e) =>
+            onChange({
+              ...filters,
+              sortBy: e.target.value as QuoteSortKey,
+            })
+          }
+          className="mt-1 w-full rounded-xl border border-cdl-border bg-cdl-inset px-3 py-2.5 text-sm text-cdl-fg"
+        >
+          <option value="event_date">Data do evento</option>
+          <option value="created_at">Data de criação</option>
+          <option value="quote_total">Valor total</option>
+        </select>
+      </label>
+    </>
+  )
+}
+
 export default function QuoteFilters({
   quotes,
   filters,
@@ -101,6 +205,7 @@ export default function QuoteFilters({
   filters: QuoteFiltersState
   onChange: (next: QuoteFiltersState) => void
 }) {
+  const [dateSheetOpen, setDateSheetOpen] = useState(false)
   const statusOptions = useMemo(() => {
     const values = new Set(
       quotes.map((quote) => (quote.quote_status ?? 'draft').toLowerCase()),
@@ -108,131 +213,107 @@ export default function QuoteFilters({
     return Array.from(values).sort()
   }, [quotes])
 
-  const yearOptions = useMemo(() => {
-    const values = new Set<string>()
-    for (const quote of quotes) {
-      const date = parseDate(quote.event_date) ?? parseDate(quote.created_at)
-      if (date) values.add(String(date.getFullYear()))
-    }
-    return Array.from(values).sort((a, b) => Number(b) - Number(a))
-  }, [quotes])
+  const yearOptions = useYearOptions(quotes)
+  const dateFiltersActive = hasActiveDateFilters(filters)
 
   return (
-    <section className="cdl-panel p-4 sm:p-5">
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-        <label className="block min-w-0">
-          <span className="cdl-eyebrow">Busca</span>
-          <input
-            type="search"
-            value={filters.search}
-            onChange={(e) => onChange({ ...filters, search: e.target.value })}
-            placeholder="Cliente, cotação ou pacote"
-            className="mt-1 w-full rounded-xl border border-cdl-border bg-cdl-inset px-3 py-2.5 text-sm text-cdl-fg"
-          />
-        </label>
+    <>
+      <section className="cdl-panel p-3 sm:p-5">
+        <div className="flex flex-col gap-3 md:hidden">
+          <label className="block min-w-0">
+            <span className="cdl-eyebrow">Busca</span>
+            <input
+              type="search"
+              value={filters.search}
+              onChange={(e) => onChange({ ...filters, search: e.target.value })}
+              placeholder="Cliente, cotação ou pacote"
+              className="mt-1 w-full rounded-xl border border-cdl-border bg-cdl-inset px-3 py-3 text-base text-cdl-fg"
+            />
+          </label>
 
-        <label className="block min-w-0">
-          <span className="cdl-eyebrow">Status</span>
-          <select
-            value={filters.status}
-            onChange={(e) => onChange({ ...filters, status: e.target.value })}
-            className="mt-1 w-full rounded-xl border border-cdl-border bg-cdl-inset px-3 py-2.5 text-sm text-cdl-fg"
-          >
-            <option value="">Todos</option>
-            {statusOptions.map((status) => (
-              <option key={status} value={status}>
-                {getQuoteStatusLabel(status)}
-              </option>
-            ))}
-          </select>
-        </label>
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
+            <label className="block min-w-0">
+              <span className="cdl-eyebrow">Status</span>
+              <select
+                value={filters.status}
+                onChange={(e) =>
+                  onChange({ ...filters, status: e.target.value })
+                }
+                className="mt-1 w-full rounded-xl border border-cdl-border bg-cdl-inset px-3 py-3 text-base text-cdl-fg"
+              >
+                <option value="">Todos</option>
+                {statusOptions.map((status) => (
+                  <option key={status} value={status}>
+                    {getQuoteStatusLabel(status)}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-        <label className="block min-w-0">
-          <span className="cdl-eyebrow">Mês</span>
-          <select
-            value={filters.month}
-            onChange={(e) => onChange({ ...filters, month: e.target.value })}
-            className="mt-1 w-full rounded-xl border border-cdl-border bg-cdl-inset px-3 py-2.5 text-sm text-cdl-fg"
-          >
-            <option value="">Todos</option>
-            {Array.from({ length: 12 }, (_, index) => {
-              const month = String(index + 1)
-              return (
-                <option key={month} value={month}>
-                  {new Date(2026, index, 1).toLocaleDateString('pt-BR', {
-                    month: 'long',
-                  })}
-                </option>
-              )
-            })}
-          </select>
-        </label>
-
-        <label className="block min-w-0">
-          <span className="cdl-eyebrow">Ano</span>
-          <select
-            value={filters.year}
-            onChange={(e) => onChange({ ...filters, year: e.target.value })}
-            className="mt-1 w-full rounded-xl border border-cdl-border bg-cdl-inset px-3 py-2.5 text-sm text-cdl-fg"
-          >
-            <option value="">Todos</option>
-            {yearOptions.map((year) => (
-              <option key={year} value={year}>
-                {year}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="block min-w-0">
-          <span className="cdl-eyebrow">Data inicial</span>
-          <input
-            type="date"
-            value={filters.dateFrom}
-            onChange={(e) => onChange({ ...filters, dateFrom: e.target.value })}
-            className="mt-1 w-full rounded-xl border border-cdl-border bg-cdl-inset px-3 py-2.5 text-sm text-cdl-fg"
-          />
-        </label>
-
-        <label className="block min-w-0">
-          <span className="cdl-eyebrow">Data final</span>
-          <input
-            type="date"
-            value={filters.dateTo}
-            onChange={(e) => onChange({ ...filters, dateTo: e.target.value })}
-            className="mt-1 w-full rounded-xl border border-cdl-border bg-cdl-inset px-3 py-2.5 text-sm text-cdl-fg"
-          />
-        </label>
-
-        <label className="block min-w-0">
-          <span className="cdl-eyebrow">Ordenar por</span>
-          <select
-            value={filters.sortBy}
-            onChange={(e) =>
-              onChange({
-                ...filters,
-                sortBy: e.target.value as QuoteSortKey,
-              })
-            }
-            className="mt-1 w-full rounded-xl border border-cdl-border bg-cdl-inset px-3 py-2.5 text-sm text-cdl-fg"
-          >
-            <option value="event_date">Data do evento</option>
-            <option value="created_at">Data de criação</option>
-            <option value="quote_total">Valor total</option>
-          </select>
-        </label>
-
-        <div className="flex items-end">
-          <button
-            type="button"
-            onClick={() => onChange(EMPTY_FILTERS)}
-            className="w-full rounded-xl border border-cdl-border bg-cdl-surface px-4 py-2.5 text-sm font-bold uppercase tracking-wider text-cdl-fg transition-colors hover:border-cdl-accent-border"
-          >
-            Limpar filtros
-          </button>
+            <div className="flex flex-col justify-end">
+              <span className="cdl-eyebrow invisible">Datas</span>
+              <QuoteDateFiltersTrigger
+                active={dateFiltersActive}
+                onClick={() => setDateSheetOpen(true)}
+              />
+            </div>
+          </div>
         </div>
-      </div>
-    </section>
+
+        <div className="hidden grid-cols-1 gap-3 md:grid md:grid-cols-2 xl:grid-cols-4">
+          <label className="block min-w-0">
+            <span className="cdl-eyebrow">Busca</span>
+            <input
+              type="search"
+              value={filters.search}
+              onChange={(e) => onChange({ ...filters, search: e.target.value })}
+              placeholder="Cliente, cotação ou pacote"
+              className="mt-1 w-full rounded-xl border border-cdl-border bg-cdl-inset px-3 py-2.5 text-sm text-cdl-fg"
+            />
+          </label>
+
+          <label className="block min-w-0">
+            <span className="cdl-eyebrow">Status</span>
+            <select
+              value={filters.status}
+              onChange={(e) => onChange({ ...filters, status: e.target.value })}
+              className="mt-1 w-full rounded-xl border border-cdl-border bg-cdl-inset px-3 py-2.5 text-sm text-cdl-fg"
+            >
+              <option value="">Todos</option>
+              {statusOptions.map((status) => (
+                <option key={status} value={status}>
+                  {getQuoteStatusLabel(status)}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <DateFilterFields
+            filters={filters}
+            yearOptions={yearOptions}
+            onChange={onChange}
+          />
+
+          <div className="flex items-end">
+            <button
+              type="button"
+              onClick={() => onChange(EMPTY_FILTERS)}
+              className="w-full rounded-xl border border-cdl-border bg-cdl-surface px-4 py-2.5 text-sm font-bold uppercase tracking-wider text-cdl-fg transition-colors hover:border-cdl-accent-border"
+            >
+              Limpar filtros
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <QuoteDateFiltersSheet
+        open={dateSheetOpen}
+        filters={filters}
+        yearOptions={yearOptions}
+        onClose={() => setDateSheetOpen(false)}
+        onApply={onChange}
+      />
+    </>
   )
 }
 

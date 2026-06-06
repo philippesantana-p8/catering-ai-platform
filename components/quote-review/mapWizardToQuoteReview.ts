@@ -1,6 +1,7 @@
 import type { QuoteTotals } from '@/Lib/calculateQuoteTotals'
 import type { WizardState } from '@/Lib/quoteWizardTypes'
 import type { CommercialRulesSnapshot } from '@/Lib/supabaseCommercialRules'
+import { getGrillPhotoStatusLabel } from '@/Lib/grillPhotoStatus'
 import type { QuoteReviewAdditional, QuoteReviewData } from './quoteReviewTypes'
 
 export type WizardSelectedAdditional = {
@@ -67,6 +68,9 @@ export function mapWizardToQuoteReview(
     physicalGuestCount: quoteTotals.physicalGuestCount,
     hasGrill: state.grillSetupAnswered ? state.hasGrill : null,
     grillPhotoRequired: state.grillPhotoRequired,
+    grillPhotoStatusLabel: state.grillPhotoAnswered
+      ? getGrillPhotoStatusLabel(state.grillPhotoStatus)
+      : null,
     grillRentalRequired: state.grillRentalRequired,
     grillRentalQty: state.grillRentalRequired ? state.grillRentalQty : null,
     grillNotes: state.grillNotes.trim() || null,

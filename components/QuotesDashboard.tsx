@@ -11,6 +11,7 @@ import QuoteFilters, {
   useFilteredQuotes,
   type QuoteFiltersState,
 } from './QuoteFilters'
+import { useIsMobile } from './useIsMobile'
 
 function formatRefreshTime(date: Date) {
   return date.toLocaleTimeString('pt-BR', {
@@ -42,11 +43,13 @@ export default function QuotesDashboard({
   initialQuotes: QuoteListItem[]
 }) {
   const router = useRouter()
+  const isMobile = useIsMobile()
   const [quotes, setQuotes] = useState<QuoteListItem[]>(initialQuotes)
   const [filters, setFilters] = useState<QuoteFiltersState>(EMPTY_FILTERS)
   const [loading, setLoading] = useState(false)
   const [refreshError, setRefreshError] = useState<string | null>(null)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(() => new Date())
+  const [expandedQuoteId, setExpandedQuoteId] = useState<string | null>(null)
 
   const filteredQuotes = useFilteredQuotes(quotes, filters)
 
@@ -78,13 +81,24 @@ export default function QuotesDashboard({
     void refreshQuotes()
   }, [refreshQuotes])
 
+  useEffect(() => {
+    if (!isMobile) {
+      setExpandedQuoteId(null)
+    }
+  }, [isMobile])
+
   const handleQuoteDeleted = useCallback(
     (quoteId: string) => {
       setQuotes((current) => current.filter((quote) => quote.id !== quoteId))
+      setExpandedQuoteId((current) => (current === quoteId ? null : current))
       void refreshQuotes({ silent: true })
     },
     [refreshQuotes],
   )
+
+  const handleToggleExpand = useCallback((quoteId: string) => {
+    setExpandedQuoteId((current) => (current === quoteId ? null : quoteId))
+  }, [])
 
   const summary = useMemo(() => {
     const totalValue = filteredQuotes.reduce(
@@ -98,13 +112,13 @@ export default function QuotesDashboard({
   }, [filteredQuotes])
 
   return (
-    <main className="min-h-screen overflow-x-hidden bg-cdl-bg px-4 py-8 text-cdl-fg sm:px-6 sm:py-10">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
-        <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+    <main className="min-h-screen overflow-x-hidden bg-cdl-bg px-4 py-6 text-cdl-fg sm:px-6 sm:py-10">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 sm:gap-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between sm:gap-5">
           <div className="flex items-center gap-4">
-            <CdlBrandLogo size="sm" className="!h-16 !w-16 sm:!h-20 sm:!w-20" />
+            <CdlBrandLogo size="sm" className="!h-14 !w-14 sm:!h-20 sm:!w-20" />
             <div className="min-w-0">
-              <h1 className="text-3xl font-black text-cdl-title sm:text-4xl">
+              <h1 className="text-2xl font-black text-cdl-title sm:text-4xl">
                 Cotações CDL
               </h1>
               <p className="mt-1 text-sm text-cdl-text-secondary">
@@ -115,39 +129,41 @@ export default function QuotesDashboard({
           </div>
           <Link
             href="/quotes/new"
-            className="inline-flex items-center justify-center rounded-xl bg-cdl-accent px-5 py-3 text-sm font-bold text-cdl-on-accent transition-opacity hover:opacity-90"
+            className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-cdl-accent px-5 py-3 text-sm font-bold text-cdl-on-accent transition-opacity hover:opacity-90"
           >
             Nova cotação
           </Link>
         </div>
 
-        <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
-          <div className="min-w-0 flex-1">
-            <QuoteFilters
-              quotes={quotes}
-              filters={filters}
-              onChange={setFilters}
-            />
-          </div>
-          <div className="flex shrink-0 flex-col gap-2 xl:w-56">
-            <button
-              type="button"
-              onClick={() => void refreshQuotes()}
-              disabled={loading}
-              className="inline-flex items-center justify-center rounded-xl border border-cdl-accent-border bg-cdl-surface px-5 py-3 text-sm font-bold uppercase tracking-wider text-cdl-fg shadow-cdl transition-colors hover:border-cdl-brand hover:bg-cdl-muted-bg disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {loading ? 'Buscando cotações…' : 'Buscar novas cotações'}
-            </button>
-            {lastUpdated ? (
-              <p className="text-center text-xs text-cdl-muted xl:text-right">
-                Atualizado agora às {formatRefreshTime(lastUpdated)}
-              </p>
-            ) : null}
-            {refreshError ? (
-              <p className="text-center text-xs text-cdl-action xl:text-right">
-                {refreshError}
-              </p>
-            ) : null}
+        <div className="sticky top-0 z-20 -mx-4 space-y-2 bg-cdl-bg/95 px-4 py-2 backdrop-blur md:static md:mx-0 md:bg-transparent md:p-0 md:backdrop-blur-none">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+            <div className="min-w-0 flex-1">
+              <QuoteFilters
+                quotes={quotes}
+                filters={filters}
+                onChange={setFilters}
+              />
+            </div>
+            <div className="flex shrink-0 flex-col gap-2 xl:w-56">
+              <button
+                type="button"
+                onClick={() => void refreshQuotes()}
+                disabled={loading}
+                className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-cdl-accent-border bg-cdl-surface px-5 py-3 text-sm font-bold uppercase tracking-wider text-cdl-fg shadow-cdl transition-colors hover:border-cdl-brand hover:bg-cdl-muted-bg disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {loading ? 'Buscando cotações…' : 'Buscar novas cotações'}
+              </button>
+              {lastUpdated ? (
+                <p className="text-center text-xs text-cdl-muted xl:text-right">
+                  Atualizado agora às {formatRefreshTime(lastUpdated)}
+                </p>
+              ) : null}
+              {refreshError ? (
+                <p className="text-center text-xs text-cdl-action xl:text-right">
+                  {refreshError}
+                </p>
+              ) : null}
+            </div>
           </div>
         </div>
 
@@ -158,12 +174,15 @@ export default function QuotesDashboard({
               : 'Nenhuma cotação ativa encontrada com os filtros atuais.'}
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3">
             {filteredQuotes.map((quote) => (
               <QuoteCard
                 key={quote.id}
                 quote={quote}
                 onDeleted={handleQuoteDeleted}
+                mobileCompact={isMobile}
+                expanded={expandedQuoteId === quote.id}
+                onToggleExpand={() => handleToggleExpand(quote.id)}
               />
             ))}
           </div>

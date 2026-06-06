@@ -1,5 +1,7 @@
 import type { CommercialRulesSnapshot } from './supabaseCommercialRules'
 
+import type { GrillPhotoStatus } from './grillPhotoStatus'
+
 export type WizardState = {
   customerId: string | null
   eventName: string
@@ -16,6 +18,9 @@ export type WizardState = {
   hasGrill: boolean
   grillSetupAnswered: boolean
   grillPhotoRequired: boolean
+  grillPhotoStatus: GrillPhotoStatus
+  grillPhotoAnswered: boolean
+  grillPhotoUrl: string | null
   grillRentalRequired: boolean
   grillRentalQty: number
   grillNotes: string
@@ -49,6 +54,9 @@ export function createInitialWizardState(
     hasGrill: false,
     grillSetupAnswered: false,
     grillPhotoRequired: false,
+    grillPhotoStatus: 'not_applicable',
+    grillPhotoAnswered: false,
+    grillPhotoUrl: null,
     grillRentalRequired: false,
     grillRentalQty: 0,
     grillNotes: '',

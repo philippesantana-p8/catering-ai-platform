@@ -302,10 +302,11 @@ export default function QuoteReviewLayout({
               </div>
               <div className="quote-proposal-info-cell">
                 <span className="quote-proposal-label">
-                  Foto da churrasqueira pendente para validação
+                  Foto da churrasqueira recebida?
                 </span>
                 <p className="quote-proposal-value">
-                  {formatBool(data.grillPhotoRequired)}
+                  {data.grillPhotoStatusLabel ??
+                    (data.hasGrill === false ? 'Não se aplica' : '—')}
                 </p>
               </div>
               <div className="quote-proposal-info-cell">

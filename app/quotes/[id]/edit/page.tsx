@@ -4,10 +4,17 @@ import QuoteWizard from '../../new/QuoteWizard'
 
 export default async function EditQuotePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>
+  searchParams: Promise<{ step?: string }>
 }) {
   const { id } = await params
+  const { step } = await searchParams
+  const { resolveWizardStep, EDIT_WIZARD_DEFAULT_STEP } = await import(
+    '@/Lib/wizardStepNavigation'
+  )
+  const initialStep = resolveWizardStep(step, EDIT_WIZARD_DEFAULT_STEP)
   const {
     quote,
     linkedCustomer,
@@ -40,6 +47,7 @@ export default async function EditQuotePage({
     <QuoteWizard
       mode="edit"
       quoteId={id}
+      initialStep={initialStep}
       initialState={state}
       initialPricingFingerprint={pricingFingerprint}
       existingSnapshot={quote}

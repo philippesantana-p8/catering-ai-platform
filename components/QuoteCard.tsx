@@ -1,7 +1,13 @@
+'use client'
+
 import Link from 'next/link'
 import DeleteQuoteButton from '@/components/DeleteQuoteButton'
+import {
+  deriveGrillPhotoStatus,
+  getGrillPhotoBadgeLabel,
+} from '@/Lib/grillPhotoStatus'
 import type { QuoteListItem } from '@/Lib/fetchQuoteList'
-import { QuoteBoolBadge } from './QuoteStatusBadge'
+import { QuoteBoolBadge, QuoteGrillPhotoBadge } from './QuoteStatusBadge'
 import QuoteStatusBadge from './QuoteStatusBadge'
 
 function formatMoney(value: number | null | undefined) {
@@ -24,6 +30,13 @@ function formatDate(value: string | null | undefined) {
 function formatLocation(city: string | null, state: string | null) {
   const label = [city, state].filter(Boolean).join(', ')
   return label || '—'
+}
+
+function formatShortLocation(city: string | null, state: string | null) {
+  const cityLabel = city?.trim()
+  const stateLabel = state?.trim()
+  if (cityLabel && stateLabel) return `${cityLabel}, ${stateLabel}`
+  return cityLabel || stateLabel || '—'
 }
 
 function formatMiles(value: number | null | undefined) {
@@ -59,38 +72,240 @@ function Metric({
   )
 }
 
-function PackageBadge({ name }: { name: string | null }) {
+function PackageBadge({ name, compact = false }: { name: string | null; compact?: boolean }) {
   const label = name?.trim() || 'Não informado'
   return (
-    <div className="mt-3">
-      <span className="inline-flex max-w-full items-center rounded-full border border-[#f6d000]/45 bg-[#f6d000]/12 px-3 py-1.5 text-[0.65rem] font-bold uppercase tracking-wider text-[#9a7200] dark:text-[#f6d000]">
-        <span className="truncate">Pacote: {label}</span>
-      </span>
+    <span
+      className={`inline-flex max-w-full items-center rounded-full border border-[#f6d000]/45 bg-[#f6d000]/12 font-bold uppercase tracking-wider text-[#9a7200] dark:text-[#f6d000] ${
+        compact
+          ? 'px-2.5 py-1 text-[0.58rem]'
+          : 'mt-3 px-3 py-1.5 text-[0.65rem]'
+      }`}
+    >
+      <span className="truncate">Pacote: {label}</span>
+    </span>
+  )
+}
+
+function CompactIndicator({
+  label,
+  value,
+  tone = 'neutral',
+}: {
+  label: string
+  value: string
+  tone?: 'neutral' | 'success' | 'warning'
+}) {
+  const toneClass =
+    tone === 'success'
+      ? 'border-cdl-success-border bg-cdl-success-soft text-cdl-success'
+      : tone === 'warning'
+        ? 'border-cdl-warning-border bg-cdl-warning-soft text-cdl-warning'
+        : 'border-cdl-border bg-cdl-inset text-cdl-text-secondary'
+
+  return (
+    <span
+      className={`inline-flex items-center rounded-md border px-2 py-1 text-[0.58rem] font-bold uppercase tracking-wide ${toneClass}`}
+    >
+      {label}: {value}
+    </span>
+  )
+}
+
+function getCompactPhotoIndicator(quote: QuoteListItem) {
+  const status = deriveGrillPhotoStatus({
+    hasGrill: quote.has_grill,
+    grillPhotoRequired: quote.grill_photo_required,
+  })
+  const label = getGrillPhotoBadgeLabel(status)
+  const tone =
+    status === 'received'
+      ? 'success'
+      : status === 'pending'
+        ? 'warning'
+        : 'neutral'
+  return { label, tone } as const
+}
+
+function QuoteCardActions({
+  quote,
+  onDeleted,
+  className = '',
+}: {
+  quote: QuoteListItem
+  onDeleted?: (quoteId: string) => void
+  className?: string
+}) {
+  return (
+    <div
+      className={`grid grid-cols-2 gap-2 sm:flex sm:flex-wrap ${className}`}
+      onClick={(event) => event.stopPropagation()}
+      onKeyDown={(event) => event.stopPropagation()}
+    >
+      <Link
+        href={`/quotes/${quote.id}`}
+        className="cdl-btn-primary inline-flex min-h-[44px] items-center justify-center px-3 py-2.5 text-xs sm:min-w-[4.5rem]"
+      >
+        Ver
+      </Link>
+      <Link
+        href={`/quotes/${quote.id}/edit?step=churrasqueira`}
+        className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-cdl-border bg-cdl-surface px-3 py-2.5 text-xs font-bold uppercase tracking-wider text-cdl-fg transition-colors hover:border-cdl-accent-border"
+      >
+        Editar
+      </Link>
+      <DeleteQuoteButton
+        quoteId={quote.id}
+        compact
+        redirectToList={false}
+        onDeleted={onDeleted}
+      />
+      <Link
+        href={`/quotes/${quote.id}?pdf=1`}
+        className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-cdl-border bg-cdl-inset px-3 py-2.5 text-xs font-bold uppercase tracking-wider text-cdl-fg transition-colors hover:border-cdl-accent-border"
+      >
+        PDF
+      </Link>
     </div>
+  )
+}
+
+function QuoteCardCompactSummary({
+  quote,
+  onToggle,
+}: {
+  quote: QuoteListItem
+  onToggle: () => void
+}) {
+  const photo = getCompactPhotoIndicator(quote)
+
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className="w-full text-left outline-none focus-visible:ring-2 focus-visible:ring-cdl-accent-border"
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <h2 className="truncate text-base font-black leading-tight text-cdl-title">
+            {quote.customer_name}
+          </h2>
+          <p className="mt-1 text-sm text-cdl-text-secondary">
+            {formatDate(quote.event_date)}
+          </p>
+          <p className="mt-0.5 truncate text-xs text-cdl-muted">
+            {formatShortLocation(quote.city, quote.state)}
+          </p>
+        </div>
+        <QuoteStatusBadge status={quote.quote_status} />
+      </div>
+
+      <div className="mt-2.5 flex flex-wrap items-center gap-2">
+        <PackageBadge name={quote.package_name} compact />
+        <span className="text-sm font-black text-cdl-price">
+          {formatMoney(quote.quote_total)}
+        </span>
+      </div>
+
+      <div className="mt-2.5 flex flex-wrap gap-1.5">
+        <CompactIndicator
+          label="Adicional"
+          value={quote.has_additionals ? 'Sim' : 'Não'}
+        />
+        <CompactIndicator
+          label="Churrasqueira"
+          value={quote.has_grill ? 'Sim' : 'Não'}
+        />
+        <CompactIndicator
+          label="Foto"
+          value={photo.label}
+          tone={photo.tone}
+        />
+      </div>
+    </button>
   )
 }
 
 export default function QuoteCard({
   quote,
   onDeleted,
+  expanded = false,
+  onToggleExpand,
+  mobileCompact = false,
 }: {
   quote: QuoteListItem
   onDeleted?: (quoteId: string) => void
+  expanded?: boolean
+  onToggleExpand?: () => void
+  mobileCompact?: boolean
 }) {
+  const showCompact = mobileCompact && !expanded
+
+  if (showCompact) {
+    return (
+      <article className="overflow-hidden rounded-2xl border border-cdl-border bg-cdl-surface p-3.5 shadow-cdl transition-colors active:border-cdl-accent-border/60">
+        <QuoteCardCompactSummary quote={quote} onToggle={() => onToggleExpand?.()} />
+        <button
+          type="button"
+          onClick={() => onToggleExpand?.()}
+          className="mt-3 w-full min-h-[44px] rounded-xl border border-cdl-border bg-cdl-inset px-3 py-2.5 text-xs font-bold uppercase tracking-wider text-cdl-brand transition-colors hover:border-cdl-accent-border"
+        >
+          Detalhes
+        </button>
+      </article>
+    )
+  }
+
   return (
-    <article className="group flex h-full flex-col overflow-hidden rounded-2xl border border-cdl-border bg-cdl-surface p-4 shadow-cdl transition-all duration-200 hover:border-cdl-accent-border/60 hover:shadow-lg sm:p-5">
-      <div className="flex items-start justify-between gap-3">
-        <p className="truncate text-[0.65rem] font-bold uppercase tracking-wider text-cdl-muted">
-          {quote.quote_number}
-        </p>
-        <QuoteStatusBadge status={quote.quote_status} />
-      </div>
+    <article
+      className={`group flex h-full flex-col overflow-hidden rounded-2xl border border-cdl-border bg-cdl-surface shadow-cdl transition-all duration-200 hover:border-cdl-accent-border/60 hover:shadow-lg ${
+        mobileCompact ? 'p-3.5' : 'p-4 sm:p-5'
+      }`}
+    >
+      {mobileCompact ? (
+        <div className="mb-3 flex items-center justify-between gap-2 border-b border-cdl-border-subtle pb-3">
+          <p className="truncate text-[0.65rem] font-bold uppercase tracking-wider text-cdl-muted">
+            {quote.quote_number}
+          </p>
+          <button
+            type="button"
+            onClick={() => onToggleExpand?.()}
+            className="shrink-0 rounded-lg px-2 py-1 text-xs font-bold uppercase tracking-wider text-cdl-brand"
+          >
+            Menos detalhes
+          </button>
+        </div>
+      ) : (
+        <div className="flex items-start justify-between gap-3">
+          <p className="truncate text-[0.65rem] font-bold uppercase tracking-wider text-cdl-muted">
+            {quote.quote_number}
+          </p>
+          <QuoteStatusBadge status={quote.quote_status} />
+        </div>
+      )}
 
-      <h2 className="mt-2 truncate text-lg font-black leading-tight text-cdl-title sm:text-xl">
-        {quote.customer_name}
-      </h2>
-
-      <PackageBadge name={quote.package_name} />
+      {!mobileCompact ? (
+        <>
+          <h2 className="mt-2 truncate text-lg font-black leading-tight text-cdl-title sm:text-xl">
+            {quote.customer_name}
+          </h2>
+          <PackageBadge name={quote.package_name} />
+        </>
+      ) : (
+        <>
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <h2 className="truncate text-lg font-black leading-tight text-cdl-title">
+                {quote.customer_name}
+              </h2>
+              <div className="mt-2">
+                <PackageBadge name={quote.package_name} />
+              </div>
+            </div>
+            <QuoteStatusBadge status={quote.quote_status} />
+          </div>
+        </>
+      )}
 
       <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
         <Metric label="Data" value={formatDate(quote.event_date)} />
@@ -134,40 +349,17 @@ export default function QuoteCard({
       <div className="mt-4 flex flex-wrap gap-1.5">
         <QuoteBoolBadge label="Adicional" value={quote.has_additionals} />
         <QuoteBoolBadge label="Churrasqueira" value={quote.has_grill} />
-        <QuoteBoolBadge
-          label="Foto"
-          value={quote.grill_photo_required}
-          variant="photo"
+        <QuoteGrillPhotoBadge
           hasGrill={quote.has_grill}
+          grillPhotoRequired={quote.grill_photo_required}
         />
       </div>
 
-      <div className="mt-auto grid grid-cols-2 gap-2 pt-4 sm:flex sm:flex-wrap">
-        <Link
-          href={`/quotes/${quote.id}`}
-          className="cdl-btn-primary inline-flex items-center justify-center px-3 py-2.5 text-xs sm:min-w-[4.5rem]"
-        >
-          Ver
-        </Link>
-        <Link
-          href={`/quotes/${quote.id}/edit`}
-          className="inline-flex items-center justify-center rounded-xl border border-cdl-border bg-cdl-surface px-3 py-2.5 text-xs font-bold uppercase tracking-wider text-cdl-fg transition-colors hover:border-cdl-accent-border"
-        >
-          Editar
-        </Link>
-        <DeleteQuoteButton
-          quoteId={quote.id}
-          compact
-          redirectToList={false}
-          onDeleted={onDeleted}
-        />
-        <Link
-          href={`/quotes/${quote.id}?pdf=1`}
-          className="inline-flex items-center justify-center rounded-xl border border-cdl-border bg-cdl-inset px-3 py-2.5 text-xs font-bold uppercase tracking-wider text-cdl-fg transition-colors hover:border-cdl-accent-border"
-        >
-          PDF
-        </Link>
-      </div>
+      <QuoteCardActions
+        quote={quote}
+        onDeleted={onDeleted}
+        className="mt-auto pt-4"
+      />
     </article>
   )
 }

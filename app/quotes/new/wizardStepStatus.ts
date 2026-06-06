@@ -35,6 +35,7 @@ export type WizardStateSnapshot = {
   hasGrill: boolean
   grillSetupAnswered: boolean
   grillPhotoRequired: boolean
+  grillPhotoAnswered: boolean
   grillRentalRequired: boolean
   grillRentalQty: number
   grillNotes: string
@@ -79,6 +80,11 @@ function isReservationPercentageValid(
   return Math.abs(value - expected) < 0.001
 }
 
+function hasValidPackage(ctx: StepStatusContext): boolean {
+  if (ctx.selectedPackage) return true
+  return Boolean(ctx.state.packageId?.trim())
+}
+
 export function getStepIssues(
   stepIndex: number,
   ctx: StepStatusContext,
@@ -111,7 +117,7 @@ export function getStepIssues(
       }
       break
     case 2:
-      if (!selectedPackage) issues.push('Selecione um pacote.')
+      if (!hasValidPackage(ctx)) issues.push('Selecione um pacote.')
       break
     case 3:
       if (ctx.additionalsCount === 0) {
@@ -122,10 +128,8 @@ export function getStepIssues(
       if (!state.grillSetupAnswered) {
         issues.push('Informe se o cliente possui churrasqueira.')
       }
-      if (state.hasGrill && !state.grillPhotoRequired) {
-        issues.push(
-          'Marque se a foto da churrasqueira está pendente para validação.',
-        )
+      if (state.hasGrill && !state.grillPhotoAnswered) {
+        issues.push('Confirme se a foto da churrasqueira foi recebida.')
       }
       if (state.grillRentalRequired && state.grillRentalQty <= 0) {
         issues.push('Informe a quantidade de churrasqueiras para aluguel.')

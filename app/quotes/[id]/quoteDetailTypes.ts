@@ -52,6 +52,8 @@ export type QuoteDetail = {
   postal_code?: string | null
   has_grill?: boolean | null
   grill_photo_required?: boolean | null
+  grill_photo_url?: string | null
+  grill_photo_media_id?: string | null
   grill_rental_required?: boolean | null
   grill_rental_qty?: number | null
   grill_notes?: string | null
