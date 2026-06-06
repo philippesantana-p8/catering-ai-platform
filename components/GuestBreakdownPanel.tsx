@@ -4,24 +4,26 @@ function StatCard({
   label,
   value,
   highlight,
+  money,
 }: {
   label: string
   value: React.ReactNode
   highlight?: boolean
+  money?: boolean
 }) {
   return (
     <div
-      className={`rounded-xl border px-4 py-4 text-center shadow-cdl sm:px-5 sm:py-5 ${
+      className={`cdl-metric-card rounded-xl border px-3 py-4 shadow-cdl sm:px-4 sm:py-5 ${
         highlight
           ? 'border-cdl-accent-border bg-cdl-accent/10'
           : 'border-cdl-border bg-cdl-inset'
       }`}
     >
-      <p className="cdl-eyebrow">{label}</p>
+      <p className="cdl-eyebrow leading-snug">{label}</p>
       <p
-        className={`mt-2 text-2xl font-black sm:text-3xl ${
-          highlight ? 'text-cdl-title' : 'text-cdl-price'
-        }`}
+        className={`cdl-metric-value ${
+          money ? 'cdl-metric-value--money' : ''
+        } ${highlight ? 'cdl-metric-value--emphasis text-cdl-price' : 'text-cdl-price'}`}
       >
         {value}
       </p>
@@ -52,68 +54,58 @@ export default function GuestBreakdownPanel({
   totals: SnapshotTotals
   variant?: 'default' | 'compact' | 'pdf'
 }) {
+  const gridClass =
+    variant === 'compact'
+      ? 'grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6'
+      : 'grid grid-cols-2 gap-3 sm:grid-cols-3'
+
+  const cards = (
+    <>
+      <StatCard label="Adultos" value={guestCounts.adultCount} />
+      <StatCard
+        label="Crianças até 3 anos"
+        value={guestCounts.childrenUnder3Count}
+      />
+      <StatCard
+        label="Crianças 4 a 12 anos"
+        value={guestCounts.children4To12Count}
+      />
+      <StatCard
+        label="Convidados físicos"
+        value={formatCount(totals.physicalGuestCount)}
+      />
+      <StatCard
+        label="Pessoas cobradas equivalentes"
+        value={formatCount(totals.billableGuestCount)}
+        highlight
+      />
+      <StatCard
+        label="Total financeiro"
+        value={formatQuoteTotal(totals.quoteTotal)}
+        highlight
+        money
+      />
+    </>
+  )
+
   if (variant === 'compact') {
-    return (
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-        <StatCard label="Adultos" value={guestCounts.adultCount} />
-        <StatCard
-          label="Crianças até 3 anos"
-          value={guestCounts.childrenUnder3Count}
-        />
-        <StatCard
-          label="Crianças 4 a 12 anos"
-          value={guestCounts.children4To12Count}
-        />
-        <StatCard
-          label="Convidados físicos"
-          value={formatCount(totals.physicalGuestCount)}
-        />
-        <StatCard
-          label="Pessoas cobradas equivalentes"
-          value={formatCount(totals.billableGuestCount)}
-          highlight
-        />
-        <StatCard
-          label="Total financeiro"
-          value={formatQuoteTotal(totals.quoteTotal)}
-          highlight
-        />
-      </div>
-    )
+    return <div className={gridClass}>{cards}</div>
   }
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <StatCard label="Adultos" value={guestCounts.adultCount} />
-        <StatCard
-          label="Crianças até 3 anos"
-          value={guestCounts.childrenUnder3Count}
-        />
-        <StatCard
-          label="Crianças 4 a 12 anos"
-          value={guestCounts.children4To12Count}
-        />
-        <StatCard
-          label="Convidados físicos"
-          value={formatCount(totals.physicalGuestCount)}
-        />
-        <StatCard
-          label="Pessoas cobradas equivalentes"
-          value={formatCount(totals.billableGuestCount)}
-          highlight
-        />
-        <StatCard
-          label="Total financeiro"
-          value={formatQuoteTotal(totals.quoteTotal)}
-          highlight
-        />
-      </div>
+      <div className={gridClass}>{cards}</div>
 
-      <p className="text-sm text-cdl-text-secondary">
-        Regra CDL: crianças até 3 anos não pagam; de 4 a 12 anos pagam meia;
-        adultos pagam valor cheio. Pessoas cobradas equivalentes = adultos + (crianças
-        4–12 × 0,5).
+      <p className="text-sm leading-relaxed text-cdl-text-secondary">
+        <strong className="font-semibold text-cdl-fg">Regra CDL:</strong>{' '}
+        crianças até{' '}
+        <strong className="font-semibold text-cdl-fg">3 anos</strong> não pagam;
+        de <strong className="font-semibold text-cdl-fg">4 a 12 anos</strong>{' '}
+        pagam meia; adultos pagam valor cheio.{' '}
+        <strong className="font-semibold text-cdl-fg">
+          Pessoas cobradas equivalentes
+        </strong>{' '}
+        = adultos + (crianças 4–12 × 0,5).
       </p>
     </div>
   )

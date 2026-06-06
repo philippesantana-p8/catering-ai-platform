@@ -186,11 +186,19 @@
   padding-left: 0.75rem;
 }
 
+.quote-proposal-overview-item {
+  min-width: 0;
+}
+
 .quote-proposal-overview-total {
   margin-top: 0.25rem;
-  font-size: 1.35rem;
+  font-size: clamp(1rem, 3.5vw, 1.35rem);
   font-weight: 800;
   color: var(--proposal-red);
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .quote-proposal-value {
@@ -252,16 +260,29 @@
 
 .quote-proposal-highlight-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.75rem;
   margin-top: 1.1rem;
 }
 
 .quote-proposal-highlight-card {
+  container-type: inline-size;
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  overflow: hidden;
   border-radius: 0.85rem;
   border: 1px solid var(--proposal-border);
   background: var(--proposal-light);
-  padding: 0.9rem 1rem;
+  padding: 0.9rem 0.75rem;
+  text-align: center;
+}
+
+.quote-proposal-highlight-card .quote-proposal-label {
+  width: 100%;
+  text-align: center;
+  line-height: 1.35;
 }
 
 .quote-proposal-highlight-card--price {
@@ -271,14 +292,22 @@
 
 .quote-proposal-highlight-value {
   margin-top: 0.35rem;
-  font-size: 1.75rem;
+  width: 100%;
+  max-width: 100%;
+  font-size: clamp(1rem, 14cqi, 1.75rem);
   font-weight: 800;
   color: var(--proposal-red);
-  line-height: 1.1;
+  line-height: 1.15;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .quote-proposal-highlight-card--price .quote-proposal-highlight-value {
   color: var(--proposal-dark);
+  font-size: clamp(0.875rem, 16cqi, 1.75rem);
+  letter-spacing: -0.02em;
 }
 
 .quote-proposal-event-name {
@@ -341,8 +370,10 @@
 
 .quote-proposal-team-card {
   display: flex;
+  min-width: 0;
   flex-direction: column;
   align-items: center;
+  overflow: hidden;
   text-align: center;
   padding: 1.1rem 0.75rem;
   border-radius: 0.85rem;
@@ -364,10 +395,16 @@
 
 .quote-proposal-team-value {
   margin-top: 0.35rem;
-  font-size: 2rem;
+  width: 100%;
+  max-width: 100%;
+  font-size: clamp(1rem, 4vw, 2rem);
   font-weight: 800;
   color: var(--proposal-red);
-  line-height: 1;
+  line-height: 1.15;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .quote-proposal-muted {
@@ -1046,6 +1083,11 @@
 
 .quote-proposal-rules-list li + li {
   margin-top: 0.35rem;
+}
+
+.quote-proposal-rules-list strong {
+  font-weight: 700;
+  color: var(--proposal-dark);
 }
 
 .quote-proposal-reservation-note {

@@ -2,6 +2,7 @@ import {
   IMPORTANT_RULES,
   RESERVATION_PAYMENT_TEXT,
 } from '../Lib/cdlCommercialRules'
+import { emphasizeRuleText } from '../Lib/emphasizeRuleText'
 
 type RulesVariant = 'summary' | 'pdf'
 
@@ -22,7 +23,7 @@ function RulesBlock({
         <h3 className="quote-proposal-rules-subtitle">{title}</h3>
         <ul className="quote-proposal-rules-list">
           {items.map((item) => (
-            <li key={item}>{item}</li>
+            <li key={item}>{emphasizeRuleText(item)}</li>
           ))}
         </ul>
       </div>
@@ -40,7 +41,7 @@ function RulesBlock({
             <span className="text-cdl-title" aria-hidden>
               •
             </span>
-            <span>{item}</span>
+            <span>{emphasizeRuleText(item)}</span>
           </li>
         ))}
       </ul>
@@ -69,8 +70,8 @@ export function CdlImportantRulesPanel({
     <section className={wrapperClass}>
       <h2 className={titleClass}>Regras importantes</h2>
       {showReservationText && variant === 'summary' && (
-        <p className="mt-4 text-sm text-cdl-text-secondary">
-          {RESERVATION_PAYMENT_TEXT}
+        <p className="mt-4 text-sm leading-relaxed text-cdl-text-secondary">
+          {emphasizeRuleText(RESERVATION_PAYMENT_TEXT)}
         </p>
       )}
       <div
