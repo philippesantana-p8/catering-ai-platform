@@ -15,6 +15,7 @@ import { updateQuote } from '../../../Lib/updateQuote'
 import {
   buildSaveQuoteError,
   logSaveQuoteError,
+  normalizeSaveQuoteError,
   type SaveQuoteErrorInfo,
 } from '../../../Lib/supabaseSaveError'
 import type { QuoteSnapshotRecord } from '../../../Lib/readQuoteSnapshot'
@@ -1857,9 +1858,11 @@ export default function QuoteWizard({
         : await createQuote(payload)
 
       if (result.error || !result.data?.id) {
-        const errorInfo =
+        const errorInfo = normalizeSaveQuoteError(
           result.error ??
-          buildSaveQuoteError('quote', new Error('Cotação não foi criada.'))
+            new Error('Cotação não foi criada — resposta sem id do Supabase.'),
+          isEditMode ? 'quote' : 'quote',
+        )
         logSaveQuoteError(errorInfo, result.error)
         setSaveErrorInfo(errorInfo)
         return
@@ -1873,7 +1876,7 @@ export default function QuoteWizard({
       }
       router.push(`/quotes/${createdId}?${params.toString()}`)
     } catch (error) {
-      const errorInfo = buildSaveQuoteError('quote', error as Error)
+      const errorInfo = normalizeSaveQuoteError(error, 'quote')
       logSaveQuoteError(errorInfo, error)
       setSaveErrorInfo(errorInfo)
     } finally {

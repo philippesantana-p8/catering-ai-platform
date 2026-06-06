@@ -8,6 +8,11 @@ import {
   calcPhysicalGuestCount,
 } from './quoteGuestFields'
 import type { QuoteSnapshotRecord } from './readQuoteSnapshot'
+import {
+  assertNoForbiddenEventColumns,
+  pickEventsInsertPayload,
+  type EventsInsertPayload,
+} from './eventsTableSchema'
 
 export type QuoteAdditionalSaveLine = {
   itemId: string
@@ -85,11 +90,19 @@ function calcAdditionalBreakdown(
   }
 }
 
-/** Dados do evento — tabela `events` (não `quotes`). */
+/** Dados do evento — apenas colunas reais de `public.events`. */
 export function buildEventSavePayload(input: QuoteSaveInput) {
-  return {
-    customer_id: input.customerId,
-    company_id: getCdlCompanyId(),
+  const guestCounts = {
+    adultCount: input.adultCount,
+    childrenUnder3Count: input.childrenUnder3Count,
+    children4To12Count: input.children4To12Count,
+  }
+  const physicalGuestCount = calcPhysicalGuestCount(guestCounts)
+  const billableGuestCount = calcBillableGuestCount(guestCounts)
+  const childrenCount =
+    input.childrenUnder3Count + input.children4To12Count
+
+  const row: EventsInsertPayload = {
     event_name: input.eventName.trim(),
     event_date: input.eventDate || null,
     start_time: input.startTime || null,
@@ -97,8 +110,24 @@ export function buildEventSavePayload(input: QuoteSaveInput) {
     address_line: input.address.trim(),
     city: input.city.trim(),
     state: input.state.trim(),
-    zip_code: input.zipCode.trim(),
+    postal_code: input.zipCode.trim() || null,
+    country: 'US',
+    adults_count: input.adultCount,
+    children_count: childrenCount,
+    billable_guests: billableGuestCount,
+    total_guests: physicalGuestCount,
+    has_grill: input.hasGrill,
+    grill_photo_required: input.grillPhotoRequired,
+    grill_rental_required: input.grillRentalRequired,
+    grill_rental_qty: input.grillRentalRequired ? input.grillRentalQty : 0,
+    grill_notes: input.grillNotes.trim() || null,
+    distance_from_base: input.distance,
+    active: true,
   }
+
+  const payload = pickEventsInsertPayload(row)
+  assertNoForbiddenEventColumns(payload)
+  return payload
 }
 
 function buildQuoteGrillAndMileagePayload(input: QuoteSaveInput) {

@@ -3,12 +3,13 @@
 import type { SaveQuoteErrorInfo } from '@/Lib/supabaseSaveError'
 
 function ErrorField({ label, value }: { label: string; value: string | null }) {
+  const display = value?.trim() ? value : '—'
   return (
-    <div>
-      <dt className="font-semibold text-red-300/90">{label}</dt>
-      <dd className="mt-0.5 font-mono text-xs break-all text-red-200/90">
-        {value?.trim() ? value : '—'}
-      </dd>
+    <div className="rounded-lg border border-cdl-border bg-cdl-inset px-3 py-2">
+      <dt className="text-[10px] font-bold uppercase tracking-wider text-cdl-muted">
+        {label}
+      </dt>
+      <dd className="mt-1 font-mono text-sm break-all text-cdl-fg">{display}</dd>
     </div>
   )
 }
@@ -23,50 +24,66 @@ export default function SaveQuoteTechnicalError({
   return (
     <div
       role="alert"
-      className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3"
+      className="rounded-2xl border border-cdl-action/50 bg-cdl-red-soft px-4 py-4 sm:px-5"
     >
-      <p className="text-sm font-semibold text-red-300">
+      <p className="text-sm font-semibold text-cdl-action">
         {isEditMode
           ? 'Não foi possível salvar a cotação.'
           : 'Não foi possível criar a cotação.'}
       </p>
-      <div className="mt-3 rounded-lg border border-red-500/20 bg-black/20 px-3 py-2">
-        <p className="text-xs font-bold uppercase tracking-wider text-red-300/90">
+      <div className="mt-3 rounded-xl border border-cdl-border bg-cdl-surface px-3 py-3">
+        <p className="text-xs font-bold uppercase tracking-wider text-cdl-action">
           Erro técnico
         </p>
-        <dl className="mt-2 space-y-2 text-xs text-red-200/90">
+        <dl className="mt-3 grid gap-2 sm:grid-cols-2">
           <ErrorField label="code" value={errorInfo.code} />
-          <ErrorField label="message" value={errorInfo.message} />
-          <ErrorField label="details" value={errorInfo.details} />
-          <ErrorField label="hint" value={errorInfo.hint} />
           <ErrorField label="step" value={errorInfo.step} />
+          <div className="sm:col-span-2">
+            <ErrorField label="message" value={errorInfo.message} />
+          </div>
+          <div className="sm:col-span-2">
+            <ErrorField label="details" value={errorInfo.details} />
+          </div>
+          <div className="sm:col-span-2">
+            <ErrorField label="hint" value={errorInfo.hint} />
+          </div>
         </dl>
+        {errorInfo.rawError ? (
+          <details className="mt-3" open>
+            <summary className="cursor-pointer text-xs font-semibold text-cdl-action">
+              Erro bruto (raw)
+            </summary>
+            <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap break-all rounded-lg border border-cdl-border bg-cdl-inset p-2 font-mono text-xs text-cdl-fg">
+              {errorInfo.rawError}
+            </pre>
+          </details>
+        ) : null}
         {errorInfo.quotePayload ? (
           <details className="mt-2">
-            <summary className="cursor-pointer text-xs font-semibold text-red-300/80">
+            <summary className="cursor-pointer text-xs font-semibold text-cdl-action">
               Payload quotes
             </summary>
-            <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap break-all font-mono text-[10px] text-red-200/80">
+            <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap break-all rounded-lg border border-cdl-border bg-cdl-inset p-2 font-mono text-xs text-cdl-fg">
               {JSON.stringify(errorInfo.quotePayload, null, 2)}
             </pre>
           </details>
         ) : null}
         {errorInfo.additionalItemsPayload?.length ? (
           <details className="mt-2">
-            <summary className="cursor-pointer text-xs font-semibold text-red-300/80">
+            <summary className="cursor-pointer text-xs font-semibold text-cdl-action">
               Payload quote_additional_items
             </summary>
-            <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap break-all font-mono text-[10px] text-red-200/80">
+            <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap break-all rounded-lg border border-cdl-border bg-cdl-inset p-2 font-mono text-xs text-cdl-fg">
               {JSON.stringify(errorInfo.additionalItemsPayload, null, 2)}
             </pre>
           </details>
         ) : null}
         {errorInfo.eventPayload ? (
           <details className="mt-2">
-            <summary className="cursor-pointer text-xs font-semibold text-red-300/80">
+            <summary className="cursor-pointer text-xs font-semibold text-cdl-action">
               Payload events
             </summary>
-            <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap break-all font-mono text-[10px] text-red-200/80">
+            <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap break-all rounded-lg border border-cdl-border bg-cdl-inset p-2 font-mono text-xs text-cdl-fg">
               {JSON.stringify(errorInfo.eventPayload, null, 2)}
             </pre>
           </details>

@@ -47,7 +47,14 @@ export async function createQuote(input: QuoteSaveInput): Promise<CreateQuoteRes
     .single()
 
   if (eventError || !eventData?.id) {
-    const errorInfo = buildSaveQuoteError('event', eventError, { eventPayload })
+    const errorInfo = buildSaveQuoteError(
+      'event',
+      eventError ??
+        new Error(
+          'Insert em events não retornou id. Possível RLS, coluna inválida ou FK ausente.',
+        ),
+      { eventPayload },
+    )
     logSaveQuoteError(errorInfo, eventError)
     return { data: null, error: errorInfo }
   }
@@ -65,10 +72,17 @@ export async function createQuote(input: QuoteSaveInput): Promise<CreateQuoteRes
     .single()
 
   if (error || !data?.id) {
-    const errorInfo = buildSaveQuoteError('quote', error, {
+    const errorInfo = buildSaveQuoteError(
+      'quote',
+      error ??
+        new Error(
+          'Insert em quotes não retornou id. Possível RLS, coluna inválida ou event_id ausente.',
+        ),
+      {
       eventPayload,
       quotePayload,
-    })
+    },
+    )
     logSaveQuoteError(errorInfo, error)
     await supabase.from('events').delete().eq('id', eventId)
     return { data: null, error: errorInfo }
