@@ -1,6 +1,16 @@
 /** Regras comerciais CDL — CDLBBQBR 26 */
 
 export const MILEAGE_BASE_LOCATION = 'Orlando Eye'
+export const LEGACY_MILEAGE_BASE_PATTERN = /downtown\s*orlando/i
+
+export function getMileageBaseLocation(stored?: string | null): string {
+  const value = stored?.trim()
+  if (!value || LEGACY_MILEAGE_BASE_PATTERN.test(value)) {
+    return MILEAGE_BASE_LOCATION
+  }
+  return value
+}
+
 export const MILEAGE_FREE_LIMIT = 20
 export const MILEAGE_RATE = 2
 export const MILEAGE_UNIT = 'mi'

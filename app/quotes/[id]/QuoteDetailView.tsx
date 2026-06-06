@@ -7,7 +7,6 @@ import {
   formatTime,
   getAdditionalImage,
   getAdditionalLabel,
-  getChargedMiles,
   getDiscount,
   getPackageDescription,
   getPackageName,
@@ -21,11 +20,13 @@ import {
   RESERVATION_PAYMENT_TEXT,
   RESERVATION_PERCENTAGE,
 } from '../../../Lib/cdlCommercialRules'
-import QuoteDetailToolbar from './QuoteDetailToolbar'
 import {
-  calculateQuoteTotalsFromQuoteRecord,
-  readOfficialGuestCountsFromQuote,
-} from '@/Lib/calculateQuoteTotals'
+  formatCountOrDash,
+  formatMoneyOrDash,
+  getChargedMilesFromSnapshot,
+  readQuoteSnapshot,
+} from '../../../Lib/readQuoteSnapshot'
+import QuoteDetailToolbar from './QuoteDetailToolbar'
 import GuestBreakdownPanel from '@/components/GuestBreakdownPanel'
 import QuoteDebugPanel from './QuoteDebugPanel'
 
@@ -183,7 +184,6 @@ export default function QuoteDetailView({ quote }: { quote: QuoteDetail }) {
   const packageDescription = getPackageDescription(quote)
   const additionalItems = quote.additional_items ?? []
   const groupedAdditionals = groupAdditionalsByCategory(additionalItems, lang)
-  const chargedMiles = getChargedMiles(quote)
   const discount = getDiscount(quote)
   const quoteNumber = quote.quote_number ?? 'CDL-Q-0000'
   const quoteDate = formatDate(quote.created_at)
@@ -192,24 +192,28 @@ export default function QuoteDetailView({ quote }: { quote: QuoteDetail }) {
     .filter(Boolean)
     .join(' · ')
 
-  const guestCounts = readOfficialGuestCountsFromQuote(
-    quote,
-    `quote-detail:${quote.id}`,
-  )
-  const { totals: quoteTotals } = calculateQuoteTotalsFromQuoteRecord(quote)
-  const packageUnitPrice = Number(
-    quote.package_price_per_person ?? quote.package_unit_price ?? 0,
+  const snapshot = readQuoteSnapshot(quote)
+  const guestCounts = snapshot.guestCounts
+  const chargedMiles = getChargedMilesFromSnapshot(
+    snapshot.mileageDistance,
+    snapshot.mileageFreeLimit,
   )
 
   const pricingLines = [
-    { label: 'Pacote', value: formatCurrency(quoteTotals.packageTotal) },
-    { label: 'Adicionais', value: formatCurrency(quoteTotals.additionalTotal) },
-    { label: 'Milhagem', value: formatCurrency(quoteTotals.mileageFee) },
+    { label: 'Pacote', value: formatMoneyOrDash(snapshot.packageTotal) },
+    {
+      label: 'Adicionais',
+      value: formatMoneyOrDash(snapshot.additionalTotal),
+    },
+    { label: 'Milhagem', value: formatMoneyOrDash(snapshot.mileageFee) },
     { label: 'Desconto', value: formatCurrency(discount), accent: true },
-    { label: 'Reserva', value: formatCurrency(quoteTotals.reservationAmount) },
+    {
+      label: 'Reserva',
+      value: formatMoneyOrDash(snapshot.reservationAmount),
+    },
     {
       label: 'Saldo a pagar',
-      value: formatCurrency(quoteTotals.balanceDue),
+      value: formatMoneyOrDash(snapshot.balanceDue),
       highlight: true,
     },
   ]
@@ -228,7 +232,11 @@ export default function QuoteDetailView({ quote }: { quote: QuoteDetail }) {
       </div>
 
       <div className="quote-print-compact-header">
-        <CdlBrandLogo size="sm" className="quote-print-compact-logo" />
+        <CdlBrandLogo
+          size="sm"
+          variant="compact"
+          className="quote-print-compact-logo"
+        />
         <span className="quote-print-compact-header-title">
           BBQ AT HOME | {quoteNumber}
         </span>
@@ -238,7 +246,11 @@ export default function QuoteDetailView({ quote }: { quote: QuoteDetail }) {
         <div className="quote-proposal-hero-inner">
           <div className="quote-proposal-hero-brand">
             <div className="quote-print-logo">
-              <CdlBrandLogo size="lg" className="quote-print-logo-mark" />
+              <CdlBrandLogo
+                size="lg"
+                variant="cover"
+                className="quote-print-logo-mark"
+              />
             </div>
             <div className="quote-proposal-hero-copy">
               <h1 className="quote-proposal-title">BBQ AT HOME</h1>
@@ -288,7 +300,7 @@ export default function QuoteDetailView({ quote }: { quote: QuoteDetail }) {
           <div className="quote-proposal-overview-item quote-proposal-overview-item--total">
             <span className="quote-proposal-label">Investimento</span>
             <p className="quote-proposal-overview-total">
-              {formatCurrency(quoteTotals.quoteTotal)}
+              {formatMoneyOrDash(snapshot.quoteTotal)}
             </p>
           </div>
         </div>
@@ -305,23 +317,25 @@ export default function QuoteDetailView({ quote }: { quote: QuoteDetail }) {
               <div className="quote-proposal-highlight-card">
                 <span className="quote-proposal-label">Convidados físicos</span>
                 <p className="quote-proposal-highlight-value">
-                  {displayValue(quoteTotals.physicalGuestCount)}
+                  {formatCountOrDash(snapshot.physicalGuestCount)}
                 </p>
               </div>
               <div className="quote-proposal-highlight-card">
                 <span className="quote-proposal-label">Pessoas cobradas equivalentes</span>
                 <p className="quote-proposal-highlight-value">
-                  {displayValue(quoteTotals.billableGuestCount)}
+                  {formatCountOrDash(snapshot.billableGuestCount)}
                 </p>
               </div>
               <div className="quote-proposal-highlight-card quote-proposal-highlight-card--price">
                 <span className="quote-proposal-label">Valor do pacote</span>
                 <p className="quote-proposal-highlight-value">
-                  {formatCurrency(quoteTotals.packageTotal)}
+                  {formatMoneyOrDash(snapshot.packageTotal)}
                 </p>
-                {packageUnitPrice > 0 && quoteTotals.billableGuestCount > 0 && (
+                {snapshot.packageUnitPrice != null &&
+                  snapshot.billableGuestCount != null &&
+                  snapshot.billableGuestCount > 0 && (
                   <p className="quote-proposal-muted mt-1 text-xs">
-                    {formatCurrency(packageUnitPrice)} × {quoteTotals.billableGuestCount}
+                    {formatCurrency(snapshot.packageUnitPrice)} × {snapshot.billableGuestCount}
                   </p>
                 )}
               </div>
@@ -332,9 +346,9 @@ export default function QuoteDetailView({ quote }: { quote: QuoteDetail }) {
             <GuestBreakdownPanel
               guestCounts={guestCounts}
               totals={{
-                billableGuestCount: quoteTotals.billableGuestCount,
-                physicalGuestCount: quoteTotals.physicalGuestCount,
-                quoteTotal: quoteTotals.quoteTotal,
+                billableGuestCount: snapshot.billableGuestCount,
+                physicalGuestCount: snapshot.physicalGuestCount,
+                quoteTotal: snapshot.quoteTotal,
               }}
             />
           </ProposalSection>
@@ -422,41 +436,43 @@ export default function QuoteDetailView({ quote }: { quote: QuoteDetail }) {
             <div className="quote-proposal-info-cell">
               <span className="quote-proposal-label">Local base</span>
               <p className="quote-proposal-value">
-                {displayValue(quote.mileage_base_location)}
+                {displayValue(snapshot.mileageBaseLocation)}
               </p>
             </div>
             <div className="quote-proposal-info-cell">
               <span className="quote-proposal-label">Distância</span>
               <p className="quote-proposal-value">
-                {quote.mileage_distance != null
-                  ? `${quote.mileage_distance} mi`
+                {snapshot.mileageDistance != null
+                  ? `${snapshot.mileageDistance} mi`
                   : '—'}
               </p>
             </div>
             <div className="quote-proposal-info-cell">
               <span className="quote-proposal-label">Milhas inclusas</span>
               <p className="quote-proposal-value">
-                {quote.mileage_free_limit != null
-                  ? `${quote.mileage_free_limit} mi`
+                {snapshot.mileageFreeLimit != null
+                  ? `${snapshot.mileageFreeLimit} mi`
                   : '—'}
               </p>
             </div>
             <div className="quote-proposal-info-cell">
               <span className="quote-proposal-label">Milhas cobradas</span>
-              <p className="quote-proposal-value">{`${chargedMiles} mi`}</p>
+              <p className="quote-proposal-value">
+                {chargedMiles != null ? `${chargedMiles} mi` : '—'}
+              </p>
             </div>
             <div className="quote-proposal-info-cell">
               <span className="quote-proposal-label">Taxa</span>
               <p className="quote-proposal-value">
-                {quote.mileage_rate != null
-                  ? `${formatCurrency(quote.mileage_rate)}/mi`
+                {snapshot.mileageRate != null
+                  ? `${formatCurrency(snapshot.mileageRate)}/mi`
                   : '—'}
               </p>
             </div>
             <div className="quote-proposal-info-cell">
               <span className="quote-proposal-label">Taxa de milhagem</span>
               <p className="quote-proposal-value">
-                {formatCurrency(quote.mileage_fee)}
+                {formatMoneyOrDash(snapshot.mileageFee)}
               </p>
             </div>
           </div>
@@ -544,7 +560,7 @@ export default function QuoteDetailView({ quote }: { quote: QuoteDetail }) {
             <div className="quote-print-total-box quote-proposal-total-box">
               <span className="quote-proposal-total-label">Total da cotação</span>
               <span className="quote-print-total-value quote-proposal-total-value">
-                {formatCurrency(quoteTotals.quoteTotal)}
+                {formatMoneyOrDash(snapshot.quoteTotal)}
               </span>
             </div>
             <div className="quote-proposal-reservation-note">
@@ -569,11 +585,17 @@ export default function QuoteDetailView({ quote }: { quote: QuoteDetail }) {
             children_4_to_12_count: quote.children_4_to_12_count,
             physical_guest_count: quote.physical_guest_count,
             billable_guest_count: quote.billable_guest_count,
+            package_unit_price:
+              quote.package_unit_price ?? quote.package_price_per_person,
             package_total: quote.package_total,
             additional_total: quote.additional_total,
+            mileage_base_location: quote.mileage_base_location,
             mileage_fee: quote.mileage_fee,
+            reservation_percentage: quote.reservation_percentage,
             reservation_amount: quote.reservation_amount,
+            balance_due: quote.balance_due,
             quote_total: quote.quote_total,
+            missingFields: snapshot.missingFields,
           }}
         />
 

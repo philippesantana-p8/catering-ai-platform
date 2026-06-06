@@ -67,6 +67,7 @@ export type QuoteDetail = {
   discount?: number | null
   discount_amount?: number | null
   reservation_amount?: number | null
+  reservation_percentage?: number | null
   balance_due?: number | null
   quote_total?: number | null
   additional_items?: QuoteAdditionalItem[] | null

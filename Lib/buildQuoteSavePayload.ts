@@ -1,4 +1,5 @@
-import { calculateQuoteTotals } from './calculateQuoteTotals'
+import { buildQuoteDraftSnapshotPayload } from './calculateQuoteDraftFromSupabasePricing'
+import type { CommercialRulesSnapshot } from './supabaseCommercialRules'
 import { buildOfficialGuestPayload } from './quoteGuestFields'
 
 export type QuoteAdditionalSaveLine = {
@@ -30,8 +31,7 @@ export type QuoteSaveInput = {
   grillNotes: string
   baseLocation: string
   distance: number
-  freeLimit: number
-  rate: number
+  pricing: CommercialRulesSnapshot
   reservationPercentage: number
   reservationAmount: number
   packagePricePerPerson: number
@@ -47,7 +47,7 @@ export function buildQuoteSavePayload(input: QuoteSaveInput) {
 
   const officialGuests = buildOfficialGuestPayload(guestCounts)
 
-  const totals = calculateQuoteTotals({
+  const draftSnapshot = buildQuoteDraftSnapshotPayload({
     guestCounts,
     packagePricePerPerson: input.packagePricePerPerson,
     additionals: input.additionals.map((line) => ({
@@ -56,8 +56,7 @@ export function buildQuoteSavePayload(input: QuoteSaveInput) {
       perPerson: line.perPerson,
     })),
     mileageDistance: input.distance,
-    mileageFreeLimit: input.freeLimit,
-    mileageRate: input.rate,
+    pricing: input.pricing,
     reservationPercentage: input.reservationPercentage,
     reservationAmountOverride: input.reservationAmount,
     useCustomReservation: false,
@@ -79,17 +78,20 @@ export function buildQuoteSavePayload(input: QuoteSaveInput) {
     grill_rental_required: input.grillRentalRequired,
     grill_rental_qty: input.grillRentalRequired ? input.grillRentalQty : 0,
     grill_notes: input.grillNotes.trim() || null,
-    mileage_base_location: input.baseLocation,
+    package_unit_price: draftSnapshot.packageUnitPrice,
+    package_price_per_person: draftSnapshot.packageUnitPrice,
+    package_total: draftSnapshot.packageTotal,
+    additional_total: draftSnapshot.additionalTotal,
+    mileage_base_location:
+      input.baseLocation.trim() || draftSnapshot.mileageBaseLocation,
     mileage_distance: input.distance,
-    mileage_free_limit: input.freeLimit,
-    mileage_rate: input.rate,
-    mileage_fee: totals.mileageFee,
-    package_total: totals.packageTotal,
-    additional_total: totals.additionalTotal,
-    reservation_amount: totals.reservationAmount,
-    reservation_percentage: input.reservationPercentage,
-    balance_due: totals.balanceDue,
-    quote_total: totals.quoteTotal,
+    mileage_free_limit: draftSnapshot.mileageFreeLimit,
+    mileage_rate: draftSnapshot.mileageRate,
+    mileage_fee: draftSnapshot.mileageFee,
+    reservation_amount: draftSnapshot.reservationAmount,
+    reservation_percentage: draftSnapshot.reservationPercentage,
+    balance_due: draftSnapshot.balanceDue,
+    quote_total: draftSnapshot.quoteTotal,
     quote_status: 'draft',
     ...officialGuests,
   }

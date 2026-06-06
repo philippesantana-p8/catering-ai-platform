@@ -8,6 +8,8 @@ import {
   View,
 } from '@react-pdf/renderer'
 import {
+  CDL_LOGO_COVER_HEIGHT,
+  CDL_LOGO_COMPACT_HEIGHT,
   CDL_LOGO_PLACEHOLDER,
   type PdfLogoSource,
 } from '@/Lib/cdlLogo'
@@ -15,11 +17,15 @@ import {
   BALANCE_PERCENTAGE,
   CANCELLATION_POLICY_SUMMARY,
   IMPORTANT_RULES,
-  MILEAGE_BASE_LOCATION,
   RESERVATION_PAYMENT_TEXT,
   RESERVATION_PERCENTAGE,
 } from '@/Lib/cdlCommercialRules'
-import { calculateQuoteTotalsFromQuoteRecord } from '@/Lib/calculateQuoteTotals'
+import {
+  formatCountOrDash,
+  formatMoneyOrDash,
+  getChargedMilesFromSnapshot,
+  readQuoteSnapshot,
+} from '@/Lib/readQuoteSnapshot'
 import {
   type QuoteDetail,
   displayValue,
@@ -28,7 +34,6 @@ import {
   formatDate,
   formatTime,
   getAdditionalLabel,
-  getChargedMiles,
   getDiscount,
   getPackageDescription,
   getPackageName,
@@ -61,11 +66,19 @@ const styles = StyleSheet.create({
     marginBottom: 28,
     width: 120,
   },
+  coverLogoWrap: {
+    height: CDL_LOGO_COVER_HEIGHT,
+    width: CDL_LOGO_COVER_HEIGHT,
+    marginBottom: 20,
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    flexDirection: 'row',
+  },
   coverLogo: {
-    width: 140,
-    height: 140,
+    height: CDL_LOGO_COVER_HEIGHT,
+    width: CDL_LOGO_COVER_HEIGHT,
+    maxHeight: CDL_LOGO_COVER_HEIGHT,
     objectFit: 'contain',
-    marginBottom: 24,
   },
   coverLogoPlaceholder: {
     fontSize: 28,
@@ -142,8 +155,8 @@ const styles = StyleSheet.create({
     color: colors.gold,
   },
   contentPage: {
-    paddingTop: 58,
-    paddingBottom: 52,
+    paddingTop: 44,
+    paddingBottom: 48,
     paddingHorizontal: 40,
     fontSize: 9,
     fontFamily: 'Helvetica',
@@ -155,22 +168,33 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
+    height: 36,
     backgroundColor: colors.dark,
     borderBottomWidth: 2,
     borderBottomColor: colors.gold,
     paddingHorizontal: 40,
-    paddingVertical: 8,
+    paddingVertical: 4,
     flexDirection: 'row',
     alignItems: 'center',
   },
   compactHeaderLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
+    flexShrink: 1,
+  },
+  compactLogoWrap: {
+    height: CDL_LOGO_COMPACT_HEIGHT,
+    width: CDL_LOGO_COMPACT_HEIGHT,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+    flexDirection: 'row',
   },
   compactLogo: {
-    width: 32,
-    height: 32,
+    height: CDL_LOGO_COMPACT_HEIGHT,
+    width: CDL_LOGO_COMPACT_HEIGHT,
+    maxHeight: CDL_LOGO_COMPACT_HEIGHT,
     objectFit: 'contain',
   },
   compactLogoPlaceholder: {
@@ -181,10 +205,11 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   compactHeaderTitle: {
-    fontSize: 10,
+    fontSize: 9,
     fontFamily: 'Helvetica-Bold',
     color: colors.white,
-    letterSpacing: 0.6,
+    letterSpacing: 0.5,
+    flexShrink: 1,
   },
   pageFooter: {
     position: 'absolute',
@@ -447,10 +472,16 @@ function PdfLogoMark({
 }) {
   if (logoSrc) {
     return (
-      <Image
-        src={logoSrc}
-        style={variant === 'cover' ? styles.coverLogo : styles.compactLogo}
-      />
+      <View
+        style={
+          variant === 'cover' ? styles.coverLogoWrap : styles.compactLogoWrap
+        }
+      >
+        <Image
+          src={logoSrc}
+          style={variant === 'cover' ? styles.coverLogo : styles.compactLogo}
+        />
+      </View>
     )
   }
 
@@ -503,7 +534,7 @@ export function QuotePdfDocument({
   quote: QuoteDetail
   logo?: PdfLogoSource
 }) {
-  const logoSrc = logo?.src ?? null
+  const logoSrc = logo?.filePath ?? logo?.src ?? null
   const lang = quote.language ?? 'pt'
   const packageName = getPackageName(quote) ?? '—'
   const packageDescription = getPackageDescription(quote)
@@ -511,7 +542,12 @@ export function QuotePdfDocument({
     quote.additional_items ?? [],
     lang,
   )
-  const chargedMiles = getChargedMiles(quote)
+  const snapshot = readQuoteSnapshot(quote)
+  const guestCounts = snapshot.guestCounts
+  const chargedMiles = getChargedMilesFromSnapshot(
+    snapshot.mileageDistance,
+    snapshot.mileageFreeLimit,
+  )
   const discount = getDiscount(quote)
   const quoteNumber = quote.quote_number ?? 'CDL-Q-0000'
   const customerName = displayValue(quote.customer_name)
@@ -520,24 +556,23 @@ export function QuotePdfDocument({
   const eventLocation = [quote.address_line, cityState, getZipCode(quote)]
     .filter(Boolean)
     .join(' · ')
-  const mileageBase =
-    quote.mileage_base_location?.trim() || MILEAGE_BASE_LOCATION
-
-  const { guestCounts, totals: quoteTotals } =
-    calculateQuoteTotalsFromQuoteRecord(quote)
-  const packageUnitPrice = Number(
-    quote.package_price_per_person ?? quote.package_unit_price ?? 0,
-  )
+  const mileageBase = displayValue(snapshot.mileageBaseLocation)
 
   const pricingLines = [
-    { label: 'Pacote', value: formatCurrency(quoteTotals.packageTotal) },
-    { label: 'Adicionais', value: formatCurrency(quoteTotals.additionalTotal) },
-    { label: 'Milhagem', value: formatCurrency(quoteTotals.mileageFee) },
+    { label: 'Pacote', value: formatMoneyOrDash(snapshot.packageTotal) },
+    {
+      label: 'Adicionais',
+      value: formatMoneyOrDash(snapshot.additionalTotal),
+    },
+    { label: 'Milhagem', value: formatMoneyOrDash(snapshot.mileageFee) },
     { label: 'Desconto', value: formatCurrency(discount), accent: true },
-    { label: 'Reserva', value: formatCurrency(quoteTotals.reservationAmount) },
+    {
+      label: 'Reserva',
+      value: formatMoneyOrDash(snapshot.reservationAmount),
+    },
     {
       label: 'Saldo a pagar',
-      value: formatCurrency(quoteTotals.balanceDue),
+      value: formatMoneyOrDash(snapshot.balanceDue),
       highlight: true,
     },
   ]
@@ -573,7 +608,7 @@ export function QuotePdfDocument({
         <View style={styles.coverInvestmentBox}>
           <Text style={styles.coverInvestmentLabel}>Total Investment</Text>
           <Text style={styles.coverInvestmentValue}>
-            {formatCurrency(quoteTotals.quoteTotal)}
+            {formatMoneyOrDash(snapshot.quoteTotal)}
           </Text>
         </View>
       </Page>
@@ -600,7 +635,7 @@ export function QuotePdfDocument({
           <View style={[styles.overviewItem, styles.overviewTotal]}>
             <Text style={styles.overviewTotalLabel}>Investimento</Text>
             <Text style={styles.overviewTotalValue}>
-              {formatCurrency(quoteTotals.quoteTotal)}
+              {formatMoneyOrDash(snapshot.quoteTotal)}
             </Text>
           </View>
         </View>
@@ -623,20 +658,23 @@ export function QuotePdfDocument({
             />
             <InfoCell
               label="Convidados físicos"
-              value={String(quoteTotals.physicalGuestCount)}
+              value={formatCountOrDash(snapshot.physicalGuestCount)}
             />
             <InfoCell
               label="Pessoas cobradas equivalentes"
-              value={String(quoteTotals.billableGuestCount)}
+              value={formatCountOrDash(snapshot.billableGuestCount)}
             />
             <InfoCell
               label="Valor do pacote"
-              value={formatCurrency(quoteTotals.packageTotal)}
+              value={formatMoneyOrDash(snapshot.packageTotal)}
             />
           </View>
-          {packageUnitPrice > 0 && quoteTotals.billableGuestCount > 0 ? (
+          {snapshot.packageUnitPrice != null &&
+          snapshot.billableGuestCount != null &&
+          snapshot.billableGuestCount > 0 ? (
             <Text style={styles.packageDesc}>
-              {formatCurrency(packageUnitPrice)} × {quoteTotals.billableGuestCount}{' '}
+              {formatCurrency(snapshot.packageUnitPrice)} ×{' '}
+              {snapshot.billableGuestCount}{' '}
               pessoas cobradas equivalentes
             </Text>
           ) : null}
@@ -701,31 +739,36 @@ export function QuotePdfDocument({
             <InfoCell
               label="Distância"
               value={
-                quote.mileage_distance != null
-                  ? `${quote.mileage_distance} mi`
+                snapshot.mileageDistance != null
+                  ? `${snapshot.mileageDistance} mi`
                   : '—'
               }
             />
             <InfoCell
               label="Milhas inclusas"
               value={
-                quote.mileage_free_limit != null
-                  ? `${quote.mileage_free_limit} mi`
+                snapshot.mileageFreeLimit != null
+                  ? `${snapshot.mileageFreeLimit} mi`
                   : '—'
               }
             />
-            <InfoCell label="Milhas cobradas" value={`${chargedMiles} mi`} />
+            <InfoCell
+              label="Milhas cobradas"
+              value={
+                chargedMiles != null ? `${chargedMiles} mi` : '—'
+              }
+            />
             <InfoCell
               label="Taxa"
               value={
-                quote.mileage_rate != null
-                  ? `${formatCurrency(quote.mileage_rate)}/mi`
+                snapshot.mileageRate != null
+                  ? `${formatCurrency(snapshot.mileageRate)}/mi`
                   : '—'
               }
             />
             <InfoCell
               label="Taxa de milhagem"
-              value={formatCurrency(quote.mileage_fee)}
+              value={formatMoneyOrDash(snapshot.mileageFee)}
             />
           </View>
         </View>
@@ -774,7 +817,7 @@ export function QuotePdfDocument({
             <View style={styles.totalBox}>
               <Text style={styles.totalLabel}>Total da cotação</Text>
               <Text style={styles.totalValue}>
-                {formatCurrency(quoteTotals.quoteTotal)}
+                {formatMoneyOrDash(snapshot.quoteTotal)}
               </Text>
             </View>
             <Text style={styles.reservationNote}>{RESERVATION_PAYMENT_TEXT}</Text>

@@ -1,9 +1,7 @@
 import {
-  MILEAGE_BASE_LOCATION,
-  MILEAGE_FREE_LIMIT,
-  MILEAGE_RATE,
-  RESERVATION_PERCENTAGE,
-} from '@/Lib/cdlCommercialRules'
+  getFallbackCommercialRules,
+  type CommercialRulesSnapshot,
+} from '@/Lib/supabaseCommercialRules'
 
 export const WIZARD_STEP_LABELS = [
   'Cliente',
@@ -57,6 +55,7 @@ export type StepStatusContext = {
   currentStep: number
   reservationAmount: number
   additionalsCount: number
+  commercialRules?: CommercialRulesSnapshot
 }
 
 export type PendingStepIssue = {
@@ -71,8 +70,11 @@ function isFilled(value: string) {
   return value.trim().length > 0
 }
 
-function isReservationPercentageValid(value: number) {
-  return Math.abs(value - RESERVATION_PERCENTAGE) < 0.001
+function isReservationPercentageValid(
+  value: number,
+  expected: number,
+) {
+  return Math.abs(value - expected) < 0.001
 }
 
 export function getStepIssues(
@@ -80,6 +82,7 @@ export function getStepIssues(
   ctx: StepStatusContext,
 ): string[] {
   const { state, selectedCustomer, selectedPackage, reservationAmount } = ctx
+  const rules = ctx.commercialRules ?? getFallbackCommercialRules()
   const issues: string[] = []
 
   switch (stepIndex) {
@@ -118,20 +121,25 @@ export function getStepIssues(
       }
       break
     case 5:
-      if (state.baseLocation.trim() !== MILEAGE_BASE_LOCATION) {
-        issues.push(`Base deve ser ${MILEAGE_BASE_LOCATION}.`)
+      if (state.baseLocation.trim() !== rules.mileageBaseLocation) {
+        issues.push(`Base deve ser ${rules.mileageBaseLocation}.`)
       }
       if (!(state.distance > 0)) issues.push('Informe a distância (mi).')
-      if (state.freeLimit !== MILEAGE_FREE_LIMIT) {
-        issues.push(`Limite gratuito deve ser ${MILEAGE_FREE_LIMIT} mi.`)
+      if (state.freeLimit !== rules.mileageFreeLimit) {
+        issues.push(`Limite gratuito deve ser ${rules.mileageFreeLimit} mi.`)
       }
-      if (state.rate !== MILEAGE_RATE) {
-        issues.push(`Taxa deve ser $${MILEAGE_RATE}/mi.`)
+      if (state.rate !== rules.mileageRate) {
+        issues.push(`Taxa deve ser $${rules.mileageRate}/mi.`)
       }
       break
     case 6:
-      if (!isReservationPercentageValid(state.reservationPercentage)) {
-        issues.push(`Reserva deve ser ${RESERVATION_PERCENTAGE}%.`)
+      if (
+        !isReservationPercentageValid(
+          state.reservationPercentage,
+          rules.reservationPercentage,
+        )
+      ) {
+        issues.push(`Reserva deve ser ${rules.reservationPercentage}%.`)
       }
       if (!(reservationAmount > 0)) {
         issues.push('Calcule o valor da reserva.')

@@ -1,9 +1,6 @@
 import fs from 'fs'
 import path from 'path'
-import {
-  CDL_LOGO_FILE_CANDIDATES,
-  type PdfLogoSource,
-} from './cdlLogo'
+import { CDL_LOGO_PATH, type PdfLogoSource } from './cdlLogo'
 
 const MIME_BY_EXT: Record<string, string> = {
   png: 'image/png',
@@ -12,39 +9,42 @@ const MIME_BY_EXT: Record<string, string> = {
   webp: 'image/webp',
 }
 
-const IMAGE_EXT_PATTERN = /\.(png|jpe?g|webp)$/i
+function resolveLogoFilePath(): string | null {
+  const filePath = path.join(
+    /* turbopackIgnore: true */ process.cwd(),
+    'public',
+    'cdl',
+    'logo.png',
+  )
 
-function encodeLogoFile(filePath: string): PdfLogoSource {
-  const ext = path.extname(filePath).slice(1).toLowerCase()
-  const mime = MIME_BY_EXT[ext] ?? 'image/png'
-  const data = fs.readFileSync(filePath)
-
-  return {
-    src: `data:${mime};base64,${data.toString('base64')}`,
+  if (fs.existsSync(filePath) && fs.statSync(filePath).size > 0) {
+    return filePath
   }
+
+  return null
 }
 
 export function resolveCdlLogoForPdf(): PdfLogoSource {
-  const dir = path.join(process.cwd(), 'public', 'cdl')
+  const filePath = resolveLogoFilePath()
 
-  if (!fs.existsSync(dir)) {
-    return { src: null }
+  if (!filePath) {
+    console.error(
+      `[CDL PDF] Logo not found. Expected static file at public/cdl/logo.png (${CDL_LOGO_PATH}).`,
+    )
+    return { filePath: null, src: null }
   }
 
-  for (const fileName of CDL_LOGO_FILE_CANDIDATES) {
-    const filePath = path.join(dir, fileName)
-    if (!fs.existsSync(filePath)) continue
-    return encodeLogoFile(filePath)
+  try {
+    const ext = path.extname(filePath).slice(1).toLowerCase()
+    const mime = MIME_BY_EXT[ext] ?? 'image/png'
+    const data = fs.readFileSync(filePath)
+
+    return {
+      filePath,
+      src: `data:${mime};base64,${data.toString('base64')}`,
+    }
+  } catch (error) {
+    console.error('[CDL PDF] Failed to read logo file:', error)
+    return { filePath: null, src: null }
   }
-
-  const discovered = fs
-    .readdirSync(dir)
-    .filter((fileName) => IMAGE_EXT_PATTERN.test(fileName))
-    .sort((a, b) => a.localeCompare(b, 'en'))
-
-  if (discovered.length > 0) {
-    return encodeLogoFile(path.join(dir, discovered[0]!))
-  }
-
-  return { src: null }
 }

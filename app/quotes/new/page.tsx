@@ -1,4 +1,5 @@
 import { supabase } from '../../../Lib/supabase'
+import { fetchSupabaseCommercialRules } from '../../../Lib/supabaseCommercialRules'
 import QuoteWizard, {
   type AdditionalItem,
   type Customer,
@@ -8,20 +9,22 @@ import QuoteWizard, {
 export default async function NewQuotePage() {
   const fetchErrors: string[] = []
 
-  const [customersRes, packagesRes, additionalRes] = await Promise.all([
-    supabase.from('customers').select('*'),
-    supabase
-      .from('packages')
-      .select('*')
-      .eq('active', true)
-      .order('display_order', { ascending: true }),
-    supabase
-      .from('additional_items')
-      .select('*')
-      .eq('active', true)
-      .order('category_pt', { ascending: true })
-      .order('display_order', { ascending: true }),
-  ])
+  const [customersRes, packagesRes, additionalRes, commercialRules] =
+    await Promise.all([
+      supabase.from('customers').select('*'),
+      supabase
+        .from('packages')
+        .select('*')
+        .eq('active', true)
+        .order('display_order', { ascending: true }),
+      supabase
+        .from('additional_items')
+        .select('*')
+        .eq('active', true)
+        .order('category_pt', { ascending: true })
+        .order('display_order', { ascending: true }),
+      fetchSupabaseCommercialRules(),
+    ])
 
   if (customersRes.error) {
     fetchErrors.push(`Clientes: ${customersRes.error.message}`)
@@ -42,6 +45,7 @@ export default async function NewQuotePage() {
       customers={customers}
       packages={packages}
       additionalItems={additionalItems}
+      commercialRules={commercialRules}
       fetchErrors={fetchErrors}
     />
   )

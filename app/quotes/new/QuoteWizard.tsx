@@ -5,17 +5,10 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import CdlBrandLogo from '../../../components/CdlBrandLogo'
 import { CdlImportantRulesPanel } from '../../../components/CdlImportantRulesPanel'
-import {
-  MILEAGE_BASE_LOCATION,
-  MILEAGE_FREE_LIMIT,
-  MILEAGE_RATE,
-  RESERVATION_PAYMENT_TEXT,
-  RESERVATION_PERCENTAGE,
-} from '../../../Lib/cdlCommercialRules'
-import {
-  calcAdditionalLineTotal,
-  calculateQuoteTotals,
-} from '../../../Lib/calculateQuoteTotals'
+import { RESERVATION_PAYMENT_TEXT } from '../../../Lib/cdlCommercialRules'
+import { calcAdditionalLineTotal } from '../../../Lib/calculateQuoteTotals'
+import type { CommercialRulesSnapshot } from '../../../Lib/supabaseCommercialRules'
+import { calculateQuoteDraftFromSupabasePricing } from '../../../Lib/calculateQuoteDraftFromSupabasePricing'
 import type { QuoteSaveInput } from '../../../Lib/buildQuoteSavePayload'
 import GuestBreakdownPanel from '../../../components/GuestBreakdownPanel'
 import AddressAutocompleteFields from './AddressAutocompleteFields'
@@ -135,34 +128,38 @@ const STEPS = [
   'Resumo',
 ] as const
 
-const initialState: WizardState = {
-  customerId: null,
-  eventName: '',
-  eventDate: '',
-  startTime: '',
-  endTime: '',
-  adultCount: 0,
-  childrenUnder3Count: 0,
-  children4To12Count: 0,
-  address: '',
-  city: '',
-  state: '',
-  zipCode: '',
-  hasGrill: false,
-  grillSetupAnswered: false,
-  grillPhotoRequired: false,
-  grillRentalRequired: false,
-  grillRentalQty: 0,
-  grillNotes: '',
-  packageId: null,
-  additionals: {},
-  baseLocation: MILEAGE_BASE_LOCATION,
-  distance: 0,
-  freeLimit: MILEAGE_FREE_LIMIT,
-  rate: MILEAGE_RATE,
-  reservationPercentage: RESERVATION_PERCENTAGE,
-  reservationAmount: 0,
-  reservationNotes: '',
+function createInitialWizardState(
+  rules: CommercialRulesSnapshot,
+): WizardState {
+  return {
+    customerId: null,
+    eventName: '',
+    eventDate: '',
+    startTime: '',
+    endTime: '',
+    adultCount: 0,
+    childrenUnder3Count: 0,
+    children4To12Count: 0,
+    address: '',
+    city: '',
+    state: '',
+    zipCode: '',
+    hasGrill: false,
+    grillSetupAnswered: false,
+    grillPhotoRequired: false,
+    grillRentalRequired: false,
+    grillRentalQty: 0,
+    grillNotes: '',
+    packageId: null,
+    additionals: {},
+    baseLocation: rules.mileageBaseLocation,
+    distance: 0,
+    freeLimit: rules.mileageFreeLimit,
+    rate: rules.mileageRate,
+    reservationPercentage: rules.reservationPercentage,
+    reservationAmount: 0,
+    reservationNotes: '',
+  }
 }
 
 function formatCurrency(value: number) {
@@ -1646,15 +1643,19 @@ export default function QuoteWizard({
   customers,
   packages,
   additionalItems,
+  commercialRules,
   fetchErrors,
 }: {
   customers: Customer[]
   packages: Package[]
   additionalItems: AdditionalItem[]
+  commercialRules: CommercialRulesSnapshot
   fetchErrors: string[]
 }) {
   const [step, setStep] = useState(0)
-  const [state, setState] = useState<WizardState>(initialState)
+  const [state, setState] = useState<WizardState>(() =>
+    createInitialWizardState(commercialRules),
+  )
   const [customerSearch, setCustomerSearch] = useState('')
   const [endTimeCustomized, setEndTimeCustomized] = useState(false)
   const [openAdditionalCategories, setOpenAdditionalCategories] = useState<
@@ -1801,7 +1802,7 @@ export default function QuoteWizard({
       })
       .filter((line): line is NonNullable<typeof line> => line !== null)
 
-    return calculateQuoteTotals({
+    return calculateQuoteDraftFromSupabasePricing({
       guestCounts: {
         adultCount: state.adultCount,
         childrenUnder3Count: state.childrenUnder3Count,
@@ -1810,8 +1811,7 @@ export default function QuoteWizard({
       packagePricePerPerson: selectedPackage ? getPackagePrice(selectedPackage) : 0,
       additionals,
       mileageDistance: state.distance,
-      mileageFreeLimit: state.freeLimit,
-      mileageRate: state.rate,
+      pricing: commercialRules,
       reservationPercentage: state.reservationPercentage,
       reservationAmountOverride: state.reservationAmount,
       useCustomReservation: reservationAmountCustomized,
@@ -1822,13 +1822,12 @@ export default function QuoteWizard({
     state.children4To12Count,
     state.additionals,
     state.distance,
-    state.freeLimit,
-    state.rate,
     state.reservationPercentage,
     state.reservationAmount,
     selectedPackage,
     additionalItems,
     reservationAmountCustomized,
+    commercialRules,
   ])
 
   const billableGuestCount = quoteTotals.billableGuestCount
@@ -1877,6 +1876,7 @@ export default function QuoteWizard({
       currentStep: step,
       reservationAmount,
       additionalsCount,
+      commercialRules,
     }),
     [
       state,
@@ -1885,6 +1885,7 @@ export default function QuoteWizard({
       step,
       reservationAmount,
       additionalsCount,
+      commercialRules,
     ],
   )
 
@@ -2021,8 +2022,7 @@ export default function QuoteWizard({
       grillNotes: state.grillNotes,
       baseLocation: state.baseLocation,
       distance: state.distance,
-      freeLimit: state.freeLimit,
-      rate: state.rate,
+      pricing: commercialRules,
       reservationPercentage: state.reservationPercentage,
       reservationAmount,
       packagePricePerPerson: getPackagePrice(selectedPackage),

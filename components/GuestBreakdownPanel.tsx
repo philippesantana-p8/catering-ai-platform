@@ -1,4 +1,4 @@
-import type { GuestCounts, QuoteTotals } from '@/Lib/calculateQuoteTotals'
+import type { GuestCounts } from '@/Lib/calculateQuoteTotals'
 
 function StatCard({
   label,
@@ -29,16 +29,27 @@ function StatCard({
   )
 }
 
+type SnapshotTotals = {
+  billableGuestCount: number | null
+  physicalGuestCount: number | null
+  quoteTotal: number | null
+}
+
+function formatCount(value: number | null) {
+  return value == null ? '—' : value
+}
+
+function formatQuoteTotal(value: number | null) {
+  return value == null ? '—' : `$${value.toFixed(2)}`
+}
+
 export default function GuestBreakdownPanel({
   guestCounts,
   totals,
   variant = 'default',
 }: {
   guestCounts: GuestCounts
-  totals: Pick<
-    QuoteTotals,
-    'billableGuestCount' | 'physicalGuestCount' | 'quoteTotal'
-  >
+  totals: SnapshotTotals
   variant?: 'default' | 'compact' | 'pdf'
 }) {
   if (variant === 'compact') {
@@ -55,16 +66,16 @@ export default function GuestBreakdownPanel({
         />
         <StatCard
           label="Convidados físicos"
-          value={totals.physicalGuestCount}
+          value={formatCount(totals.physicalGuestCount)}
         />
         <StatCard
           label="Pessoas cobradas equivalentes"
-          value={totals.billableGuestCount}
+          value={formatCount(totals.billableGuestCount)}
           highlight
         />
         <StatCard
           label="Total financeiro"
-          value={`$${totals.quoteTotal.toFixed(2)}`}
+          value={formatQuoteTotal(totals.quoteTotal)}
           highlight
         />
       </div>
@@ -85,16 +96,16 @@ export default function GuestBreakdownPanel({
         />
         <StatCard
           label="Convidados físicos"
-          value={totals.physicalGuestCount}
+          value={formatCount(totals.physicalGuestCount)}
         />
         <StatCard
           label="Pessoas cobradas equivalentes"
-          value={totals.billableGuestCount}
+          value={formatCount(totals.billableGuestCount)}
           highlight
         />
         <StatCard
           label="Total financeiro"
-          value={`$${totals.quoteTotal.toFixed(2)}`}
+          value={formatQuoteTotal(totals.quoteTotal)}
           highlight
         />
       </div>
