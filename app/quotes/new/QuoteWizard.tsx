@@ -11,14 +11,22 @@ import {
   RESERVATION_PAYMENT_TEXT,
   RESERVATION_PERCENTAGE,
 } from '../../../Lib/cdlCommercialRules'
+import {
+  calcAdditionalLineTotal,
+  calculateQuoteTotals,
+} from '../../../Lib/calculateQuoteTotals'
+import GuestBreakdownPanel from '../../../components/GuestBreakdownPanel'
 import AddressAutocompleteFields from './AddressAutocompleteFields'
 import {
   countCompletedSteps,
-  countRemainingSteps,
+  countMandatoryPendingSteps,
   getCompletionPercentage,
-  getStepStatus,
-  type StepStatus,
+  getMandatoryPendingSteps,
+  getStepVisualStatus,
+  isQuoteReadyToSave,
+  type PendingStepIssue,
   type StepStatusContext,
+  type StepVisualStatus,
 } from './wizardStepStatus'
 
 export type Customer = {
@@ -90,8 +98,9 @@ type WizardState = {
   eventDate: string
   startTime: string
   endTime: string
-  adultsQty: number
-  childrenQty: number
+  adultCount: number
+  childrenUnder3Count: number
+  children4To12Count: number
   address: string
   city: string
   state: string
@@ -130,8 +139,9 @@ const initialState: WizardState = {
   eventDate: '',
   startTime: '',
   endTime: '',
-  adultsQty: 0,
-  childrenQty: 0,
+  adultCount: 0,
+  childrenUnder3Count: 0,
+  children4To12Count: 0,
   address: '',
   city: '',
   state: '',
@@ -243,39 +253,43 @@ function FieldCheck({ show }: { show: boolean }) {
   )
 }
 
-function stepSegmentClass(status: StepStatus) {
+function stepSegmentClass(status: StepVisualStatus) {
   switch (status) {
     case 'complete':
       return 'bg-cdl-success'
-    case 'incomplete':
+    case 'pending':
       return 'bg-cdl-warning'
-    case 'current':
-      return 'bg-cdl-step-current'
+    case 'error':
+      return 'bg-cdl-action'
     default:
       return 'bg-cdl-step-empty'
   }
 }
 
-function stepButtonClass(status: StepStatus) {
+function stepButtonClass(status: StepVisualStatus, isCurrent: boolean) {
+  const currentRing = isCurrent
+    ? 'ring-2 ring-cdl-brand ring-offset-2 ring-offset-cdl-surface'
+    : ''
+
   switch (status) {
     case 'complete':
-      return 'border border-cdl-success-border bg-cdl-success-soft text-cdl-success'
-    case 'incomplete':
-      return 'border border-cdl-warning-border bg-cdl-warning-soft text-cdl-warning'
-    case 'current':
-      return 'border border-cdl-action bg-cdl-red-soft text-cdl-action shadow-cdl-accent'
+      return `border border-cdl-success-border bg-cdl-success-soft text-cdl-success ${currentRing}`
+    case 'pending':
+      return `border border-cdl-warning-border bg-cdl-warning-soft text-cdl-warning ${currentRing}`
+    case 'error':
+      return `border border-cdl-action bg-cdl-red-soft text-cdl-action ${currentRing}`
     default:
-      return 'border border-cdl-border bg-cdl-inset text-cdl-muted'
+      return `border border-cdl-border bg-cdl-inset text-cdl-muted ${currentRing}`
   }
 }
 
-function stepBadgeClass(status: StepStatus) {
+function stepBadgeClass(status: StepVisualStatus) {
   switch (status) {
     case 'complete':
       return 'bg-cdl-success text-[#070707]'
-    case 'incomplete':
+    case 'pending':
       return 'bg-cdl-warning text-[#070707]'
-    case 'current':
+    case 'error':
       return 'bg-cdl-action text-white'
     default:
       return 'bg-cdl-image text-cdl-muted'
@@ -709,18 +723,22 @@ function normalizeAdditionalQuantity(item: AdditionalItem, quantity: number) {
   return Math.max(0, quantity)
 }
 
-function calcAdditionalLineTotal(
+function calcAdditionalLineTotalForItem(
   item: AdditionalItem,
   quantity: number,
   billableGuests: number,
 ) {
   const normalizedQty = normalizeAdditionalQuantity(item, quantity)
   if (normalizedQty <= 0) return 0
-  const unitPrice = getAdditionalUnitPrice(item)
-  if (isPerPersonAdditional(item)) {
-    return roundMoney(unitPrice * billableGuests)
-  }
-  return roundMoney(unitPrice * normalizedQty)
+
+  return calcAdditionalLineTotal(
+    {
+      quantity: normalizedQty,
+      unitPrice: getAdditionalUnitPrice(item),
+      perPerson: isPerPersonAdditional(item),
+    },
+    billableGuests,
+  )
 }
 
 function mapSelectedAdditionalRow(
@@ -734,7 +752,7 @@ function mapSelectedAdditionalRow(
     quantity: normalizedQty,
     unitPrice: getAdditionalUnitPrice(item),
     perPerson: isPerPersonAdditional(item),
-    totalPrice: calcAdditionalLineTotal(item, normalizedQty, billableGuests),
+    totalPrice: calcAdditionalLineTotalForItem(item, normalizedQty, billableGuests),
   }
 }
 
@@ -1017,7 +1035,7 @@ function AdditionalItemCard({
   const unitPrice = getAdditionalUnitPrice(item)
   const perPerson = isPerPersonAdditional(item)
   const normalizedQty = normalizeAdditionalQuantity(item, quantity)
-  const lineTotal = calcAdditionalLineTotal(item, quantity, billableGuests)
+  const lineTotal = calcAdditionalLineTotalForItem(item, quantity, billableGuests)
   const isSelected = normalizedQty > 0
   const totalWeight = getAdditionalTotalWeight(item, quantity)
   const packLabel = !perPerson ? getAdditionalPackLabel(item) : null
@@ -1234,10 +1252,7 @@ function AdditionalCategorySection({
   )
 }
 
-function calcMileageFee(distance: number, freeLimit: number, rate: number) {
-  const billable = Math.max(0, distance - freeLimit)
-  return billable * rate
-}
+// mileage + quote totals: see Lib/calculateQuoteTotals.ts
 
 function SectionCard({
   title,
@@ -1343,9 +1358,8 @@ function WizardCompletionProgress({
   stepStatusCtx: StepStatusContext
 }) {
   const completedSteps = countCompletedSteps(stepStatusCtx)
-  const remainingSteps = countRemainingSteps(stepStatusCtx)
   const percentage = getCompletionPercentage(stepStatusCtx)
-  const ready = completedSteps >= 7
+  const ready = isQuoteReadyToSave(stepStatusCtx)
 
   return (
     <section className="rounded-2xl border border-cdl-border bg-cdl-surface p-7 shadow-cdl sm:p-9">
@@ -1373,7 +1387,7 @@ function WizardCompletionProgress({
           >
             {ready
               ? 'Pronto para gerar cotação'
-              : `Faltam ${remainingSteps} etapas`}
+              : `Faltam ${countMandatoryPendingSteps(stepStatusCtx)} etapas obrigatórias`}
           </p>
         </div>
       </div>
@@ -1381,11 +1395,79 @@ function WizardCompletionProgress({
         {STEPS.map((_, index) => (
           <div
             key={STEPS[index]}
-            className={`flex-1 rounded-full transition-colors ${stepSegmentClass(getStepStatus(index + 1, stepStatusCtx))}`}
+            className={`flex-1 rounded-full transition-colors ${stepSegmentClass(getStepVisualStatus(index, stepStatusCtx))}`}
             title={STEPS[index]}
           />
         ))}
       </div>
+    </section>
+  )
+}
+
+function WizardQuoteValidationPanel({
+  pendingSteps,
+  ready,
+  onGoToStep,
+}: {
+  pendingSteps: PendingStepIssue[]
+  ready: boolean
+  onGoToStep: (stepIndex: number) => void
+}) {
+  return (
+    <section
+      className={`rounded-2xl border p-7 shadow-cdl sm:p-9 ${
+        ready
+          ? 'border-cdl-success-border bg-cdl-success-soft'
+          : 'border-cdl-action bg-cdl-red-soft'
+      }`}
+    >
+      <h2
+        className={`text-xl font-bold sm:text-2xl ${
+          ready ? 'text-cdl-success' : 'text-cdl-action'
+        }`}
+      >
+        Pendências da cotação
+      </h2>
+
+      {ready ? (
+        <p className="mt-4 text-sm font-semibold text-cdl-success sm:text-base">
+          Cotação pronta para salvar e gerar PDF.
+        </p>
+      ) : (
+        <ul className="mt-5 space-y-4">
+          {pendingSteps.map((pending) => (
+            <li
+              key={pending.stepIndex}
+              className="rounded-xl border border-cdl-action/40 bg-cdl-surface p-4 sm:p-5"
+            >
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="text-sm font-bold uppercase tracking-wider text-cdl-action">
+                    {pending.label}
+                  </p>
+                  <ul className="mt-2 space-y-1 text-sm text-cdl-text-secondary">
+                    {pending.issues.map((issue) => (
+                      <li key={issue} className="flex gap-2">
+                        <span className="text-cdl-action" aria-hidden>
+                          •
+                        </span>
+                        <span>{issue}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onGoToStep(pending.stepIndex)}
+                  className="shrink-0 rounded-xl border border-cdl-action bg-cdl-red-soft px-4 py-2 text-xs font-bold uppercase tracking-wider text-cdl-action transition-colors hover:bg-cdl-action hover:text-white"
+                >
+                  Ir para etapa
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   )
 }
@@ -1556,7 +1638,7 @@ function CheckboxField({
   )
 }
 
-export { getStepStatus } from './wizardStepStatus'
+export { getStepVisualStatus } from './wizardStepStatus'
 
 export default function QuoteWizard({
   customers,
@@ -1699,9 +1781,54 @@ export default function QuoteWizard({
     })
   }
 
-  const billableGuests = state.adultsQty + state.childrenQty
+  const quoteTotals = useMemo(() => {
+    const additionals = Object.entries(state.additionals)
+      .filter(([, quantity]) => quantity > 0)
+      .map(([itemId, quantity]) => {
+        const item = additionalItems.find((row) => row.id === itemId)
+        if (!item) return null
+        const normalizedQty = normalizeAdditionalQuantity(item, quantity)
+        return {
+          quantity: normalizedQty,
+          unitPrice: getAdditionalUnitPrice(item),
+          perPerson: isPerPersonAdditional(item),
+        }
+      })
+      .filter((line): line is NonNullable<typeof line> => line !== null)
+
+    return calculateQuoteTotals({
+      guestCounts: {
+        adultCount: state.adultCount,
+        childrenUnder3Count: state.childrenUnder3Count,
+        children4To12Count: state.children4To12Count,
+      },
+      packagePricePerPerson: selectedPackage ? getPackagePrice(selectedPackage) : 0,
+      additionals,
+      mileageDistance: state.distance,
+      mileageFreeLimit: state.freeLimit,
+      mileageRate: state.rate,
+      reservationPercentage: state.reservationPercentage,
+      reservationAmountOverride: state.reservationAmount,
+      useCustomReservation: reservationAmountCustomized,
+    })
+  }, [
+    state.adultCount,
+    state.childrenUnder3Count,
+    state.children4To12Count,
+    state.additionals,
+    state.distance,
+    state.freeLimit,
+    state.rate,
+    state.reservationPercentage,
+    state.reservationAmount,
+    selectedPackage,
+    additionalItems,
+    reservationAmountCustomized,
+  ])
+
+  const billableGuests = quoteTotals.billableGuests
   const packageUnitPrice = selectedPackage ? getPackagePrice(selectedPackage) : 0
-  const packageTotal = packageUnitPrice * billableGuests
+  const packageTotal = quoteTotals.packageTotal
 
   const selectedAdditionalsByCategory = useMemo(() => {
     return additionalItemsByCategory
@@ -1725,26 +1852,15 @@ export default function QuoteWizard({
     [selectedAdditionalsByCategory],
   )
 
-  const additionalTotal = selectedAdditionals.reduce(
-    (sum, row) => sum + row.totalPrice,
-    0,
-  )
+  const additionalTotal = quoteTotals.additionalTotal
 
-  const mileageFee = calcMileageFee(
-    state.distance,
-    state.freeLimit,
-    state.rate,
-  )
+  const mileageFee = quoteTotals.mileageFee
 
-  const quoteTotal = packageTotal + additionalTotal + mileageFee
+  const quoteTotal = quoteTotals.quoteTotal
 
-  const reservationAmount = roundMoney(
-    reservationAmountCustomized
-      ? state.reservationAmount
-      : quoteTotal * (state.reservationPercentage / 100),
-  )
+  const reservationAmount = quoteTotals.reservationAmount
 
-  const balanceDue = quoteTotal - reservationAmount
+  const balanceDue = quoteTotals.balanceDue
 
   const additionalsCount = selectedAdditionals.length
 
@@ -1866,6 +1982,13 @@ export default function QuoteWizard({
     if (step < STEPS.length - 1) setStep((s) => s + 1)
   }
 
+  const mandatoryPendingSteps = useMemo(
+    () => getMandatoryPendingSteps(stepStatusCtx),
+    [stepStatusCtx],
+  )
+
+  const quoteReady = isQuoteReadyToSave(stepStatusCtx)
+
   return (
     <main className="min-h-screen bg-cdl-bg px-4 py-8 text-cdl-fg sm:px-8 sm:py-10">
       <div className="mx-auto max-w-6xl">
@@ -1915,14 +2038,15 @@ export default function QuoteWizard({
             {STEPS.map((label, index) => (
               <div
                 key={`segment-${label}`}
-                className={`h-full flex-1 rounded-full transition-colors duration-300 ${stepSegmentClass(getStepStatus(index + 1, stepStatusCtx))}`}
+                className={`h-full flex-1 rounded-full transition-colors duration-300 ${stepSegmentClass(getStepVisualStatus(index, stepStatusCtx))}`}
               />
             ))}
           </div>
 
           <ol className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 snap-x snap-mandatory lg:mx-0 lg:grid lg:grid-cols-8 lg:gap-1.5 lg:overflow-visible lg:pb-0">
             {STEPS.map((label, index) => {
-              const status = getStepStatus(index + 1, stepStatusCtx)
+              const status = getStepVisualStatus(index, stepStatusCtx)
+              const isCurrent = index === step
               const stepTitle =
                 index === 4 && additionalsCount > 0
                   ? `${label} · ${additionalsCount} adicionais selecionados`
@@ -1937,12 +2061,13 @@ export default function QuoteWizard({
                     type="button"
                     onClick={() => setStep(index)}
                     title={stepTitle}
-                    className={`flex w-full flex-col items-center gap-1 rounded-xl px-1 py-2 transition-colors lg:px-1.5 lg:py-2.5 ${stepButtonClass(status)}`}
+                    aria-current={isCurrent ? 'step' : undefined}
+                    className={`flex w-full flex-col items-center gap-1 rounded-xl px-1 py-2 transition-colors lg:px-1.5 lg:py-2.5 ${stepButtonClass(status, isCurrent)}`}
                   >
                     <span
                       className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-black lg:h-6 lg:w-6 lg:text-xs ${stepBadgeClass(status)}`}
                     >
-                      {status === 'complete' ? '✓' : index + 1}
+                      {status === 'complete' ? '✓' : status === 'error' ? '!' : index + 1}
                     </span>
                     <span className="w-full text-center text-[8px] font-semibold uppercase leading-tight tracking-wide lg:text-[9px] xl:text-[10px]">
                       {label}
@@ -2074,13 +2199,18 @@ export default function QuoteWizard({
               </div>
               <QuantityField
                 label="Adultos"
-                value={state.adultsQty}
-                onChange={(v) => updateState({ adultsQty: v })}
+                value={state.adultCount}
+                onChange={(v) => updateState({ adultCount: v })}
               />
               <QuantityField
-                label="Crianças"
-                value={state.childrenQty}
-                onChange={(v) => updateState({ childrenQty: v })}
+                label="Crianças até 3 anos"
+                value={state.childrenUnder3Count}
+                onChange={(v) => updateState({ childrenUnder3Count: v })}
+              />
+              <QuantityField
+                label="Crianças 4 a 12 anos"
+                value={state.children4To12Count}
+                onChange={(v) => updateState({ children4To12Count: v })}
               />
               <AddressAutocompleteFields
                 className="sm:col-span-2"
@@ -2383,6 +2513,12 @@ export default function QuoteWizard({
           <div className="space-y-8">
             <WizardCompletionProgress stepStatusCtx={stepStatusCtx} />
 
+            <WizardQuoteValidationPanel
+              pendingSteps={mandatoryPendingSteps}
+              ready={quoteReady}
+              onGoToStep={setStep}
+            />
+
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
               <SummarySectionCard title="Pacote CDL">
                 {selectedPackage ? (
@@ -2470,10 +2606,20 @@ export default function QuoteWizard({
                       />
                     </div>
                   )}
-                <div className="mt-6 grid grid-cols-3 gap-3 sm:gap-4">
-                  <SummaryStatCard label="Adultos" value={state.adultsQty} />
-                  <SummaryStatCard label="Crianças" value={state.childrenQty} />
-                  <SummaryStatCard label="Total" value={billableGuests} />
+                <div className="mt-6">
+                  <GuestBreakdownPanel
+                    guestCounts={{
+                      adultCount: state.adultCount,
+                      childrenUnder3Count: state.childrenUnder3Count,
+                      children4To12Count: state.children4To12Count,
+                    }}
+                    totals={{
+                      billableGuests: quoteTotals.billableGuests,
+                      physicalGuestTotal: quoteTotals.physicalGuestTotal,
+                      quoteTotal,
+                    }}
+                    variant="compact"
+                  />
                 </div>
                 <div className="mt-6 space-y-4">
                   <SummaryDetail
@@ -2705,6 +2851,16 @@ export default function QuoteWizard({
             </section>
 
             <CdlImportantRulesPanel variant="summary" />
+
+            <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                disabled={!quoteReady}
+                className="cdl-btn-primary disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Salvar / Gerar cotação
+              </button>
+            </div>
           </div>
         )}
 

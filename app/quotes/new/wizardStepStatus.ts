@@ -1,6 +1,25 @@
-export type StepStatus = 'current' | 'complete' | 'incomplete' | 'empty'
+import {
+  MILEAGE_BASE_LOCATION,
+  MILEAGE_FREE_LIMIT,
+  MILEAGE_RATE,
+  RESERVATION_PERCENTAGE,
+} from '@/Lib/cdlCommercialRules'
 
-const STEPS_COUNT = 8
+export const WIZARD_STEP_LABELS = [
+  'Cliente',
+  'Evento',
+  'Churrasqueira',
+  'Pacote',
+  'Adicionais',
+  'Milhagem',
+  'Reserva',
+  'Resumo',
+] as const
+
+export const STEPS_COUNT = WIZARD_STEP_LABELS.length
+
+/** Verde = concluído · Amarelo = pendente · Vermelho = erro (resumo) */
+export type StepVisualStatus = 'complete' | 'pending' | 'error'
 
 export type WizardStateSnapshot = {
   customerId: string | null
@@ -8,11 +27,13 @@ export type WizardStateSnapshot = {
   eventDate: string
   startTime: string
   endTime: string
+  address: string
   city: string
   state: string
-  address: string
-  adultsQty: number
-  childrenQty: number
+  zipCode: string
+  adultCount: number
+  childrenUnder3Count: number
+  children4To12Count: number
   hasGrill: boolean
   grillSetupAnswered: boolean
   grillPhotoRequired: boolean
@@ -38,108 +59,184 @@ export type StepStatusContext = {
   additionalsCount: number
 }
 
+export type PendingStepIssue = {
+  stepIndex: number
+  label: string
+  issues: string[]
+}
+
+const MANDATORY_STEP_INDICES = [0, 1, 2, 3, 5, 6] as const
+
 function isFilled(value: string) {
   return value.trim().length > 0
 }
 
-export function isStepComplete(stepIndex: number, ctx: StepStatusContext): boolean {
-  const { state, selectedCustomer, selectedPackage, reservationAmount, additionalsCount } =
-    ctx
-
-  switch (stepIndex) {
-    case 0:
-      return selectedCustomer !== null
-    case 1:
-      return (
-        isFilled(state.eventName) &&
-        isFilled(state.eventDate) &&
-        isFilled(state.startTime) &&
-        isFilled(state.endTime) &&
-        isFilled(state.city) &&
-        isFilled(state.state)
-      )
-    case 2: {
-      if (!state.grillSetupAnswered) return false
-      const grillOk = !state.hasGrill || state.grillPhotoRequired
-      const rentalOk = !state.grillRentalRequired || state.grillRentalQty > 0
-      return grillOk && rentalOk
-    }
-    case 3:
-      return selectedPackage !== null
-    case 4:
-      return additionalsCount > 0
-    case 5:
-      return state.distance > 0
-    case 6:
-      return reservationAmount > 0
-    case 7: {
-      for (let i = 0; i < 7; i += 1) {
-        if (!isStepComplete(i, ctx)) return false
-      }
-      return true
-    }
-    default:
-      return false
-  }
+function isReservationPercentageValid(value: number) {
+  return Math.abs(value - RESERVATION_PERCENTAGE) < 0.001
 }
 
-export function isStepStarted(stepIndex: number, ctx: StepStatusContext): boolean {
-  const { state, additionalsCount, reservationAmount } = ctx
+export function getStepIssues(
+  stepIndex: number,
+  ctx: StepStatusContext,
+): string[] {
+  const { state, selectedCustomer, selectedPackage, reservationAmount } = ctx
+  const issues: string[] = []
 
   switch (stepIndex) {
     case 0:
+      if (!selectedCustomer) issues.push('Selecione um cliente.')
+      break
     case 1:
-    case 3:
-      return true
+      if (!isFilled(state.eventName)) issues.push('Informe o nome do evento.')
+      if (!isFilled(state.eventDate)) issues.push('Informe a data do evento.')
+      if (!isFilled(state.startTime)) issues.push('Informe o horário de início.')
+      if (!isFilled(state.endTime)) issues.push('Informe o horário de término.')
+      if (!isFilled(state.address)) issues.push('Informe o endereço.')
+      if (!isFilled(state.city)) issues.push('Informe a cidade.')
+      if (!isFilled(state.state)) issues.push('Informe o estado.')
+      if (!isFilled(state.zipCode)) issues.push('Informe o CEP / zip code.')
+      break
     case 2:
-      return true
+      if (!state.grillSetupAnswered) {
+        issues.push('Informe se o cliente possui churrasqueira.')
+      }
+      if (state.hasGrill && !state.grillPhotoRequired) {
+        issues.push(
+          'Marque se a foto da churrasqueira está pendente para validação.',
+        )
+      }
+      if (state.grillRentalRequired && state.grillRentalQty <= 0) {
+        issues.push('Informe a quantidade de churrasqueiras para aluguel.')
+      }
+      break
+    case 3:
+      if (!selectedPackage) issues.push('Selecione um pacote.')
+      break
     case 4:
-      return additionalsCount > 0
+      if (ctx.additionalsCount === 0) {
+        issues.push('Nenhum adicional selecionado (opcional).')
+      }
+      break
     case 5:
-      return (
-        state.distance > 0 ||
-        isFilled(state.baseLocation) ||
-        state.freeLimit > 0 ||
-        state.rate > 0
-      )
+      if (state.baseLocation.trim() !== MILEAGE_BASE_LOCATION) {
+        issues.push(`Base deve ser ${MILEAGE_BASE_LOCATION}.`)
+      }
+      if (!(state.distance > 0)) issues.push('Informe a distância (mi).')
+      if (state.freeLimit !== MILEAGE_FREE_LIMIT) {
+        issues.push(`Limite gratuito deve ser ${MILEAGE_FREE_LIMIT} mi.`)
+      }
+      if (state.rate !== MILEAGE_RATE) {
+        issues.push(`Taxa deve ser $${MILEAGE_RATE}/mi.`)
+      }
+      break
     case 6:
-      return (
-        reservationAmount > 0 ||
-        isFilled(state.reservationNotes) ||
-        state.reservationPercentage !== 20
-      )
+      if (!isReservationPercentageValid(state.reservationPercentage)) {
+        issues.push(`Reserva deve ser ${RESERVATION_PERCENTAGE}%.`)
+      }
+      if (!(reservationAmount > 0)) {
+        issues.push('Calcule o valor da reserva.')
+      }
+      break
     case 7:
-      return ctx.currentStep === 7
+      if (!areMandatoryStepsComplete(ctx)) {
+        issues.push('Existem etapas obrigatórias incompletas.')
+      }
+      break
     default:
-      return false
+      break
   }
+
+  return issues
 }
 
+export function isMandatoryStepComplete(
+  stepIndex: number,
+  ctx: StepStatusContext,
+): boolean {
+  return getStepIssues(stepIndex, ctx).length === 0
+}
+
+export function areMandatoryStepsComplete(ctx: StepStatusContext): boolean {
+  return MANDATORY_STEP_INDICES.every((stepIndex) =>
+    isMandatoryStepComplete(stepIndex, ctx),
+  )
+}
+
+export function getMandatoryPendingSteps(
+  ctx: StepStatusContext,
+): PendingStepIssue[] {
+  return MANDATORY_STEP_INDICES.filter(
+    (stepIndex) => !isMandatoryStepComplete(stepIndex, ctx),
+  ).map((stepIndex) => ({
+    stepIndex,
+    label: WIZARD_STEP_LABELS[stepIndex],
+    issues: getStepIssues(stepIndex, ctx),
+  }))
+}
+
+export function getStepVisualStatus(
+  stepIndex: number,
+  ctx: StepStatusContext,
+): StepVisualStatus {
+  if (stepIndex === 7) {
+    return areMandatoryStepsComplete(ctx) ? 'complete' : 'error'
+  }
+
+  if (stepIndex === 4) {
+    return ctx.additionalsCount > 0 ? 'complete' : 'pending'
+  }
+
+  return isMandatoryStepComplete(stepIndex, ctx) ? 'complete' : 'pending'
+}
+
+/** @deprecated Use getStepVisualStatus */
+export type StepStatus = 'current' | 'complete' | 'incomplete' | 'empty'
+
+/** @deprecated Use getStepVisualStatus */
 export function getStepStatus(
   stepNumber: number,
   ctx: StepStatusContext,
 ): StepStatus {
   const stepIndex = stepNumber - 1
+  const visual = getStepVisualStatus(stepIndex, ctx)
 
   if (stepIndex === ctx.currentStep) return 'current'
-  if (isStepComplete(stepIndex, ctx)) return 'complete'
-  if (isStepStarted(stepIndex, ctx)) return 'incomplete'
+  if (visual === 'complete') return 'complete'
+  if (visual === 'error' || visual === 'pending') return 'incomplete'
   return 'empty'
 }
 
+/** @deprecated Use isMandatoryStepComplete */
+export function isStepComplete(stepIndex: number, ctx: StepStatusContext): boolean {
+  if (stepIndex === 4) return ctx.additionalsCount > 0
+  if (stepIndex === 7) return areMandatoryStepsComplete(ctx)
+  return isMandatoryStepComplete(stepIndex, ctx)
+}
+
+export function countVisuallyCompleteSteps(ctx: StepStatusContext) {
+  let count = 0
+  for (let i = 0; i < STEPS_COUNT; i += 1) {
+    if (getStepVisualStatus(i, ctx) === 'complete') count += 1
+  }
+  return count
+}
+
+export function countMandatoryPendingSteps(ctx: StepStatusContext) {
+  return getMandatoryPendingSteps(ctx).length
+}
+
 export function countCompletedSteps(ctx: StepStatusContext) {
-  return STEPS_COUNT - countRemainingSteps(ctx)
+  return countVisuallyCompleteSteps(ctx)
 }
 
 export function countRemainingSteps(ctx: StepStatusContext) {
-  let remaining = 0
-  for (let i = 0; i < STEPS_COUNT; i += 1) {
-    if (!isStepComplete(i, ctx)) remaining += 1
-  }
-  return remaining
+  return STEPS_COUNT - countVisuallyCompleteSteps(ctx)
 }
 
 export function getCompletionPercentage(ctx: StepStatusContext) {
-  const completed = countCompletedSteps(ctx)
-  return Math.round((completed / STEPS_COUNT) * 100)
+  return Math.round((countVisuallyCompleteSteps(ctx) / STEPS_COUNT) * 100)
+}
+
+export function isQuoteReadyToSave(ctx: StepStatusContext) {
+  return areMandatoryStepsComplete(ctx)
 }

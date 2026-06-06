@@ -21,7 +21,16 @@ export type QuoteDetail = {
   quote_status?: string | null
   created_at?: string | null
   language?: string | null
+  customer_id?: string | null
+  package_id?: string | null
+  package_key?: string | null
   customer_name?: string | null
+  adult_count?: number | null
+  adults_count?: number | null
+  children_under_3_count?: number | null
+  children_4_to_12_count?: number | null
+  children_count?: number | null
+  billable_guest_count?: number | null
   package_name_pt?: string | null
   package_name_en?: string | null
   package_name_es?: string | null
@@ -30,6 +39,7 @@ export type QuoteDetail = {
   package_description_es?: string | null
   package_description?: string | null
   package_unit_price?: number | null
+  package_price_per_person?: number | null
   package_image_url?: string | null
   billable_guests?: number | null
   event_name?: string | null

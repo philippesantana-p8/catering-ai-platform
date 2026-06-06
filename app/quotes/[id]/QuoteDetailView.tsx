@@ -22,6 +22,12 @@ import {
   RESERVATION_PERCENTAGE,
 } from '../../../Lib/cdlCommercialRules'
 import QuoteDetailToolbar from './QuoteDetailToolbar'
+import {
+  calculateQuoteTotalsFromQuoteRecord,
+  resolveGuestCountsFromQuote,
+} from '@/Lib/calculateQuoteTotals'
+import GuestBreakdownPanel from '@/components/GuestBreakdownPanel'
+import QuoteDebugPanel from './QuoteDebugPanel'
 
 function ProposalSection({
   title,
@@ -186,20 +192,33 @@ export default function QuoteDetailView({ quote }: { quote: QuoteDetail }) {
     .filter(Boolean)
     .join(' · ')
 
+  const guestCounts = resolveGuestCountsFromQuote(quote)
+  const { totals: quoteTotals } = calculateQuoteTotalsFromQuoteRecord(quote)
+  const packageUnitPrice = Number(
+    quote.package_price_per_person ?? quote.package_unit_price ?? 0,
+  )
+
   const pricingLines = [
-    { label: 'Pacote', value: formatCurrency(quote.package_total) },
-    { label: 'Adicionais', value: formatCurrency(quote.additional_total) },
-    { label: 'Milhagem', value: formatCurrency(quote.mileage_fee) },
+    { label: 'Pacote', value: formatCurrency(quoteTotals.packageTotal) },
+    { label: 'Adicionais', value: formatCurrency(quoteTotals.additionalTotal) },
+    { label: 'Milhagem', value: formatCurrency(quoteTotals.mileageFee) },
     { label: 'Desconto', value: formatCurrency(discount), accent: true },
-    { label: 'Reserva', value: formatCurrency(quote.reservation_amount) },
-    { label: 'Saldo a pagar', value: formatCurrency(quote.balance_due), highlight: true },
+    { label: 'Reserva', value: formatCurrency(quoteTotals.reservationAmount) },
+    {
+      label: 'Saldo a pagar',
+      value: formatCurrency(quoteTotals.balanceDue),
+      highlight: true,
+    },
   ]
 
   return (
     <main className="quote-detail-page quote-proposal">
       <div className="quote-proposal-toolbar-wrap no-print">
         <div className="mx-auto max-w-6xl px-4 sm:px-8">
-          <QuoteDetailToolbar quoteNumber={quoteNumber} />
+          <QuoteDetailToolbar
+            quoteId={quote.id}
+            quoteNumber={quoteNumber}
+          />
         </div>
       </div>
 
@@ -257,7 +276,7 @@ export default function QuoteDetailView({ quote }: { quote: QuoteDetail }) {
           <div className="quote-proposal-overview-item quote-proposal-overview-item--total">
             <span className="quote-proposal-label">Investimento</span>
             <p className="quote-proposal-overview-total">
-              {formatCurrency(quote.quote_total)}
+              {formatCurrency(quoteTotals.quoteTotal)}
             </p>
           </div>
         </div>
@@ -272,18 +291,41 @@ export default function QuoteDetailView({ quote }: { quote: QuoteDetail }) {
             )}
             <div className="quote-proposal-highlight-grid">
               <div className="quote-proposal-highlight-card">
-                <span className="quote-proposal-label">Convidados</span>
+                <span className="quote-proposal-label">Convidados físicos</span>
                 <p className="quote-proposal-highlight-value">
-                  {displayValue(quote.billable_guests)}
+                  {displayValue(quoteTotals.physicalGuestTotal)}
+                </p>
+              </div>
+              <div className="quote-proposal-highlight-card">
+                <span className="quote-proposal-label">Pessoas cobradas equivalentes</span>
+                <p className="quote-proposal-highlight-value">
+                  {displayValue(quoteTotals.billableGuests)}
                 </p>
               </div>
               <div className="quote-proposal-highlight-card quote-proposal-highlight-card--price">
                 <span className="quote-proposal-label">Valor do pacote</span>
                 <p className="quote-proposal-highlight-value">
-                  {formatCurrency(quote.package_total)}
+                  {formatCurrency(quoteTotals.packageTotal)}
                 </p>
+                {packageUnitPrice > 0 && quoteTotals.billableGuests > 0 && (
+                  <p className="quote-proposal-muted mt-1 text-xs">
+                    {formatCurrency(packageUnitPrice)} × {quoteTotals.billableGuests}
+                  </p>
+                )}
               </div>
             </div>
+          </ProposalSection>
+
+          <ProposalSection title="Convidados e cobrança">
+            <GuestBreakdownPanel
+              guestCounts={guestCounts}
+              totals={{
+                billableGuests: quoteTotals.billableGuests,
+                physicalGuestTotal: quoteTotals.physicalGuestTotal,
+                quoteTotal: quoteTotals.quoteTotal,
+              }}
+              showLegacyNote={guestCounts.usingLegacyFallback}
+            />
           </ProposalSection>
 
           <ProposalSection title="Evento">
@@ -491,7 +533,7 @@ export default function QuoteDetailView({ quote }: { quote: QuoteDetail }) {
             <div className="quote-print-total-box quote-proposal-total-box">
               <span className="quote-proposal-total-label">Total da cotação</span>
               <span className="quote-print-total-value quote-proposal-total-value">
-                {formatCurrency(quote.quote_total)}
+                {formatCurrency(quoteTotals.quoteTotal)}
               </span>
             </div>
             <div className="quote-proposal-reservation-note">
@@ -504,6 +546,27 @@ export default function QuoteDetailView({ quote }: { quote: QuoteDetail }) {
         </section>
 
         <CdlPdfPoliciesSection />
+
+        <QuoteDebugPanel
+          quote={{
+            quote_id: quote.id,
+            package_id: quote.package_id,
+            package_key: quote.package_key,
+            customer_id: quote.customer_id,
+            adult_count: quote.adult_count,
+            adults_count: quote.adults_count,
+            children_under_3_count: quote.children_under_3_count,
+            children_4_to_12_count: quote.children_4_to_12_count,
+            children_count: quote.children_count,
+            billable_guest_count: quote.billable_guest_count,
+            billable_guests: quote.billable_guests,
+            package_total: quote.package_total,
+            additional_total: quote.additional_total,
+            mileage_fee: quote.mileage_fee,
+            reservation_amount: quote.reservation_amount,
+            quote_total: quote.quote_total,
+          }}
+        />
 
         <footer className="quote-print-footer quote-proposal-footer">
           <p className="quote-proposal-footer-brand">BBQ AT HOME</p>

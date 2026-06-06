@@ -1,11 +1,14 @@
 'use client'
 
 import Link from 'next/link'
+import QuotePdfDownload from './QuotePdfDownload'
 
 export default function QuoteDetailToolbar({
+  quoteId,
   quoteNumber,
   editHref,
 }: {
+  quoteId: string
   quoteNumber: string
   editHref?: string | null
 }) {
@@ -37,10 +40,11 @@ export default function QuoteDetailToolbar({
         <button
           type="button"
           onClick={handlePrint}
-          className="cdl-btn-primary"
+          className="hidden items-center justify-center rounded-xl border border-cdl-border bg-cdl-surface px-5 py-3 text-sm font-bold uppercase tracking-wider text-cdl-fg transition-colors hover:border-cdl-accent-border md:inline-flex"
         >
-          Gerar PDF
+          Imprimir / PDF
         </button>
+        <QuotePdfDownload quoteId={quoteId} quoteNumber={quoteNumber} />
       </div>
     </div>
   )
