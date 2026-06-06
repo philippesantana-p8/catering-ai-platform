@@ -689,7 +689,7 @@
     margin: 0 0 0.5rem !important;
     width: 100% !important;
     border-bottom-width: 3px !important;
-    padding-top: 2.85rem !important;
+    padding-top: 2.65rem !important;
   }
 
   .quote-proposal-hero-inner {
@@ -704,8 +704,21 @@
     gap: 0.65rem !important;
   }
 
-  .quote-print-logo {
+  .quote-print-logo,
+  .quote-print-logo img,
+  .quote-print-logo .cdl-brand-logo,
+  .quote-print-logo .pdf-cover-logo,
+  .quote-print-logo-mark,
+  .quote-print-header .pdf-cover-logo {
     display: none !important;
+    visibility: hidden !important;
+    width: 0 !important;
+    height: 0 !important;
+    max-width: 0 !important;
+    max-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
   }
 
   .quote-proposal-hero-meta {
@@ -739,33 +752,35 @@
     left: 0;
     right: 0;
     z-index: 9999;
+    height: 2.5rem;
+    min-height: 2.5rem;
+    max-height: 2.5rem;
+    overflow: hidden;
     background: var(--proposal-dark) !important;
     border-bottom: 2px solid var(--proposal-gold);
-    padding: 0.35rem 0.85rem;
-    min-height: 2.85rem;
+    padding: 0 0.85rem;
     box-sizing: border-box;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
 
-  .pdf-logo {
+  .quote-print-compact-header .pdf-logo,
+  .quote-print-compact-header .quote-print-compact-logo,
+  .quote-print-compact-header img,
+  .quote-print-compact-header [role='img'] {
     display: block !important;
     visibility: visible !important;
     width: auto !important;
-    height: 28px !important;
-    max-height: 28px !important;
-    max-width: 28px !important;
+    height: 24px !important;
+    max-height: 24px !important;
+    max-width: 24px !important;
+    margin: 0 !important;
+    padding: 0 !important;
     object-fit: contain !important;
-  }
-
-  .pdf-cover-logo {
-    display: block !important;
-    visibility: visible !important;
-    width: auto !important;
-    height: 90px !important;
-    max-height: 90px !important;
-    max-width: 96px !important;
-    object-fit: contain !important;
+    object-position: center center !important;
+    background: transparent !important;
+    filter: none !important;
+    flex-shrink: 0;
   }
 
   .quote-print-compact-header-title {
@@ -777,18 +792,6 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-  }
-
-  .quote-print-compact-logo,
-  .quote-print-compact-header .pdf-logo,
-  .quote-print-compact-header [role='img'] {
-    width: auto !important;
-    height: 28px !important;
-    max-height: 28px !important;
-    max-width: 28px !important;
-    min-width: 0 !important;
-    object-fit: contain !important;
-    filter: none !important;
   }
 
   .quote-detail-page {

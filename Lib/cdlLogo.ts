@@ -8,7 +8,8 @@ export const CDL_LOGO_ALT = 'CDL BBQ Logo'
 export const CDL_LOGO_PLACEHOLDER = 'CDL BBQ'
 
 export const CDL_LOGO_COVER_HEIGHT = 96
-export const CDL_LOGO_COMPACT_HEIGHT = 32
+export const CDL_LOGO_COMPACT_HEIGHT = 26
+export const CDL_LOGO_COMPACT_HEADER_HEIGHT = 40
 
 export type PdfLogoSource = {
   /** Absolute filesystem path for @react-pdf on the server */

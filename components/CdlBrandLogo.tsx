@@ -14,7 +14,7 @@ type CdlBrandLogoProps = {
 }
 
 const sizeClass: Record<NonNullable<CdlBrandLogoProps['size']>, string> = {
-  sm: 'h-7 w-auto max-h-7 max-w-7',
+  sm: 'h-6 w-6 max-h-6 max-w-6 object-contain object-center',
   md: 'h-24 w-auto max-h-24 max-w-[7rem] sm:max-h-28 sm:max-w-[7rem]',
   lg: 'h-24 w-auto max-h-24 max-w-[6rem] sm:max-h-[5.625rem] sm:max-w-[6rem]',
 }
@@ -61,7 +61,9 @@ export default function CdlBrandLogo({
     <img
       src={CDL_LOGO_PATH}
       alt={CDL_LOGO_ALT}
-      className={`cdl-brand-logo shrink-0 object-contain ${sizeClass[size]} ${variantClass[variant]} ${className}`}
+      width={size === 'sm' ? 24 : size === 'lg' ? 96 : 80}
+      height={size === 'sm' ? 24 : size === 'lg' ? 96 : 80}
+      className={`cdl-brand-logo shrink-0 object-contain object-center ${sizeClass[size]} ${variantClass[variant]} ${className}`}
       onError={() => {
         console.error(`[CDL Logo] Failed to load ${CDL_LOGO_PATH}`)
         setUsePlaceholder(true)

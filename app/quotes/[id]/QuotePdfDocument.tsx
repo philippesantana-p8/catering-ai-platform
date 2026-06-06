@@ -10,6 +10,7 @@ import {
 import {
   CDL_LOGO_COVER_HEIGHT,
   CDL_LOGO_COMPACT_HEIGHT,
+  CDL_LOGO_COMPACT_HEADER_HEIGHT,
   CDL_LOGO_PLACEHOLDER,
   type PdfLogoSource,
 } from '@/Lib/cdlLogo'
@@ -155,7 +156,7 @@ const styles = StyleSheet.create({
     color: colors.gold,
   },
   contentPage: {
-    paddingTop: 48,
+    paddingTop: CDL_LOGO_COMPACT_HEADER_HEIGHT + 8,
     paddingBottom: 48,
     paddingHorizontal: 40,
     fontSize: 9,
@@ -168,20 +169,22 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    minHeight: 44,
+    height: CDL_LOGO_COMPACT_HEADER_HEIGHT,
     backgroundColor: colors.dark,
     borderBottomWidth: 2,
     borderBottomColor: colors.gold,
     paddingHorizontal: 40,
-    paddingVertical: 6,
+    paddingVertical: 0,
     flexDirection: 'row',
     alignItems: 'center',
+    overflow: 'hidden',
   },
   compactHeaderLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     flexShrink: 1,
+    height: CDL_LOGO_COMPACT_HEADER_HEIGHT,
   },
   compactLogoWrap: {
     height: CDL_LOGO_COMPACT_HEIGHT,
@@ -189,12 +192,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
-    flexDirection: 'row',
+    overflow: 'hidden',
+    backgroundColor: colors.dark,
   },
   compactLogo: {
     height: CDL_LOGO_COMPACT_HEIGHT,
     width: CDL_LOGO_COMPACT_HEIGHT,
-    maxHeight: CDL_LOGO_COMPACT_HEIGHT,
     objectFit: 'contain',
   },
   compactLogoPlaceholder: {
