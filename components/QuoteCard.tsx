@@ -62,7 +62,13 @@ function Metric({
   )
 }
 
-export default function QuoteCard({ quote }: { quote: QuoteListItem }) {
+export default function QuoteCard({
+  quote,
+  onDeleted,
+}: {
+  quote: QuoteListItem
+  onDeleted?: (quoteId: string) => void
+}) {
   return (
     <article className="cdl-panel flex h-full flex-col p-4">
       <div className="flex items-start justify-between gap-2">
@@ -138,7 +144,12 @@ export default function QuoteCard({ quote }: { quote: QuoteListItem }) {
         >
           Editar
         </Link>
-        <DeleteQuoteButton quoteId={quote.id} compact />
+        <DeleteQuoteButton
+          quoteId={quote.id}
+          compact
+          redirectToList={false}
+          onDeleted={onDeleted}
+        />
         <Link
           href={`/quotes/${quote.id}?pdf=1`}
           className="inline-flex min-w-0 flex-1 items-center justify-center rounded-lg border border-cdl-border bg-cdl-inset px-3 py-2 text-xs font-bold uppercase tracking-wider text-cdl-fg transition-colors hover:border-cdl-accent-border sm:flex-none"

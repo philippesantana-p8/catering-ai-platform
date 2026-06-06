@@ -1,6 +1,9 @@
 import { fetchQuoteList } from '../../Lib/fetchQuoteList'
 import QuotesDashboard from '../../components/QuotesDashboard'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export default async function QuotesPage() {
   const { data, error } = await fetchQuoteList()
 
@@ -15,5 +18,5 @@ export default async function QuotesPage() {
     )
   }
 
-  return <QuotesDashboard quotes={data ?? []} />
+  return <QuotesDashboard initialQuotes={data ?? []} />
 }

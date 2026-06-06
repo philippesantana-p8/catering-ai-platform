@@ -1,6 +1,28 @@
 import { createQuote } from '@/Lib/createQuote'
 import type { QuoteSaveInput } from '@/Lib/buildQuoteSavePayload'
+import { fetchQuoteList } from '@/Lib/fetchQuoteList'
 import { logSaveQuoteError } from '@/Lib/supabaseSaveError'
+
+export const dynamic = 'force-dynamic'
+
+export async function GET() {
+  const { data, error } = await fetchQuoteList()
+
+  if (error) {
+    return Response.json(
+      { error: error.message },
+      {
+        status: 500,
+        headers: { 'Cache-Control': 'no-store, max-age=0' },
+      },
+    )
+  }
+
+  return Response.json(
+    { data: data ?? [] },
+    { headers: { 'Cache-Control': 'no-store, max-age=0' } },
+  )
+}
 
 export async function POST(request: Request) {
   let body: QuoteSaveInput

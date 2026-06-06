@@ -7,10 +7,14 @@ export default function DeleteQuoteButton({
   quoteId,
   className = '',
   compact = false,
+  redirectToList = true,
+  onDeleted,
 }: {
   quoteId: string
   className?: string
   compact?: boolean
+  redirectToList?: boolean
+  onDeleted?: (quoteId: string) => void
 }) {
   const router = useRouter()
   const [deleting, setDeleting] = useState(false)
@@ -28,6 +32,7 @@ export default function DeleteQuoteButton({
     try {
       const response = await fetch(`/api/quotes/${quoteId}`, {
         method: 'DELETE',
+        cache: 'no-store',
       })
       const result = (await response.json()) as { error?: string }
 
@@ -36,8 +41,12 @@ export default function DeleteQuoteButton({
         return
       }
 
-      router.push('/quotes')
-      router.refresh()
+      onDeleted?.(quoteId)
+
+      if (redirectToList) {
+        router.push('/quotes')
+        router.refresh()
+      }
     } catch {
       setError('Não foi possível excluir a cotação.')
     } finally {
