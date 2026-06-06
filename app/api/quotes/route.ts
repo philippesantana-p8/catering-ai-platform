@@ -28,7 +28,7 @@ export async function POST(request: Request) {
         code: error?.code ?? null,
         details: error?.details ?? null,
         hint: error?.hint ?? null,
-        stage: error?.stage ?? null,
+        step: error?.step ?? null,
       },
       { status: 500 },
     )

@@ -1,9 +1,9 @@
 import type { PostgrestError } from '@supabase/supabase-js'
 
-export type SaveQuoteStage = 'validation' | 'event' | 'quote' | 'additionals'
+export type SaveQuoteStep = 'validation' | 'event' | 'quote' | 'additionals'
 
 export type SaveQuoteErrorInfo = {
-  stage: SaveQuoteStage
+  step: SaveQuoteStep
   message: string
   details: string | null
   hint: string | null
@@ -13,7 +13,14 @@ export type SaveQuoteErrorInfo = {
   additionalItemsPayload?: Record<string, unknown>[] | null
 }
 
-export function formatPostgrestError(error: PostgrestError | Error | null | undefined) {
+function readErrorField(error: unknown, key: string): string | null {
+  if (error == null || typeof error !== 'object') return null
+  const value = (error as Record<string, unknown>)[key]
+  if (value == null || value === '') return null
+  return String(value)
+}
+
+export function formatPostgrestError(error: PostgrestError | Error | unknown) {
   if (!error) {
     return {
       message: 'Erro desconhecido.',
@@ -23,26 +30,31 @@ export function formatPostgrestError(error: PostgrestError | Error | null | unde
     }
   }
 
-  if ('code' in error) {
+  if (typeof error === 'string') {
     return {
-      message: error.message || 'Erro Supabase.',
-      details: error.details ?? null,
-      hint: error.hint ?? null,
-      code: error.code ?? null,
+      message: error,
+      details: null,
+      hint: null,
+      code: null,
     }
   }
 
+  const message =
+    readErrorField(error, 'message') ??
+    (error instanceof Error ? error.message : null) ??
+    'Erro desconhecido.'
+
   return {
-    message: error.message || 'Erro desconhecido.',
-    details: null,
-    hint: null,
-    code: null,
+    message,
+    details: readErrorField(error, 'details'),
+    hint: readErrorField(error, 'hint'),
+    code: readErrorField(error, 'code'),
   }
 }
 
 export function buildSaveQuoteError(
-  stage: SaveQuoteStage,
-  error: PostgrestError | Error | null | undefined,
+  step: SaveQuoteStep,
+  error: PostgrestError | Error | unknown,
   payloads?: {
     eventPayload?: Record<string, unknown> | null
     quotePayload?: Record<string, unknown> | null
@@ -51,7 +63,7 @@ export function buildSaveQuoteError(
 ): SaveQuoteErrorInfo {
   const formatted = formatPostgrestError(error)
   return {
-    stage,
+    step,
     message: formatted.message,
     details: formatted.details,
     hint: formatted.hint,
@@ -68,13 +80,13 @@ export function logSaveQuoteError(
 ) {
   console.error('SAVE_QUOTE_ERROR', {
     error: rawError ?? errorInfo,
-    stage: errorInfo.stage,
     code: errorInfo.code,
     message: errorInfo.message,
     details: errorInfo.details,
     hint: errorInfo.hint,
-    eventPayload: errorInfo.eventPayload,
+    step: errorInfo.step,
     quotePayload: errorInfo.quotePayload,
     additionalItemsPayload: errorInfo.additionalItemsPayload,
+    eventPayload: errorInfo.eventPayload,
   })
 }
