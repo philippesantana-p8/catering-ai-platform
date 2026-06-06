@@ -4,6 +4,7 @@ import {
   buildQuoteSavePayload,
   type QuoteSaveInput,
 } from './buildQuoteSavePayload'
+import { getCdlCompanyId } from './cdlCompany'
 import {
   buildSaveQuoteError,
   logSaveQuoteError,
@@ -105,7 +106,23 @@ export async function updateQuote(
     return { data: { id: quoteId }, error: null }
   }
 
-  const additionalItemsPayload = buildAdditionalItemRows(quoteId, input.additionals)
+  const companyId = getCdlCompanyId()
+  let additionalItemsPayload: ReturnType<typeof buildAdditionalItemRows>
+  try {
+    additionalItemsPayload = buildAdditionalItemRows(
+      quoteId,
+      companyId,
+      input.additionals,
+    )
+  } catch (error) {
+    const errorInfo = buildSaveQuoteError('additionals', error, {
+      eventPayload,
+      quotePayload,
+    })
+    logSaveQuoteError(errorInfo, error)
+    return { data: null, error: errorInfo }
+  }
+
   const { error: linesError } = await supabase
     .from('quote_additional_items')
     .insert(additionalItemsPayload)

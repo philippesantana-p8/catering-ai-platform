@@ -243,14 +243,25 @@ export function buildQuoteSavePayload(
 
 export function buildAdditionalItemRows(
   quoteId: string,
+  companyId: string,
   additionals: QuoteAdditionalSaveLine[],
 ) {
+  const normalizedCompanyId = companyId?.trim()
+  if (!normalizedCompanyId) {
+    throw new Error(
+      'company_id é obrigatório para inserir quote_additional_items.',
+    )
+  }
+
   return additionals.map((line) => ({
+    id: crypto.randomUUID(),
+    company_id: normalizedCompanyId,
     quote_id: quoteId,
     additional_item_id: line.itemId,
     quantity: line.quantity,
     unit_price: line.unitPrice,
     total_price: line.totalPrice,
+    selected: true,
   }))
 }
 

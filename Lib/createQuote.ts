@@ -97,7 +97,25 @@ export async function createQuote(input: QuoteSaveInput): Promise<CreateQuoteRes
     }
   }
 
-  const additionalItemsPayload = buildAdditionalItemRows(quoteId, input.additionals)
+  const companyId = getCdlCompanyId()
+  let additionalItemsPayload: ReturnType<typeof buildAdditionalItemRows>
+  try {
+    additionalItemsPayload = buildAdditionalItemRows(
+      quoteId,
+      companyId,
+      input.additionals,
+    )
+  } catch (error) {
+    const errorInfo = buildSaveQuoteError('additionals', error, {
+      eventPayload,
+      quotePayload,
+    })
+    logSaveQuoteError(errorInfo, error)
+    await supabase.from('quotes').delete().eq('id', quoteId)
+    await supabase.from('events').delete().eq('id', eventId)
+    return { data: null, error: errorInfo }
+  }
+
   const { error: linesError } = await supabase
     .from('quote_additional_items')
     .insert(additionalItemsPayload)
