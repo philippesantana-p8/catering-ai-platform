@@ -2157,6 +2157,7 @@ export default function QuoteWizard({
                 fieldCompletions={{
                   city: getFieldCompletion(state.city),
                   state: getFieldCompletion(state.state),
+                  zipCode: getFieldCompletion(state.zipCode),
                 }}
                 onChange={(patch) => updateState(patch)}
               />

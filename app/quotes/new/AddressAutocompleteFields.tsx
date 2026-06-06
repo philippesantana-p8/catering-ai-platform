@@ -86,6 +86,7 @@ export default function AddressAutocompleteFields({
   fieldCompletions?: {
     city?: FieldCompletion
     state?: FieldCompletion
+    zipCode?: FieldCompletion
   }
 }) {
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -182,13 +183,16 @@ export default function AddressAutocompleteFields({
 
       <label className="flex flex-col gap-2">
         <FieldLabel>Zip Code</FieldLabel>
-        <input
-          type="text"
-          value={values.zipCode}
-          onChange={(e) => onChange({ zipCode: e.target.value })}
-          placeholder="CEP / ZIP"
-          className={getInputClassName()}
-        />
+        <div className="relative">
+          <input
+            type="text"
+            value={values.zipCode}
+            onChange={(e) => onChange({ zipCode: e.target.value })}
+            placeholder="CEP / ZIP"
+            className={getInputClassName(fieldCompletions?.zipCode)}
+          />
+          <FieldCheck show={fieldCompletions?.zipCode === 'filled'} />
+        </div>
       </label>
     </div>
   )
