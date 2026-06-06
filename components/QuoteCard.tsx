@@ -15,8 +15,8 @@ function formatDate(value: string | null | undefined) {
   if (Number.isNaN(date.getTime())) return '—'
   return date.toLocaleDateString('pt-BR', {
     day: '2-digit',
-    month: 'short',
-    year: 'numeric',
+    month: '2-digit',
+    year: '2-digit',
   })
 }
 
@@ -25,7 +25,7 @@ function formatMonthYear(value: string | null | undefined) {
   const normalized = value.includes('T') ? value : `${value}T00:00:00`
   const date = new Date(normalized)
   if (Number.isNaN(date.getTime())) return '—'
-  return date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+  return date.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' })
 }
 
 function formatLocation(city: string | null, state: string | null) {
@@ -36,19 +36,24 @@ function formatLocation(city: string | null, state: string | null) {
 function Metric({
   label,
   value,
+  money,
   highlight,
 }: {
   label: string
   value: string
+  money?: boolean
   highlight?: boolean
 }) {
   return (
-    <div className="min-w-0 rounded-xl border border-cdl-border bg-cdl-inset px-3 py-2.5">
-      <p className="cdl-eyebrow leading-snug">{label}</p>
+    <div className="quote-card-metric rounded-lg border border-cdl-border bg-cdl-inset px-2 py-2">
+      <p className="quote-card-metric-label font-bold uppercase text-cdl-muted">
+        {label}
+      </p>
       <p
-        className={`cdl-metric-value cdl-metric-value--money mt-1 ${
-          highlight ? 'text-cdl-price' : 'text-cdl-fg'
-        }`}
+        className={`quote-card-metric-value ${
+          money ? 'quote-card-metric-value--money' : ''
+        } ${highlight ? 'quote-card-metric-value--highlight' : 'text-cdl-fg'}`}
+        title={value}
       >
         {value}
       </p>
@@ -58,35 +63,40 @@ function Metric({
 
 export default function QuoteCard({ quote }: { quote: QuoteListItem }) {
   return (
-    <article className="cdl-panel flex h-full flex-col p-5 sm:p-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-xs font-bold uppercase tracking-wider text-cdl-muted">
+    <article className="cdl-panel flex h-full flex-col p-4">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[0.65rem] font-bold uppercase tracking-wider text-cdl-muted">
             {quote.quote_number}
           </p>
-          <h2 className="mt-1 truncate text-xl font-black text-cdl-title">
+          <h2 className="mt-0.5 truncate text-base font-black text-cdl-title sm:text-lg">
             {quote.customer_name}
           </h2>
-          <p className="mt-1 text-sm text-cdl-text-secondary">
+          <p className="mt-0.5 truncate text-xs text-cdl-text-secondary">
             {quote.package_name ?? 'Pacote não informado'}
           </p>
         </div>
         <QuoteStatusBadge status={quote.quote_status} />
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
-        <Metric label="Data evento" value={formatDate(quote.event_date)} />
+      <div className="mt-3 grid grid-cols-3 gap-1.5">
+        <Metric label="Data" value={formatDate(quote.event_date)} />
         <Metric label="Mês/ano" value={formatMonthYear(quote.event_date)} />
         <Metric label="Local" value={formatLocation(quote.city, quote.state)} />
         <Metric
           label="Total"
           value={formatMoney(quote.quote_total)}
+          money
           highlight
         />
-        <Metric label="Reserva" value={formatMoney(quote.reservation_amount)} />
-        <Metric label="Saldo" value={formatMoney(quote.balance_due)} />
         <Metric
-          label="Conv. físicos"
+          label="Reserva"
+          value={formatMoney(quote.reservation_amount)}
+          money
+        />
+        <Metric label="Saldo" value={formatMoney(quote.balance_due)} money />
+        <Metric
+          label="Conv."
           value={
             quote.physical_guest_count != null
               ? String(quote.physical_guest_count)
@@ -94,17 +104,17 @@ export default function QuoteCard({ quote }: { quote: QuoteListItem }) {
           }
         />
         <Metric
-          label="Pessoas cobradas"
+          label="Cobradas"
           value={
             quote.billable_guest_count != null
               ? String(quote.billable_guest_count)
               : '—'
           }
         />
-        <Metric label="Milhagem" value={formatMoney(quote.mileage_fee)} />
+        <Metric label="Milhas" value={formatMoney(quote.mileage_fee)} money />
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-2">
+      <div className="mt-3 flex flex-wrap gap-1.5">
         <QuoteBoolBadge label="Adicional" value={quote.has_additionals} />
         <QuoteBoolBadge label="Churrasqueira" value={quote.has_grill} />
         <QuoteBoolBadge
@@ -114,22 +124,22 @@ export default function QuoteCard({ quote }: { quote: QuoteListItem }) {
         />
       </div>
 
-      <div className="mt-auto flex flex-col gap-2 pt-5 sm:flex-row sm:flex-wrap">
+      <div className="mt-auto flex flex-wrap gap-1.5 pt-3">
         <Link
           href={`/quotes/${quote.id}`}
-          className="cdl-btn-primary inline-flex flex-1 items-center justify-center sm:min-w-[7rem] sm:flex-none"
+          className="cdl-btn-primary inline-flex min-w-0 flex-1 items-center justify-center px-3 py-2 text-xs sm:flex-none"
         >
           Ver
         </Link>
         <Link
           href={`/quotes/${quote.id}/edit`}
-          className="inline-flex flex-1 items-center justify-center rounded-xl border border-cdl-border bg-cdl-surface px-5 py-3 text-sm font-bold uppercase tracking-wider text-cdl-fg transition-colors hover:border-cdl-accent-border sm:min-w-[7rem] sm:flex-none"
+          className="inline-flex min-w-0 flex-1 items-center justify-center rounded-lg border border-cdl-border bg-cdl-surface px-3 py-2 text-xs font-bold uppercase tracking-wider text-cdl-fg transition-colors hover:border-cdl-accent-border sm:flex-none"
         >
           Editar
         </Link>
         <Link
           href={`/quotes/${quote.id}?pdf=1`}
-          className="inline-flex flex-1 items-center justify-center rounded-xl border border-cdl-border bg-cdl-inset px-5 py-3 text-sm font-bold uppercase tracking-wider text-cdl-fg transition-colors hover:border-cdl-accent-border sm:min-w-[7rem] sm:flex-none"
+          className="inline-flex min-w-0 flex-1 items-center justify-center rounded-lg border border-cdl-border bg-cdl-inset px-3 py-2 text-xs font-bold uppercase tracking-wider text-cdl-fg transition-colors hover:border-cdl-accent-border sm:flex-none"
         >
           PDF
         </Link>

@@ -64,7 +64,7 @@ export default function QuotesDashboard({
             Nenhuma cotação ativa encontrada com os filtros atuais.
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {filteredQuotes.map((quote) => (
               <QuoteCard key={quote.id} quote={quote} />
             ))}
