@@ -186,7 +186,6 @@ export default function QuoteDetailView({ quote }: { quote: QuoteDetail }) {
   const groupedAdditionals = groupAdditionalsByCategory(additionalItems, lang)
   const discount = getDiscount(quote)
   const quoteNumber = quote.quote_number ?? 'CDL-Q-0000'
-  const quoteDate = formatDate(quote.created_at)
   const cityState = [quote.city, quote.state].filter(Boolean).join(', ')
   const eventLocation = [quote.address_line, cityState, getZipCode(quote)]
     .filter(Boolean)
@@ -217,6 +216,11 @@ export default function QuoteDetailView({ quote }: { quote: QuoteDetail }) {
       highlight: true,
     },
   ]
+
+  const eventTimeLabel =
+    quote.start_time || quote.end_time
+      ? `${formatTime(quote.start_time)} – ${formatTime(quote.end_time)}`
+      : '—'
 
   return (
     <main className="quote-detail-page quote-proposal">
@@ -266,8 +270,14 @@ export default function QuoteDetailView({ quote }: { quote: QuoteDetail }) {
               <p className="quote-proposal-meta-value">{quoteNumber}</p>
             </div>
             <div className="quote-proposal-meta-card">
-              <span className="quote-proposal-label">Data da cotação</span>
-              <p className="quote-proposal-meta-value">{quoteDate}</p>
+              <span className="quote-proposal-label">Data do evento</span>
+              <p className="quote-proposal-meta-value">
+                {formatDate(quote.event_date)}
+              </p>
+            </div>
+            <div className="quote-proposal-meta-card">
+              <span className="quote-proposal-label">Horário</span>
+              <p className="quote-proposal-meta-value">{eventTimeLabel}</p>
             </div>
             {quote.quote_status && (
               <div className="quote-proposal-meta-card quote-proposal-meta-card--status">

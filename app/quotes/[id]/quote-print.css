@@ -678,163 +678,125 @@
     padding: 0 !important;
   }
 
-  .quote-proposal-body {
-    max-width: 100% !important;
-    padding: 0.5rem 0 0 !important;
-  }
-
   .quote-proposal-hero {
     break-inside: avoid;
     page-break-inside: avoid;
-    margin: 0 0 0.5rem !important;
+    margin: 0 0 0.65rem !important;
     width: 100% !important;
-    border-bottom-width: 3px !important;
-    padding-top: 2.65rem !important;
+    padding-top: 0 !important;
+    border-bottom-width: 4px !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
   .quote-proposal-hero-inner {
-    padding: 0.65rem 0.85rem 0.75rem !important;
-    gap: 0.55rem !important;
+    max-width: 100% !important;
+    padding: 1.15rem 1rem 1rem !important;
+    gap: 1rem !important;
     flex-direction: column !important;
   }
 
   .quote-proposal-hero-brand {
     flex-direction: row !important;
     align-items: center !important;
-    gap: 0.65rem !important;
+    gap: 1rem !important;
+    width: 100% !important;
   }
 
-  .quote-print-logo,
+  .quote-print-logo {
+    flex-shrink: 0;
+  }
+
   .quote-print-logo img,
   .quote-print-logo .cdl-brand-logo,
   .quote-print-logo .pdf-cover-logo,
   .quote-print-logo-mark,
-  .quote-print-header .pdf-cover-logo {
-    display: none !important;
-    visibility: hidden !important;
-    width: 0 !important;
-    height: 0 !important;
-    max-width: 0 !important;
-    max-height: 0 !important;
+  .quote-print-logo [role='img'] {
+    display: block !important;
+    visibility: visible !important;
+    width: 4.5rem !important;
+    height: 4.5rem !important;
+    max-width: 4.5rem !important;
+    max-height: 4.5rem !important;
     margin: 0 !important;
     padding: 0 !important;
-    overflow: hidden !important;
+    object-fit: contain !important;
+    object-position: center !important;
+    filter: none !important;
+    overflow: visible !important;
+  }
+
+  .quote-proposal-hero-copy {
+    min-width: 0;
+    flex: 1;
   }
 
   .quote-proposal-hero-meta {
     display: grid !important;
-    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-    gap: 0.35rem !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 0.5rem !important;
     width: 100% !important;
   }
 
   .quote-proposal-title {
-    font-size: 1.35rem !important;
-    line-height: 1.1 !important;
+    font-size: 1.75rem !important;
+    line-height: 1.05 !important;
   }
 
   .quote-proposal-tagline {
-    font-size: 0.62rem !important;
-    margin-top: 0.25rem !important;
+    font-size: 0.68rem !important;
+    margin-top: 0.35rem !important;
+    letter-spacing: 0.1em !important;
   }
 
   .quote-proposal-location {
-    font-size: 0.68rem !important;
+    font-size: 0.72rem !important;
+    margin-top: 0.25rem !important;
   }
 
+  /* Sem cabeçalho fixo duplicado — hero único como na tela */
   .quote-print-compact-header {
-    display: flex !important;
-    visibility: visible !important;
-    align-items: center;
-    gap: 0.5rem;
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    z-index: 9999;
-    height: 2.5rem;
-    min-height: 2.5rem;
-    max-height: 2.5rem;
-    overflow: hidden;
-    background: var(--proposal-dark) !important;
-    border-bottom: 2px solid var(--proposal-gold);
-    padding: 0 0.85rem;
-    box-sizing: border-box;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-
-  .quote-print-compact-header .pdf-logo,
-  .quote-print-compact-header .quote-print-compact-logo,
-  .quote-print-compact-header img,
-  .quote-print-compact-header [role='img'] {
-    display: block !important;
-    visibility: visible !important;
-    width: auto !important;
-    height: 24px !important;
-    max-height: 24px !important;
-    max-width: 24px !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    object-fit: contain !important;
-    object-position: center center !important;
-    background: transparent !important;
-    filter: none !important;
-    flex-shrink: 0;
-  }
-
-  .quote-print-compact-header-title {
-    font-size: 0.58rem;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    line-height: 1.2;
-    color: #ffffff !important;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .quote-detail-page {
-    padding-top: 0 !important;
+    display: none !important;
   }
 
   .quote-proposal-body {
     max-width: 100% !important;
-    padding: 0.35rem 0 0 !important;
+    padding: 0.5rem 0 0 !important;
   }
 
   .quote-proposal-overview {
     break-inside: avoid;
     page-break-inside: avoid;
     display: grid !important;
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    gap: 0.35rem !important;
-    margin-bottom: 0.45rem !important;
-    padding: 0.45rem 0.55rem !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 0.45rem !important;
+    margin-bottom: 0.55rem !important;
+    padding: 0.55rem 0.65rem !important;
     box-shadow: none !important;
   }
 
   .quote-proposal-overview-item--total {
-    grid-column: span 2;
-    border-left-width: 2px !important;
-    padding-left: 0.5rem !important;
+    grid-column: auto !important;
+    border-left-width: 3px !important;
+    padding-left: 0.55rem !important;
   }
 
   .quote-proposal-meta-card {
-    padding: 0.35rem 0.45rem !important;
+    padding: 0.55rem 0.65rem !important;
+    border-radius: 0.5rem !important;
   }
 
   .quote-proposal-meta-value {
-    font-size: 0.75rem !important;
-    margin-top: 0.15rem !important;
+    font-size: 0.82rem !important;
+    margin-top: 0.2rem !important;
+  }
+
+  .quote-proposal-hero .quote-proposal-label {
+    font-size: 0.52rem !important;
   }
 
   .quote-proposal-label {
     font-size: 0.5rem !important;
-  }
-
-  .quote-proposal-overview-total {
-    font-size: 0.95rem !important;
   }
 
   .quote-proposal-overview-total {
