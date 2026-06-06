@@ -14,7 +14,7 @@ type CdlBrandLogoProps = {
 }
 
 const sizeClass: Record<NonNullable<CdlBrandLogoProps['size']>, string> = {
-  sm: 'h-10 w-auto max-h-10 max-w-[2.75rem]',
+  sm: 'h-7 w-auto max-h-7 max-w-7',
   md: 'h-24 w-auto max-h-24 max-w-[7rem] sm:max-h-28 sm:max-w-[7rem]',
   lg: 'h-24 w-auto max-h-24 max-w-[6rem] sm:max-h-[5.625rem] sm:max-w-[6rem]',
 }
