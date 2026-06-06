@@ -1,0 +1,2711 @@
+'use client'
+
+import Link from 'next/link'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import AddressAutocompleteFields from './AddressAutocompleteFields'
+import {
+  countCompletedSteps,
+  countRemainingSteps,
+  getCompletionPercentage,
+  getStepStatus,
+  type StepStatus,
+  type StepStatusContext,
+} from './wizardStepStatus'
+
+export type Customer = {
+  id: string
+  name?: string | null
+  customer_name?: string | null
+  ab_name?: string | null
+  email?: string | null
+  phone?: string | null
+  address_line?: string | null
+  address?: string | null
+  street?: string | null
+  city?: string | null
+  state?: string | null
+  zip_code?: string | null
+  postal_code?: string | null
+  venue_name?: string | null
+}
+
+export type Package = {
+  id: string
+  package_key?: string | null
+  package_name?: string | null
+  label_pt?: string | null
+  label_en?: string | null
+  label_es?: string | null
+  name_pt?: string | null
+  name_en?: string | null
+  name_es?: string | null
+  description_pt?: string | null
+  description_en?: string | null
+  description_es?: string | null
+  description?: string | null
+  price_per_person?: number | null
+  price?: number | null
+  base_price?: number | null
+  currency_code?: string | null
+  display_order?: number | null
+  active?: boolean | null
+  image_url?: string | null
+  photo_url?: string | null
+}
+
+export type AdditionalItem = {
+  id: string
+  item_key?: string | null
+  label_pt?: string | null
+  label_en?: string | null
+  label_es?: string | null
+  category_pt?: string | null
+  unit_price?: number | null
+  price?: number | null
+  pricing_type?: string | null
+  charge_type?: string | null
+  quantity?: number | null
+  unit?: string | null
+  quantity_2?: number | null
+  uom_2?: string | null
+  unit_label?: string | null
+  display_order?: number | null
+  image_url?: string | null
+  photo_url?: string | null
+  active?: boolean | null
+}
+
+type WizardState = {
+  customerId: string | null
+  eventName: string
+  eventDate: string
+  startTime: string
+  endTime: string
+  adultsQty: number
+  childrenQty: number
+  address: string
+  city: string
+  state: string
+  zipCode: string
+  hasGrill: boolean
+  grillSetupAnswered: boolean
+  grillPhotoRequired: boolean
+  grillRentalRequired: boolean
+  grillRentalQty: number
+  grillNotes: string
+  packageId: string | null
+  additionals: Record<string, number>
+  baseLocation: string
+  distance: number
+  freeLimit: number
+  rate: number
+  reservationPercentage: number
+  reservationAmount: number
+  reservationNotes: string
+}
+
+const STEPS = [
+  'Cliente',
+  'Evento',
+  'Churrasqueira',
+  'Pacote',
+  'Adicionais',
+  'Milhagem',
+  'Reserva',
+  'Resumo',
+] as const
+
+const initialState: WizardState = {
+  customerId: null,
+  eventName: '',
+  eventDate: '',
+  startTime: '',
+  endTime: '',
+  adultsQty: 0,
+  childrenQty: 0,
+  address: '',
+  city: '',
+  state: '',
+  zipCode: '',
+  hasGrill: false,
+  grillSetupAnswered: false,
+  grillPhotoRequired: false,
+  grillRentalRequired: false,
+  grillRentalQty: 0,
+  grillNotes: '',
+  packageId: null,
+  additionals: {},
+  baseLocation: '',
+  distance: 0,
+  freeLimit: 0,
+  rate: 0,
+  reservationPercentage: 20,
+  reservationAmount: 0,
+  reservationNotes: '',
+}
+
+function formatCurrency(value: number) {
+  return `$${value.toFixed(2)}`
+}
+
+function roundMoney(value: number) {
+  return Math.round(value * 100) / 100
+}
+
+function roundPercentage(value: number) {
+  return Math.round(value * 1000) / 1000
+}
+
+function formatPercentage(value: number) {
+  const rounded = roundPercentage(Math.min(100, Math.max(0, value)))
+  const formatted = rounded.toFixed(3).replace(/\.?0+$/, '')
+  return `${formatted}%`
+}
+
+function formatReservationSummary(
+  percentage: number,
+  amount: number,
+  amountCustomized: boolean,
+) {
+  const pct = formatPercentage(percentage)
+  const abs = formatCurrency(amount)
+  return amountCustomized ? `${abs} (${pct})` : `${pct} (${abs})`
+}
+
+function formatDate(value: string) {
+  if (!value) return '—'
+  return new Date(value + 'T00:00:00').toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+  })
+}
+
+function formatTime(value: string) {
+  if (!value) return '—'
+  const [hours, minutes] = value.split(':')
+  if (!hours || minutes === undefined) return value
+  return `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}`
+}
+
+function formatTimeRange(start: string, end: string) {
+  if (!start && !end) return '—'
+  if (start && end) return `${formatTime(start)} – ${formatTime(end)}`
+  return formatTime(start || end)
+}
+
+function parseDateValue(value: string) {
+  if (!value) return null
+  const date = new Date(`${value}T00:00:00`)
+  return Number.isNaN(date.getTime()) ? null : date
+}
+
+function toDateValue(date: Date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+const CALENDAR_WEEKDAYS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
+
+type FieldCompletion = 'filled' | 'empty'
+
+function getFieldCompletion(value: string | number): FieldCompletion {
+  if (typeof value === 'number') return value > 0 ? 'filled' : 'empty'
+  return value.trim().length > 0 ? 'filled' : 'empty'
+}
+
+function fieldCompletionClass(completion?: FieldCompletion) {
+  if (completion === 'filled') return 'cdl-field-filled'
+  if (completion === 'empty') return 'cdl-field-empty'
+  return 'border-cdl-border bg-cdl-inset'
+}
+
+function FieldCheck({ show }: { show: boolean }) {
+  if (!show) return null
+  return (
+    <span
+      className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm font-bold text-cdl-success"
+      aria-hidden
+    >
+      ✓
+    </span>
+  )
+}
+
+function stepSegmentClass(status: StepStatus) {
+  switch (status) {
+    case 'complete':
+      return 'bg-cdl-success'
+    case 'incomplete':
+      return 'bg-cdl-warning'
+    case 'current':
+      return 'bg-cdl-step-current'
+    default:
+      return 'bg-cdl-step-empty'
+  }
+}
+
+function stepButtonClass(status: StepStatus) {
+  switch (status) {
+    case 'complete':
+      return 'border border-cdl-success-border bg-cdl-success-soft text-cdl-success'
+    case 'incomplete':
+      return 'border border-cdl-warning-border bg-cdl-warning-soft text-cdl-warning'
+    case 'current':
+      return 'border border-cdl-action bg-cdl-red-soft text-cdl-action shadow-cdl-accent'
+    default:
+      return 'border border-cdl-border bg-cdl-inset text-cdl-muted'
+  }
+}
+
+function stepBadgeClass(status: StepStatus) {
+  switch (status) {
+    case 'complete':
+      return 'bg-cdl-success text-[#070707]'
+    case 'incomplete':
+      return 'bg-cdl-warning text-[#070707]'
+    case 'current':
+      return 'bg-cdl-action text-white'
+    default:
+      return 'bg-cdl-image text-cdl-muted'
+  }
+}
+const HOUR_OPTIONS = Array.from({ length: 24 }, (_, hour) => hour)
+const MINUTE_OPTIONS = [0, 15, 30, 45]
+
+function parseTimeParts(value: string) {
+  if (!value) return null
+  const [hours, minutes] = value.split(':').map(Number)
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return null
+  return { hours, minutes }
+}
+
+function toTimeValue(hours: number, minutes: number) {
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
+}
+
+function addHoursToTime(time: string, hoursToAdd: number) {
+  const parsed = parseTimeParts(time)
+  if (!parsed) return ''
+
+  const totalMinutes =
+    parsed.hours * 60 + parsed.minutes + hoursToAdd * 60
+  const normalized =
+    ((totalMinutes % (24 * 60)) + 24 * 60) % (24 * 60)
+
+  return toTimeValue(
+    Math.floor(normalized / 60),
+    normalized % 60,
+  )
+}
+
+function CalendarIcon() {
+  return (
+    <svg
+      className="h-5 w-5 shrink-0 text-cdl-accent"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      aria-hidden
+    >
+      <rect x="3" y="4" width="18" height="18" rx="2" />
+      <path d="M16 2v4M8 2v4M3 10h18" />
+    </svg>
+  )
+}
+
+function DatePickerField({
+  label,
+  value,
+  onChange,
+  className = '',
+  completion,
+}: {
+  label: string
+  value: string
+  onChange: (value: string) => void
+  className?: string
+  completion?: FieldCompletion
+}) {
+  const [open, setOpen] = useState(false)
+  const [viewDate, setViewDate] = useState(() => parseDateValue(value) ?? new Date())
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  const selectedDate = parseDateValue(value)
+
+  useEffect(() => {
+    const parsed = parseDateValue(value)
+    if (parsed) setViewDate(parsed)
+  }, [value])
+
+  useEffect(() => {
+    if (!open) return
+
+    function handleClickOutside(event: MouseEvent) {
+      if (!containerRef.current?.contains(event.target as Node)) {
+        setOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [open])
+
+  const calendarDays = useMemo(() => {
+    const year = viewDate.getFullYear()
+    const month = viewDate.getMonth()
+    const firstWeekday = (new Date(year, month, 1).getDay() + 6) % 7
+    const daysInMonth = new Date(year, month + 1, 0).getDate()
+    const cells: Array<number | null> = []
+
+    for (let i = 0; i < firstWeekday; i += 1) cells.push(null)
+    for (let day = 1; day <= daysInMonth; day += 1) cells.push(day)
+
+    return { year, month, cells }
+  }, [viewDate])
+
+  function selectDay(day: number) {
+    onChange(toDateValue(new Date(calendarDays.year, calendarDays.month, day)))
+    setOpen(false)
+  }
+
+  function shiftMonth(offset: number) {
+    setViewDate(
+      (current) =>
+        new Date(current.getFullYear(), current.getMonth() + offset, 1),
+    )
+  }
+
+  const monthLabel = viewDate.toLocaleDateString('pt-BR', {
+    month: 'long',
+    year: 'numeric',
+  })
+
+  return (
+    <div ref={containerRef} className={`relative flex flex-col gap-2 ${className}`}>
+      <span className="cdl-eyebrow">{label}</span>
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => setOpen((current) => !current)}
+          className={`flex w-full items-center justify-between gap-3 rounded-xl border px-4 py-3.5 pr-10 text-left text-base outline-none transition-colors hover:border-cdl-accent-border focus:border-cdl-accent-border ${fieldCompletionClass(completion)}`}
+          aria-expanded={open}
+          aria-haspopup="dialog"
+        >
+          <span className={selectedDate ? 'text-cdl-fg' : 'text-cdl-faint'}>
+            {selectedDate ? formatDate(value) : 'Selecione a data'}
+          </span>
+          <CalendarIcon />
+        </button>
+        <FieldCheck show={completion === 'filled'} />
+      </div>
+
+      {open && (
+        <div
+          role="dialog"
+          aria-label={`Calendário de ${label}`}
+          className="absolute left-0 top-full z-30 mt-2 w-full min-w-[300px] rounded-2xl border border-cdl-border bg-cdl-surface p-4 shadow-cdl-popup sm:w-[320px]"
+        >
+          <div className="mb-4 flex items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={() => shiftMonth(-1)}
+              className="flex h-9 w-9 items-center justify-center rounded-lg border border-cdl-border bg-cdl-inset text-cdl-fg transition-colors hover:border-cdl-accent-border"
+              aria-label="Mês anterior"
+            >
+              ‹
+            </button>
+            <p className="text-sm font-bold capitalize text-cdl-accent">
+              {monthLabel}
+            </p>
+            <button
+              type="button"
+              onClick={() => shiftMonth(1)}
+              className="flex h-9 w-9 items-center justify-center rounded-lg border border-cdl-border bg-cdl-inset text-cdl-fg transition-colors hover:border-cdl-accent-border"
+              aria-label="Próximo mês"
+            >
+              ›
+            </button>
+          </div>
+
+          <div className="mb-2 grid grid-cols-7 gap-1">
+            {CALENDAR_WEEKDAYS.map((weekday) => (
+              <span
+                key={weekday}
+                className="py-1 text-center text-[10px] font-semibold uppercase tracking-wider text-cdl-muted"
+              >
+                {weekday}
+              </span>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-7 gap-1">
+            {calendarDays.cells.map((day, index) => {
+              if (day === null) {
+                return <span key={`empty-${index}`} className="h-10" />
+              }
+
+              const isSelected =
+                selectedDate?.getFullYear() === calendarDays.year &&
+                selectedDate?.getMonth() === calendarDays.month &&
+                selectedDate?.getDate() === day
+
+              const isToday =
+                new Date().getFullYear() === calendarDays.year &&
+                new Date().getMonth() === calendarDays.month &&
+                new Date().getDate() === day
+
+              return (
+                <button
+                  key={`${calendarDays.year}-${calendarDays.month}-${day}`}
+                  type="button"
+                  onClick={() => selectDay(day)}
+                  className={`flex h-10 items-center justify-center rounded-lg text-sm font-semibold transition-colors ${
+                    isSelected
+                      ? 'bg-cdl-accent text-cdl-on-accent'
+                      : isToday
+                        ? 'border border-cdl-accent-border bg-cdl-accent-soft text-cdl-accent'
+                        : 'text-cdl-fg hover:bg-cdl-muted-bg hover:text-cdl-accent'
+                  }`}
+                >
+                  {day}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ClockIcon() {
+  return (
+    <svg
+      className="h-5 w-5 shrink-0 text-cdl-accent"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      aria-hidden
+    >
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 2" />
+    </svg>
+  )
+}
+
+function TimePickerField({
+  label,
+  value,
+  onChange,
+  className = '',
+  completion,
+}: {
+  label: string
+  value: string
+  onChange: (value: string) => void
+  className?: string
+  completion?: FieldCompletion
+}) {
+  const [open, setOpen] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const selected = parseTimeParts(value)
+  const [draftHour, setDraftHour] = useState(selected?.hours ?? 18)
+  const [draftMinute, setDraftMinute] = useState(selected?.minutes ?? 0)
+
+  useEffect(() => {
+    const parsed = parseTimeParts(value)
+    if (parsed) {
+      setDraftHour(parsed.hours)
+      setDraftMinute(parsed.minutes)
+    }
+  }, [value])
+
+  useEffect(() => {
+    if (!open) return
+
+    function handleClickOutside(event: MouseEvent) {
+      if (!containerRef.current?.contains(event.target as Node)) {
+        setOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [open])
+
+  function selectHour(hour: number) {
+    setDraftHour(hour)
+    onChange(toTimeValue(hour, draftMinute))
+  }
+
+  function selectMinute(minute: number) {
+    setDraftMinute(minute)
+    onChange(toTimeValue(draftHour, minute))
+    setOpen(false)
+  }
+
+  return (
+    <div ref={containerRef} className={`relative flex flex-col gap-2 ${className}`}>
+      <span className="cdl-eyebrow">{label}</span>
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => setOpen((current) => !current)}
+          className={`flex w-full items-center justify-between gap-3 rounded-xl border px-4 py-3.5 pr-10 text-left text-base outline-none transition-colors hover:border-cdl-accent-border focus:border-cdl-accent-border ${fieldCompletionClass(completion)}`}
+          aria-expanded={open}
+          aria-haspopup="dialog"
+        >
+          <span className={selected ? 'text-cdl-fg' : 'text-cdl-faint'}>
+            {selected ? formatTime(value) : 'Selecione o horário'}
+          </span>
+          <ClockIcon />
+        </button>
+        <FieldCheck show={completion === 'filled'} />
+      </div>
+
+      {open && (
+        <div
+          role="dialog"
+          aria-label={`Seletor de ${label}`}
+          className="absolute left-0 top-full z-30 mt-2 w-full min-w-[300px] rounded-2xl border border-cdl-border bg-cdl-surface p-4 shadow-cdl-popup sm:w-[320px]"
+        >
+          <p className="mb-3 text-center text-sm font-bold text-cdl-accent">
+            {toTimeValue(draftHour, draftMinute)}
+          </p>
+
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-cdl-muted">
+            Hora
+          </p>
+          <div className="mb-4 grid max-h-40 grid-cols-6 gap-1 overflow-y-auto pr-1">
+            {HOUR_OPTIONS.map((hour) => {
+              const isSelected = draftHour === hour
+              return (
+                <button
+                  key={hour}
+                  type="button"
+                  onClick={() => selectHour(hour)}
+                  className={`flex h-9 items-center justify-center rounded-lg text-sm font-semibold transition-colors ${
+                    isSelected
+                      ? 'bg-cdl-accent text-cdl-on-accent'
+                      : 'text-cdl-fg hover:bg-cdl-muted-bg hover:text-cdl-accent'
+                  }`}
+                >
+                  {String(hour).padStart(2, '0')}
+                </button>
+              )
+            })}
+          </div>
+
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-cdl-muted">
+            Minutos
+          </p>
+          <div className="grid grid-cols-4 gap-1">
+            {MINUTE_OPTIONS.map((minute) => {
+              const isSelected = draftMinute === minute
+              return (
+                <button
+                  key={minute}
+                  type="button"
+                  onClick={() => selectMinute(minute)}
+                  className={`flex h-10 items-center justify-center rounded-lg text-sm font-semibold transition-colors ${
+                    isSelected
+                      ? 'bg-cdl-accent text-cdl-on-accent'
+                      : 'text-cdl-fg hover:bg-cdl-muted-bg hover:text-cdl-accent'
+                  }`}
+                >
+                  {String(minute).padStart(2, '0')}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function getCustomerName(customer: Customer) {
+  return customer.name ?? customer.customer_name ?? customer.ab_name ?? '—'
+}
+
+function getEventDefaultsFromCustomer(customer: Customer) {
+  const customerName = getCustomerName(customer)
+
+  return {
+    eventName: customerName === '—' ? '' : customerName,
+    address:
+      customer.address_line ?? customer.address ?? customer.street ?? '',
+    city: customer.city ?? '',
+    state: customer.state ?? '',
+    zipCode: customer.zip_code ?? customer.postal_code ?? '',
+  }
+}
+
+function getPackageName(pkg: Package) {
+  return (
+    pkg.label_pt ??
+    pkg.name_pt ??
+    pkg.package_name ??
+    pkg.label_en ??
+    pkg.name_en ??
+    pkg.label_es ??
+    pkg.name_es ??
+    '—'
+  )
+}
+
+function getPackageDescription(pkg: Package) {
+  return (
+    pkg.description_pt ??
+    pkg.description_en ??
+    pkg.description_es ??
+    pkg.description ??
+    ''
+  )
+}
+
+function getPackagePrice(pkg: Package) {
+  return Number(
+    pkg.price_per_person ?? pkg.price ?? pkg.base_price ?? 0,
+  )
+}
+
+function getPackageImage(pkg: Package) {
+  return pkg.image_url ?? pkg.photo_url ?? null
+}
+
+function getAdditionalLabel(item: AdditionalItem) {
+  return item.label_pt ?? item.label_en ?? item.label_es ?? item.item_key ?? '—'
+}
+
+function isPerPersonAdditional(item: AdditionalItem) {
+  return (
+    item.pricing_type === 'PER_PERSON' || item.charge_type === 'PERSON'
+  )
+}
+
+function getAdditionalUnitPrice(item: AdditionalItem) {
+  return Number(item.price ?? item.unit_price ?? 0)
+}
+
+function normalizeAdditionalQuantity(item: AdditionalItem, quantity: number) {
+  if (isPerPersonAdditional(item)) {
+    return quantity > 0 ? 1 : 0
+  }
+  return Math.max(0, quantity)
+}
+
+function calcAdditionalLineTotal(
+  item: AdditionalItem,
+  quantity: number,
+  billableGuests: number,
+) {
+  const normalizedQty = normalizeAdditionalQuantity(item, quantity)
+  if (normalizedQty <= 0) return 0
+  const unitPrice = getAdditionalUnitPrice(item)
+  if (isPerPersonAdditional(item)) {
+    return roundMoney(unitPrice * billableGuests)
+  }
+  return roundMoney(unitPrice * normalizedQty)
+}
+
+function mapSelectedAdditionalRow(
+  item: AdditionalItem,
+  quantity: number,
+  billableGuests: number,
+) {
+  const normalizedQty = normalizeAdditionalQuantity(item, quantity)
+  return {
+    item,
+    quantity: normalizedQty,
+    unitPrice: getAdditionalUnitPrice(item),
+    perPerson: isPerPersonAdditional(item),
+    totalPrice: calcAdditionalLineTotal(item, normalizedQty, billableGuests),
+  }
+}
+
+function formatWeightUom(uom: string) {
+  if (uom === 'LB') return 'lb'
+  return uom.toLowerCase()
+}
+
+function getAdditionalPackLabel(item: AdditionalItem) {
+  const packQty = item.quantity ?? 1
+  const packUnit = item.unit_label ?? item.unit ?? 'UN'
+  const weight = item.quantity_2
+  const weightUom = item.uom_2
+
+  if (weight != null && weightUom) {
+    return `${packQty} ${packUnit} · ${weight} ${formatWeightUom(weightUom)}`
+  }
+  return `${packQty} ${packUnit}`
+}
+
+function getAdditionalTotalWeight(
+  item: AdditionalItem,
+  quantity: number,
+) {
+  const normalizedQty = normalizeAdditionalQuantity(item, quantity)
+  if (normalizedQty <= 0 || item.quantity_2 == null || !item.uom_2) {
+    return null
+  }
+  return {
+    amount: item.quantity_2 * normalizedQty,
+    uom: item.uom_2,
+  }
+}
+
+function getAdditionalImage(item: AdditionalItem) {
+  return item.image_url ?? item.photo_url ?? null
+}
+
+function sortPackages(list: Package[]) {
+  return [...list].sort(
+    (a, b) =>
+      (a.display_order ?? 0) - (b.display_order ?? 0) ||
+      (a.package_key ?? '').localeCompare(b.package_key ?? ''),
+  )
+}
+
+const ADDITIONAL_CATEGORY_ORDER = [
+  'Bovino Tradicional',
+  'Bovino Nobre',
+  'Frango',
+  'Porco',
+  'Linguiças',
+  'Cordeiro',
+  'Peixes',
+  'Frutos do Mar',
+  'Frutas',
+  'Legumes e Saladas',
+  'Acompanhamentos',
+  'Guarnições',
+  'Equipamentos',
+  'Alumínio',
+  'Barbecue',
+] as const
+
+function normalizeCategory(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+}
+
+const ADDITIONAL_CATEGORY_ALIASES: Record<string, string> = {
+  bovino: 'bovino tradicional',
+  peixe: 'peixes',
+}
+
+function getAdditionalCategorySortIndex(category: string) {
+  const normalized =
+    ADDITIONAL_CATEGORY_ALIASES[normalizeCategory(category)] ??
+    normalizeCategory(category)
+  const index = ADDITIONAL_CATEGORY_ORDER.findIndex(
+    (name) => normalizeCategory(name) === normalized,
+  )
+  if (index !== -1) return index
+  // Categorias não mapeadas ficam antes de Barbecue (última da seção)
+  return ADDITIONAL_CATEGORY_ORDER.length - 1 - 0.5
+}
+
+function compareAdditionalCategories(a: string, b: string) {
+  const indexDiff =
+    getAdditionalCategorySortIndex(a) - getAdditionalCategorySortIndex(b)
+  if (indexDiff !== 0) return indexDiff
+  return a.localeCompare(b, 'pt-BR')
+}
+
+function ImagePlaceholder({ label }: { label: string }) {
+  return (
+    <div className="flex aspect-video w-full items-center justify-center bg-cdl-muted-bg text-cdl-faint">
+      <span className="text-xs font-semibold uppercase tracking-wider">
+        {label}
+      </span>
+    </div>
+  )
+}
+
+function PackageCard({
+  pkg,
+  selected,
+  onSelect,
+  onSelectAndAdvance,
+}: {
+  pkg: Package
+  selected: boolean
+  onSelect: () => void
+  onSelectAndAdvance: () => void
+}) {
+  const image = getPackageImage(pkg)
+
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      onDoubleClick={onSelectAndAdvance}
+      title="Duplo clique para ir aos adicionais"
+      className={`relative overflow-hidden rounded-xl border text-left shadow-cdl transition-colors ${
+        selected
+          ? 'border-cdl-success-border bg-cdl-success-soft'
+          : 'border-cdl-border bg-cdl-inset hover:border-cdl-accent-border'
+      }`}
+    >
+      {selected && (
+        <span className="absolute right-3 top-3 z-10 rounded-full border border-cdl-success-border bg-cdl-success-soft px-2.5 py-0.5 text-[10px] font-bold tracking-wider text-cdl-success">
+          SELECIONADO
+        </span>
+      )}
+      {image ? (
+        <div className="aspect-video w-full overflow-hidden bg-cdl-image">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={image}
+            alt={getPackageName(pkg)}
+            className="h-full w-full object-cover"
+          />
+        </div>
+      ) : (
+        <ImagePlaceholder label="Sem imagem" />
+      )}
+      <div className="p-6">
+        <p className="cdl-eyebrow">{pkg.package_key}</p>
+        <h3 className="mt-2 text-xl font-bold text-cdl-fg sm:text-2xl">
+          {getPackageName(pkg)}
+        </h3>
+        {getPackageDescription(pkg) && (
+          <p className="mt-2 text-sm text-cdl-text-secondary">{getPackageDescription(pkg)}</p>
+        )}
+        <p className="mt-4 text-2xl font-black text-cdl-price">
+          {formatCurrency(getPackagePrice(pkg))}
+          <span className="ml-1 text-sm font-semibold text-cdl-text-secondary">
+            / pessoa
+          </span>
+        </p>
+      </div>
+    </button>
+  )
+}
+
+function WizardStepButton({
+  label,
+  onClick,
+  className = '',
+}: {
+  label: string
+  onClick: () => void
+  className?: string
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`cdl-btn-primary ${className}`}
+    >
+      {label}
+    </button>
+  )
+}
+
+function PackageBlock({
+  title,
+  subtitle,
+  packages: blockPackages,
+  selectedPackageId,
+  expanded,
+  onToggle,
+  onSelect,
+  onSelectAndAdvance,
+}: {
+  title: string
+  subtitle: string
+  packages: Package[]
+  selectedPackageId: string | null
+  expanded: boolean
+  onToggle: () => void
+  onSelect: (id: string) => void
+  onSelectAndAdvance: (id: string) => void
+}) {
+  if (blockPackages.length === 0) return null
+
+  const hasSelection = blockPackages.some((pkg) => pkg.id === selectedPackageId)
+  const selectedPackage = hasSelection
+    ? blockPackages.find((pkg) => pkg.id === selectedPackageId)
+    : null
+
+  return (
+    <section className="overflow-hidden rounded-2xl border border-cdl-border bg-cdl-surface shadow-cdl">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={expanded}
+        className="flex w-full items-center justify-between gap-4 p-5 text-left transition-colors hover:bg-cdl-hover sm:p-6"
+      >
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span className="text-lg font-extrabold text-cdl-title sm:text-xl">
+              {title}
+            </span>
+            <span className="text-sm text-cdl-muted">
+              {blockPackages.length}{' '}
+              {blockPackages.length === 1 ? 'pacote' : 'pacotes'}
+            </span>
+            {hasSelection && selectedPackage && (
+              <span className="rounded-full border border-cdl-accent-border bg-cdl-accent-soft px-2.5 py-0.5 text-xs font-bold text-cdl-brand">
+                {getPackageName(selectedPackage)}
+              </span>
+            )}
+          </div>
+          <p className="mt-1 text-sm text-cdl-muted">{subtitle}</p>
+        </div>
+        <span
+          className={`shrink-0 text-sm text-cdl-accent transition-transform duration-200 ${
+            expanded ? 'rotate-180' : ''
+          }`}
+          aria-hidden
+        >
+          ▼
+        </span>
+      </button>
+
+      {expanded && (
+        <div className="border-t border-cdl-border-subtle p-5 sm:p-6">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            {blockPackages.map((pkg) => (
+              <PackageCard
+                key={pkg.id}
+                pkg={pkg}
+                selected={selectedPackageId === pkg.id}
+                onSelect={() => onSelect(pkg.id)}
+                onSelectAndAdvance={() => onSelectAndAdvance(pkg.id)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+    </section>
+  )
+}
+
+function AdditionalItemCard({
+  item,
+  quantity,
+  billableGuests,
+  onChangeQty,
+}: {
+  item: AdditionalItem
+  quantity: number
+  billableGuests: number
+  onChangeQty: (qty: number) => void
+}) {
+  const image = getAdditionalImage(item)
+  const unitPrice = getAdditionalUnitPrice(item)
+  const perPerson = isPerPersonAdditional(item)
+  const normalizedQty = normalizeAdditionalQuantity(item, quantity)
+  const lineTotal = calcAdditionalLineTotal(item, quantity, billableGuests)
+  const isSelected = normalizedQty > 0
+  const totalWeight = getAdditionalTotalWeight(item, quantity)
+  const packLabel = !perPerson ? getAdditionalPackLabel(item) : null
+
+  const cardClassName = `overflow-hidden rounded-2xl border text-left transition-colors ${
+    isSelected
+      ? 'border-cdl-accent bg-cdl-accent-soft'
+      : 'border-cdl-border bg-cdl-inset'
+  }`
+
+  const media = image ? (
+    <div className="aspect-video w-full overflow-hidden bg-cdl-image">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={image}
+        alt={getAdditionalLabel(item)}
+        className="h-full w-full object-cover"
+      />
+    </div>
+  ) : (
+    <ImagePlaceholder label="Sem imagem" />
+  )
+
+  const header = (
+    <>
+      <h3 className="font-bold text-cdl-fg">{getAdditionalLabel(item)}</h3>
+      <p className="mt-1 text-sm font-bold text-cdl-price">
+        {formatCurrency(unitPrice)}
+        {perPerson ? (
+          <span className="ml-1 text-xs font-semibold text-cdl-text-secondary">/ pessoa</span>
+        ) : (
+          packLabel && (
+            <span className="ml-1 text-xs font-semibold text-cdl-text-secondary">
+              / {packLabel}
+            </span>
+          )
+        )}
+      </p>
+      {item.pricing_type && (
+        <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-cdl-muted">
+          {perPerson ? 'Por pessoa' : 'Por unidade'}
+        </p>
+      )}
+    </>
+  )
+
+  if (perPerson) {
+    return (
+      <button
+        type="button"
+        onClick={() => onChangeQty(isSelected ? 0 : 1)}
+        className={`${cardClassName} w-full`}
+      >
+        {media}
+        <div className="p-5">
+          {header}
+          <div className="mt-4 flex items-center justify-between gap-3">
+            <span className="flex items-center gap-3">
+              <span
+                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border ${
+                  isSelected
+                    ? 'border-cdl-accent bg-cdl-accent text-cdl-on-accent'
+                    : 'border-cdl-faint bg-cdl-surface'
+                }`}
+                aria-hidden
+              >
+                {isSelected ? '✓' : ''}
+              </span>
+              <span className="text-sm font-semibold text-cdl-fg">
+                {isSelected ? 'Selecionado' : 'Selecionar'}
+              </span>
+            </span>
+            {isSelected && (
+              <div className="text-right">
+                <span className="text-sm font-bold text-cdl-price">
+                  {formatCurrency(lineTotal)}
+                </span>
+                {billableGuests > 0 && (
+                  <p className="mt-0.5 text-xs text-cdl-subtle">
+                    {formatCurrency(unitPrice)} × {billableGuests}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </button>
+    )
+  }
+
+  return (
+    <article className={cardClassName}>
+      {media}
+      <div className="p-5">
+        {header}
+        {packLabel && (
+          <p className="mt-2 text-xs text-cdl-muted">
+            Cada unidade: {packLabel}
+          </p>
+        )}
+
+        <div className="mt-4 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => onChangeQty(normalizedQty - 1)}
+              disabled={normalizedQty === 0}
+              className="flex h-9 w-9 items-center justify-center rounded-lg border border-cdl-border bg-cdl-surface text-lg font-bold text-cdl-fg transition-colors hover:border-cdl-accent-border disabled:opacity-30"
+              aria-label="Remover unidade"
+            >
+              −
+            </button>
+            <div className="min-w-[3rem] text-center">
+              <span className="text-lg font-semibold text-cdl-fg">
+                {normalizedQty}
+              </span>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-cdl-muted">
+                {item.unit_label ?? item.unit ?? 'UN'}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => onChangeQty(normalizedQty + 1)}
+              className="flex h-9 w-9 items-center justify-center rounded-lg border border-cdl-border bg-cdl-surface text-lg font-bold text-cdl-fg transition-colors hover:border-cdl-accent-border"
+              aria-label="Adicionar unidade"
+            >
+              +
+            </button>
+          </div>
+          {isSelected && (
+            <div className="text-right">
+              <span className="text-sm font-bold text-cdl-price">
+                {formatCurrency(lineTotal)}
+              </span>
+              {totalWeight && (
+                <p className="mt-0.5 text-xs font-semibold text-cdl-text-secondary">
+                  {totalWeight.amount} {formatWeightUom(totalWeight.uom)} total
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </article>
+  )
+}
+
+function AdditionalCategorySection({
+  category,
+  items,
+  expanded,
+  selectedCount,
+  quantities,
+  billableGuests,
+  onToggle,
+  onChangeQty,
+}: {
+  category: string
+  items: AdditionalItem[]
+  expanded: boolean
+  selectedCount: number
+  quantities: Record<string, number>
+  billableGuests: number
+  onToggle: () => void
+  onChangeQty: (itemId: string, qty: number) => void
+}) {
+  return (
+    <section className="overflow-hidden rounded-2xl border border-cdl-border bg-cdl-surface shadow-cdl">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={expanded}
+        className="flex w-full items-center justify-between gap-4 p-5 text-left transition-colors hover:bg-cdl-hover sm:p-6"
+      >
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1">
+          <span className="text-lg font-extrabold text-cdl-title sm:text-xl">
+            {category}
+          </span>
+          <span className="text-sm text-cdl-muted">
+            {items.length} {items.length === 1 ? 'item' : 'itens'}
+          </span>
+          {selectedCount > 0 && (
+            <span className="rounded-full bg-cdl-accent px-2.5 py-0.5 text-xs font-bold text-cdl-on-accent">
+              {selectedCount} selecionado{selectedCount !== 1 ? 's' : ''}
+            </span>
+          )}
+        </div>
+        <span
+          className={`shrink-0 text-sm text-cdl-accent transition-transform duration-200 ${
+            expanded ? 'rotate-180' : ''
+          }`}
+          aria-hidden
+        >
+          ▼
+        </span>
+      </button>
+
+      {expanded && (
+        <div className="border-t border-cdl-border-subtle p-5 sm:p-6">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {items.map((item) => (
+              <AdditionalItemCard
+                key={item.id}
+                item={item}
+                quantity={quantities[item.id] ?? 0}
+                billableGuests={billableGuests}
+                onChangeQty={(qty) => onChangeQty(item.id, qty)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+    </section>
+  )
+}
+
+function calcMileageFee(distance: number, freeLimit: number, rate: number) {
+  const billable = Math.max(0, distance - freeLimit)
+  return billable * rate
+}
+
+function SectionCard({
+  title,
+  children,
+  className = '',
+}: {
+  title: string
+  children: React.ReactNode
+  className?: string
+}) {
+  return (
+    <section
+      className={`rounded-2xl border border-cdl-border bg-cdl-surface p-7 shadow-cdl sm:p-9 ${className}`}
+    >
+      <h2 className="cdl-section-title">{title}</h2>
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">{children}</div>
+    </section>
+  )
+}
+
+function Field({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-xs font-bold uppercase tracking-wider text-cdl-muted">
+        {label}
+      </span>
+      <span className="text-sm text-cdl-fg">{value ?? '—'}</span>
+    </div>
+  )
+}
+
+function SummaryStatCard({
+  label,
+  value,
+}: {
+  label: string
+  value: React.ReactNode
+}) {
+  return (
+    <div className="rounded-xl border border-cdl-border bg-cdl-inset px-5 py-6 text-center shadow-cdl sm:px-6 sm:py-7">
+      <p className="cdl-eyebrow">{label}</p>
+      <p className="mt-3 text-3xl font-black text-cdl-price sm:text-4xl">{value}</p>
+    </div>
+  )
+}
+
+function SummaryField({
+  label,
+  value,
+}: {
+  label: string
+  value: React.ReactNode
+}) {
+  return (
+    <div className="rounded-xl border border-cdl-border bg-cdl-inset px-5 py-5 shadow-cdl sm:px-6 sm:py-6">
+      <span className="cdl-eyebrow">{label}</span>
+      <p className="mt-3 text-base font-semibold text-cdl-fg sm:text-lg">
+        {value ?? '—'}
+      </p>
+    </div>
+  )
+}
+
+function SummaryDetail({
+  label,
+  value,
+}: {
+  label: string
+  value: React.ReactNode
+}) {
+  return (
+    <div className="flex flex-col gap-1.5 sm:flex-row sm:items-baseline sm:gap-4">
+      <span className="cdl-eyebrow shrink-0 sm:min-w-[7rem]">{label}</span>
+      <span className="text-base font-medium text-cdl-fg sm:text-lg">
+        {value ?? '—'}
+      </span>
+    </div>
+  )
+}
+
+function SummarySectionCard({
+  title,
+  children,
+  className = '',
+}: {
+  title: string
+  children: React.ReactNode
+  className?: string
+}) {
+  return (
+    <section
+      className={`rounded-2xl border border-cdl-border bg-cdl-surface p-7 shadow-cdl sm:p-9 ${className}`}
+    >
+      <h2 className="cdl-section-title-lg">{title}</h2>
+      {children}
+    </section>
+  )
+}
+
+function WizardCompletionProgress({
+  stepStatusCtx,
+}: {
+  stepStatusCtx: StepStatusContext
+}) {
+  const completedSteps = countCompletedSteps(stepStatusCtx)
+  const remainingSteps = countRemainingSteps(stepStatusCtx)
+  const percentage = getCompletionPercentage(stepStatusCtx)
+  const ready = completedSteps >= 7
+
+  return (
+    <section className="rounded-2xl border border-cdl-border bg-cdl-surface p-7 shadow-cdl sm:p-9">
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <p className="cdl-eyebrow">Progresso da cotação</p>
+          <p className="mt-2 text-2xl font-bold text-cdl-fg sm:text-3xl">
+            {completedSteps} de 8 etapas concluídas
+          </p>
+          <p className="mt-1 text-sm text-cdl-text-secondary">
+            {percentage}% de conclusão
+          </p>
+        </div>
+        <div
+          className={`rounded-xl border px-5 py-4 text-center sm:min-w-[16rem] ${
+            ready
+              ? 'border-cdl-success-border bg-cdl-success-soft'
+              : 'border-cdl-warning-border bg-cdl-warning-soft'
+          }`}
+        >
+          <p
+            className={`text-xs font-bold uppercase tracking-wider ${
+              ready ? 'text-cdl-success' : 'text-cdl-warning'
+            }`}
+          >
+            {ready
+              ? 'Pronto para gerar cotação'
+              : `Faltam ${remainingSteps} etapas`}
+          </p>
+        </div>
+      </div>
+      <div className="mt-5 flex h-1.5 gap-1 overflow-hidden rounded-full">
+        {STEPS.map((_, index) => (
+          <div
+            key={STEPS[index]}
+            className={`flex-1 rounded-full transition-colors ${stepSegmentClass(getStepStatus(index + 1, stepStatusCtx))}`}
+            title={STEPS[index]}
+          />
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function MileageSummaryPanel({
+  distance,
+  freeLimit,
+  rate,
+  mileageFee,
+}: {
+  distance: number
+  freeLimit: number
+  rate: number
+  mileageFee: number
+}) {
+  const chargedMiles = Math.max(0, distance - freeLimit)
+
+  return (
+    <div className="sm:col-span-2 rounded-xl border border-cdl-border bg-cdl-inset px-6 py-5 shadow-cdl">
+      <p className="cdl-eyebrow">Resumo de milhagem</p>
+      <div className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div>
+          <p className="cdl-eyebrow">Milhas totais</p>
+          <p className="mt-2 text-xl font-bold text-cdl-fg">{distance} mi</p>
+        </div>
+        <div>
+          <p className="cdl-eyebrow">Milhas inclusas</p>
+          <p className="mt-2 text-xl font-bold text-cdl-fg">{freeLimit} mi</p>
+        </div>
+        <div>
+          <p className="cdl-eyebrow">Milhas cobradas</p>
+          <p className="mt-2 text-xl font-bold text-cdl-price">{chargedMiles} mi</p>
+        </div>
+        <div>
+          <p className="cdl-eyebrow">Taxa calculada</p>
+          <p className="mt-2 text-xl font-bold text-cdl-price">
+            {formatCurrency(mileageFee)}
+          </p>
+        </div>
+      </div>
+      <p className="mt-4 text-xs text-cdl-text-secondary">
+        {chargedMiles} mi × {formatCurrency(rate)}/mi
+      </p>
+    </div>
+  )
+}
+
+function InputField({
+  label,
+  type = 'text',
+  value,
+  onChange,
+  placeholder,
+  className = '',
+  step,
+  min,
+  max,
+  completion,
+}: {
+  label: string
+  type?: string
+  value: string | number
+  onChange: (value: string) => void
+  placeholder?: string
+  className?: string
+  step?: string | number
+  min?: string | number
+  max?: string | number
+  completion?: FieldCompletion
+}) {
+  return (
+    <label className={`flex flex-col gap-2 ${className}`}>
+      <span className="cdl-eyebrow">{label}</span>
+      <div className="relative">
+        <input
+          type={type}
+          value={value}
+          placeholder={placeholder}
+          step={step}
+          min={min}
+          max={max}
+          onChange={(e) => onChange(e.target.value)}
+          className={`w-full rounded-xl border px-4 py-3.5 pr-10 text-base text-cdl-fg shadow-cdl outline-none transition-colors placeholder:text-cdl-faint focus:border-cdl-accent-border ${fieldCompletionClass(completion)}`}
+        />
+        <FieldCheck show={completion === 'filled'} />
+      </div>
+    </label>
+  )
+}
+
+function QuantityField({
+  label,
+  value,
+  onChange,
+  className = '',
+  placeholder = '0',
+  min = 0,
+  disabled = false,
+}: {
+  label: string
+  value: number
+  onChange: (value: number) => void
+  className?: string
+  placeholder?: string
+  min?: number
+  disabled?: boolean
+}) {
+  const [draft, setDraft] = useState(String(value))
+  const [focused, setFocused] = useState(false)
+
+  useEffect(() => {
+    if (!focused) setDraft(String(value))
+  }, [value, focused])
+
+  return (
+    <label className={`flex flex-col gap-2 ${className}`}>
+      <span className="cdl-eyebrow">{label}</span>
+      <input
+        type="text"
+        inputMode="numeric"
+        value={draft}
+        placeholder={placeholder}
+        disabled={disabled}
+        onFocus={() => setFocused(true)}
+        onBlur={() => {
+          setFocused(false)
+          const next =
+            draft === ''
+              ? min
+              : Math.max(min, Number.parseInt(draft, 10) || min)
+          onChange(next)
+          setDraft(String(next))
+        }}
+        onChange={(e) => {
+          const raw = e.target.value.replace(/\D/g, '')
+          setDraft(raw)
+          if (raw !== '') {
+            onChange(Math.max(min, Number.parseInt(raw, 10) || min))
+          }
+        }}
+        className="rounded-xl border border-cdl-border bg-cdl-inset px-4 py-3.5 text-base text-cdl-fg shadow-cdl outline-none transition-colors placeholder:text-cdl-faint focus:border-cdl-accent-border disabled:cursor-not-allowed disabled:opacity-40"
+      />
+    </label>
+  )
+}
+
+function CheckboxField({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string
+  checked: boolean
+  onChange: (checked: boolean) => void
+}) {
+  return (
+    <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-cdl-border bg-cdl-inset px-5 py-4 shadow-cdl transition-colors hover:border-cdl-accent-border">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="h-4 w-4 accent-cdl-brand"
+      />
+      <span className="text-xs font-bold uppercase tracking-wider text-cdl-fg">
+        {label}
+      </span>
+    </label>
+  )
+}
+
+export { getStepStatus } from './wizardStepStatus'
+
+export default function QuoteWizard({
+  customers,
+  packages,
+  additionalItems,
+  fetchErrors,
+}: {
+  customers: Customer[]
+  packages: Package[]
+  additionalItems: AdditionalItem[]
+  fetchErrors: string[]
+}) {
+  const [step, setStep] = useState(0)
+  const [state, setState] = useState<WizardState>(initialState)
+  const [customerSearch, setCustomerSearch] = useState('')
+  const [endTimeCustomized, setEndTimeCustomized] = useState(false)
+  const [openAdditionalCategories, setOpenAdditionalCategories] = useState<
+    Set<string>
+  >(() => new Set())
+  const [openPackageBlocks, setOpenPackageBlocks] = useState<Set<string>>(
+    () => new Set(),
+  )
+  const [reservationAmountCustomized, setReservationAmountCustomized] =
+    useState(false)
+
+  const selectedCustomer = customers.find((c) => c.id === state.customerId) ?? null
+  const selectedPackage = packages.find((p) => p.id === state.packageId) ?? null
+
+  const filteredCustomers = useMemo(() => {
+    const query = customerSearch.trim().toLowerCase()
+    if (!query) return customers
+    return customers.filter((customer) => {
+      const haystack = [
+        getCustomerName(customer),
+        customer.email,
+        customer.phone,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+      return haystack.includes(query)
+    })
+  }, [customers, customerSearch])
+
+  const packagesWithoutSides = useMemo(
+    () =>
+      sortPackages(
+        packages.filter(
+          (p) =>
+            !p.package_key?.endsWith('+') && !p.package_key?.includes('PERS'),
+        ),
+      ),
+    [packages],
+  )
+
+  const packagesWithSides = useMemo(
+    () =>
+      sortPackages(
+        packages.filter(
+          (p) =>
+            p.package_key?.endsWith('+') && !p.package_key?.includes('PERS'),
+        ),
+      ),
+    [packages],
+  )
+
+  const customPackages = useMemo(
+    () =>
+      sortPackages(packages.filter((p) => p.package_key?.includes('PERS'))),
+    [packages],
+  )
+
+  const additionalItemsByCategory = useMemo(() => {
+    const grouped = additionalItems.reduce(
+      (acc, item) => {
+        const category = item.category_pt || 'Outros'
+        if (!acc[category]) acc[category] = []
+        acc[category].push(item)
+        return acc
+      },
+      {} as Record<string, AdditionalItem[]>,
+    )
+
+    return Object.entries(grouped)
+      .sort(([a], [b]) => compareAdditionalCategories(a, b))
+      .map(([category, items]) => ({
+        category,
+        items: [...items].sort(
+          (a, b) =>
+            (a.display_order ?? 0) - (b.display_order ?? 0) ||
+            getAdditionalLabel(a).localeCompare(
+              getAdditionalLabel(b),
+              'pt-BR',
+            ),
+        ),
+      }))
+  }, [additionalItems])
+
+  const selectedCountByCategory = useMemo(() => {
+    const counts: Record<string, number> = {}
+    for (const { category, items } of additionalItemsByCategory) {
+      counts[category] = items.reduce(
+        (sum, item) => sum + (state.additionals[item.id] ?? 0),
+        0,
+      )
+    }
+    return counts
+  }, [additionalItemsByCategory, state.additionals])
+
+  useEffect(() => {
+    if (step !== 3) {
+      setOpenPackageBlocks(new Set())
+    }
+    if (step !== 4) {
+      setOpenAdditionalCategories(new Set())
+    }
+  }, [step])
+
+  function togglePackageBlock(blockKey: string) {
+    setOpenPackageBlocks((prev) => {
+      const next = new Set(prev)
+      if (next.has(blockKey)) {
+        next.delete(blockKey)
+      } else {
+        next.add(blockKey)
+      }
+      return next
+    })
+  }
+
+  function toggleAdditionalCategory(category: string) {
+    setOpenAdditionalCategories((prev) => {
+      const next = new Set(prev)
+      if (next.has(category)) {
+        next.delete(category)
+      } else {
+        next.add(category)
+      }
+      return next
+    })
+  }
+
+  const billableGuests = state.adultsQty + state.childrenQty
+  const packageUnitPrice = selectedPackage ? getPackagePrice(selectedPackage) : 0
+  const packageTotal = packageUnitPrice * billableGuests
+
+  const selectedAdditionalsByCategory = useMemo(() => {
+    return additionalItemsByCategory
+      .map(({ category, items }) => ({
+        category,
+        items: items
+          .filter((item) => (state.additionals[item.id] ?? 0) > 0)
+          .map((item) =>
+            mapSelectedAdditionalRow(
+              item,
+              state.additionals[item.id] ?? 0,
+              billableGuests,
+            ),
+          ),
+      }))
+      .filter(({ items }) => items.length > 0)
+  }, [additionalItemsByCategory, state.additionals, billableGuests])
+
+  const selectedAdditionals = useMemo(
+    () => selectedAdditionalsByCategory.flatMap(({ items }) => items),
+    [selectedAdditionalsByCategory],
+  )
+
+  const additionalTotal = selectedAdditionals.reduce(
+    (sum, row) => sum + row.totalPrice,
+    0,
+  )
+
+  const mileageFee = calcMileageFee(
+    state.distance,
+    state.freeLimit,
+    state.rate,
+  )
+
+  const quoteTotal = packageTotal + additionalTotal + mileageFee
+
+  const reservationAmount = roundMoney(
+    reservationAmountCustomized
+      ? state.reservationAmount
+      : quoteTotal * (state.reservationPercentage / 100),
+  )
+
+  const balanceDue = quoteTotal - reservationAmount
+
+  const additionalsCount = selectedAdditionals.length
+
+  const stepStatusCtx = useMemo<StepStatusContext>(
+    () => ({
+      state,
+      selectedCustomer,
+      selectedPackage,
+      currentStep: step,
+      reservationAmount,
+      additionalsCount,
+    }),
+    [
+      state,
+      selectedCustomer,
+      selectedPackage,
+      step,
+      reservationAmount,
+      additionalsCount,
+    ],
+  )
+
+  useEffect(() => {
+    if (!reservationAmountCustomized) return
+    setState((prev) => ({
+      ...prev,
+      reservationPercentage:
+        quoteTotal > 0
+          ? roundPercentage(
+              Math.min(
+                100,
+                Math.max(0, (prev.reservationAmount / quoteTotal) * 100),
+              ),
+            )
+          : prev.reservationPercentage,
+    }))
+  }, [quoteTotal, reservationAmountCustomized])
+
+  function updateReservationPercentage(raw: string) {
+    const percentage = roundPercentage(
+      Math.min(100, Math.max(0, Number(raw) || 0)),
+    )
+    const amount = roundMoney(quoteTotal * (percentage / 100))
+    setReservationAmountCustomized(false)
+    updateState({
+      reservationPercentage: percentage,
+      reservationAmount: amount,
+    })
+  }
+
+  function updateReservationAmount(raw: string) {
+    const amount = roundMoney(
+      Math.min(quoteTotal, Math.max(0, Number.parseFloat(raw) || 0)),
+    )
+    const percentage =
+      quoteTotal > 0
+        ? roundPercentage(
+            Math.min(100, Math.max(0, (amount / quoteTotal) * 100)),
+          )
+        : 0
+    setReservationAmountCustomized(true)
+    updateState({
+      reservationAmount: amount,
+      reservationPercentage: percentage,
+    })
+  }
+
+  function updateState(patch: Partial<WizardState>) {
+    setState((prev) => ({ ...prev, ...patch }))
+  }
+
+  function selectCustomer(customerId: string) {
+    const customer = customers.find((c) => c.id === customerId)
+    if (!customer) {
+      updateState({ customerId })
+      return
+    }
+
+    const eventDefaults = getEventDefaultsFromCustomer(customer)
+    setState((prev) => ({
+      ...prev,
+      customerId,
+      ...eventDefaults,
+    }))
+  }
+
+  function selectCustomerAndAdvance(customerId: string) {
+    selectCustomer(customerId)
+    setStep(1)
+  }
+
+  function selectPackageAndAdvance(packageId: string) {
+    updateState({ packageId })
+    setStep(4)
+  }
+
+  function setAdditionalQty(itemId: string, quantity: number) {
+    const item = additionalItems.find((row) => row.id === itemId)
+    const normalizedQty = item
+      ? normalizeAdditionalQuantity(item, quantity)
+      : Math.max(0, quantity)
+
+    setState((prev) => {
+      const next = { ...prev.additionals }
+      if (normalizedQty <= 0) {
+        delete next[itemId]
+      } else {
+        next[itemId] = normalizedQty
+      }
+      return { ...prev, additionals: next }
+    })
+  }
+
+  function goBack() {
+    if (step > 0) setStep((s) => s - 1)
+  }
+
+  function goNext() {
+    if (step < STEPS.length - 1) setStep((s) => s + 1)
+  }
+
+  return (
+    <main className="min-h-screen bg-cdl-bg px-4 py-8 text-cdl-fg sm:px-8 sm:py-10">
+      <div className="mx-auto max-w-6xl">
+        <Link
+          href="/quotes"
+          className="mb-8 inline-flex items-center text-sm text-cdl-muted transition-colors hover:text-cdl-brand"
+        >
+          ← Voltar às cotações
+        </Link>
+
+        <header className="relative mb-8 overflow-hidden rounded-2xl border border-cdl-border bg-cdl-surface px-7 py-10 shadow-cdl sm:px-10 sm:py-12">
+          <div
+            className="pointer-events-none absolute inset-0 cdl-hero-glow"
+            aria-hidden
+          />
+          <div className="relative">
+            <span className="cdl-hero-tag">Nova cotação</span>
+            <h1 className="mt-5 text-4xl font-black tracking-tight text-cdl-title sm:text-5xl lg:text-[3.25rem]">
+              BBQ AT HOME
+            </h1>
+            <p className="mt-3 max-w-2xl text-base text-cdl-text-secondary sm:text-lg">
+              Premium Brazilian BBQ Experience · Orlando, Florida
+            </p>
+          </div>
+        </header>
+
+        <nav
+          className="mb-8 rounded-2xl border border-cdl-border bg-cdl-surface p-4 shadow-cdl sm:p-5"
+          aria-label="Etapas do wizard"
+        >
+          <div className="mb-3 flex items-center justify-between gap-3 px-0.5">
+            <p className="cdl-eyebrow">
+              Etapa {step + 1} de {STEPS.length}
+            </p>
+            <p className="truncate text-right text-sm font-bold uppercase tracking-wide text-cdl-brand">
+              {STEPS[step]}
+            </p>
+          </div>
+
+          <div
+            className="mb-3 flex h-1 gap-0.5 overflow-hidden rounded-full"
+            aria-hidden
+          >
+            {STEPS.map((label, index) => (
+              <div
+                key={`segment-${label}`}
+                className={`h-full flex-1 rounded-full transition-colors duration-300 ${stepSegmentClass(getStepStatus(index + 1, stepStatusCtx))}`}
+              />
+            ))}
+          </div>
+
+          <ol className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 snap-x snap-mandatory lg:mx-0 lg:grid lg:grid-cols-8 lg:gap-1.5 lg:overflow-visible lg:pb-0">
+            {STEPS.map((label, index) => {
+              const status = getStepStatus(index + 1, stepStatusCtx)
+              const stepTitle =
+                index === 4 && additionalsCount > 0
+                  ? `${label} · ${additionalsCount} adicionais selecionados`
+                  : label
+
+              return (
+                <li
+                  key={label}
+                  className="min-w-[4.25rem] shrink-0 snap-start lg:min-w-0"
+                >
+                  <button
+                    type="button"
+                    onClick={() => setStep(index)}
+                    title={stepTitle}
+                    className={`flex w-full flex-col items-center gap-1 rounded-xl px-1 py-2 transition-colors lg:px-1.5 lg:py-2.5 ${stepButtonClass(status)}`}
+                  >
+                    <span
+                      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-black lg:h-6 lg:w-6 lg:text-xs ${stepBadgeClass(status)}`}
+                    >
+                      {status === 'complete' ? '✓' : index + 1}
+                    </span>
+                    <span className="w-full text-center text-[8px] font-semibold uppercase leading-tight tracking-wide lg:text-[9px] xl:text-[10px]">
+                      {label}
+                    </span>
+                    {index === 4 && additionalsCount > 0 && (
+                      <span className="text-[7px] font-bold uppercase tracking-wide opacity-80 lg:text-[8px]">
+                        {additionalsCount} sel.
+                      </span>
+                    )}
+                  </button>
+                </li>
+              )
+            })}
+          </ol>
+        </nav>
+
+        {fetchErrors.length > 0 && (
+          <div className="mb-6 rounded-3xl border border-red-500/40 bg-cdl-surface p-4 text-sm text-red-400">
+            {fetchErrors.map((msg) => (
+              <p key={msg}>{msg}</p>
+            ))}
+          </div>
+        )}
+
+        {step === 0 && (
+          <SectionCard title="Etapa 1 — Cliente">
+            <div className="sm:col-span-2">
+              <InputField
+                label="Pesquisar cliente"
+                value={customerSearch}
+                onChange={setCustomerSearch}
+                placeholder="Nome, e-mail ou telefone..."
+                className="mb-4"
+              />
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:col-span-2 sm:grid-cols-2">
+              {filteredCustomers.length === 0 ? (
+                <p className="text-sm text-cdl-muted sm:col-span-2">
+                  Nenhum cliente encontrado.
+                </p>
+              ) : (
+                filteredCustomers.map((customer) => {
+                  const selected = state.customerId === customer.id
+                  return (
+                    <button
+                      key={customer.id}
+                      type="button"
+                      onClick={() => selectCustomer(customer.id)}
+                      className={`rounded-xl border p-5 text-left shadow-cdl transition-colors ${
+                        selected
+                          ? 'border-cdl-success-border bg-cdl-success-soft'
+                          : 'border-cdl-border bg-cdl-inset hover:border-cdl-accent-border'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <h3
+                          className="cursor-pointer font-bold text-cdl-fg"
+                          title="Duplo clique para ir ao evento"
+                          onDoubleClick={() =>
+                            selectCustomerAndAdvance(customer.id)
+                          }
+                        >
+                          {getCustomerName(customer)}
+                        </h3>
+                        {selected && (
+                          <span className="text-sm font-bold text-cdl-success">
+                            ✓
+                          </span>
+                        )}
+                      </div>
+                      {customer.email && (
+                        <p className="mt-1 text-sm text-cdl-muted">{customer.email}</p>
+                      )}
+                      {customer.phone && (
+                        <p className="text-sm text-cdl-muted">{customer.phone}</p>
+                      )}
+                    </button>
+                  )
+                })
+              )}
+            </div>
+          </SectionCard>
+        )}
+
+        {step === 1 && (
+          <SectionCard title="Etapa 2 — Evento">
+            <div className="grid grid-cols-1 gap-4 sm:col-span-2 sm:grid-cols-2">
+              <InputField
+                label="Event Name"
+                value={state.eventName}
+                onChange={(v) => updateState({ eventName: v })}
+                placeholder="Nome do evento"
+                completion={getFieldCompletion(state.eventName)}
+              />
+              <DatePickerField
+                label="Event Date"
+                value={state.eventDate}
+                onChange={(v) => updateState({ eventDate: v })}
+                completion={getFieldCompletion(state.eventDate)}
+              />
+              <TimePickerField
+                label="Horário início"
+                value={state.startTime}
+                onChange={(v) =>
+                  setState((prev) => ({
+                    ...prev,
+                    startTime: v,
+                    endTime: endTimeCustomized
+                      ? prev.endTime
+                      : addHoursToTime(v, 4),
+                  }))
+                }
+                completion={getFieldCompletion(state.startTime)}
+              />
+              <div>
+                <TimePickerField
+                  label="Horário fim"
+                  value={state.endTime}
+                  onChange={(v) => {
+                    setEndTimeCustomized(true)
+                    updateState({ endTime: v })
+                  }}
+                  completion={getFieldCompletion(state.endTime)}
+                />
+                <p className="mt-2 text-xs text-cdl-subtle">
+                  Preenchido automaticamente com +4h. Você pode alterar se
+                  quiser.
+                </p>
+              </div>
+              <QuantityField
+                label="Adultos"
+                value={state.adultsQty}
+                onChange={(v) => updateState({ adultsQty: v })}
+              />
+              <QuantityField
+                label="Crianças"
+                value={state.childrenQty}
+                onChange={(v) => updateState({ childrenQty: v })}
+              />
+              <AddressAutocompleteFields
+                className="sm:col-span-2"
+                values={{
+                  address: state.address,
+                  city: state.city,
+                  state: state.state,
+                  zipCode: state.zipCode,
+                }}
+                fieldCompletions={{
+                  city: getFieldCompletion(state.city),
+                  state: getFieldCompletion(state.state),
+                }}
+                onChange={(patch) => updateState(patch)}
+              />
+            </div>
+          </SectionCard>
+        )}
+
+        {step === 2 && (
+          <SectionCard title="Etapa 3 — Churrasqueira">
+            <div className="grid grid-cols-1 gap-5 sm:col-span-2 sm:grid-cols-2">
+              <CheckboxField
+                label="Cliente tem churrasqueira?"
+                checked={state.hasGrill}
+                onChange={(v) =>
+                  updateState({
+                    hasGrill: v,
+                    grillSetupAnswered: true,
+                    grillPhotoRequired: v ? true : false,
+                  })
+                }
+              />
+              <div className="sm:col-span-2">
+                <CheckboxField
+                  label="Foto da churrasqueira será necessária"
+                  checked={state.grillPhotoRequired}
+                  onChange={(v) => updateState({ grillPhotoRequired: v })}
+                />
+                <p className="mt-3 rounded-xl border border-cdl-border-subtle bg-cdl-inset px-4 py-3 text-sm leading-relaxed text-cdl-text-secondary">
+                  Se o cliente possui churrasqueira própria, solicite uma foto
+                  para validar tamanho, condição e estrutura antes do evento.
+                </p>
+              </div>
+              <CheckboxField
+                label="Necessário alugar churrasqueira?"
+                checked={state.grillRentalRequired}
+                onChange={(v) =>
+                  updateState({
+                    grillRentalRequired: v,
+                    grillRentalQty: v ? Math.max(1, state.grillRentalQty) : 0,
+                  })
+                }
+              />
+              <QuantityField
+                label="Quantidade de churrasqueiras para aluguel"
+                value={state.grillRentalQty}
+                min={state.grillRentalRequired ? 1 : 0}
+                disabled={!state.grillRentalRequired}
+                placeholder={state.grillRentalRequired ? '1' : '0'}
+                onChange={(v) =>
+                  updateState({
+                    grillRentalQty: state.grillRentalRequired
+                      ? Math.max(1, v)
+                      : 0,
+                  })
+                }
+              />
+              <div className="sm:col-span-2">
+                <label className="flex flex-col gap-2">
+                  <span className="cdl-eyebrow">
+                    Observações sobre a churrasqueira
+                  </span>
+                  <textarea
+                    value={state.grillNotes}
+                    onChange={(e) => updateState({ grillNotes: e.target.value })}
+                    rows={4}
+                    placeholder="Ex.: cliente possui churrasqueira, mas foto ainda pendente"
+                    className="rounded-xl border border-cdl-border bg-cdl-inset px-4 py-3 text-sm text-cdl-fg outline-none transition-colors placeholder:text-cdl-faint focus:border-cdl-accent-border"
+                  />
+                </label>
+              </div>
+            </div>
+          </SectionCard>
+        )}
+
+        {step === 3 && (
+          <div className="space-y-6">
+            <section className="rounded-2xl border border-cdl-border bg-cdl-surface p-7 shadow-cdl sm:p-9">
+              <h2 className="cdl-section-title !mb-0 !border-0 !pb-0">
+                Etapa 4 — Pacote
+              </h2>
+              <p className="mt-1 text-sm text-cdl-muted">
+                Clique em uma categoria para ver os pacotes com foto
+              </p>
+            </section>
+
+            {packagesWithoutSides.length === 0 &&
+            packagesWithSides.length === 0 &&
+            customPackages.length === 0 ? (
+              <p className="text-sm text-cdl-muted">Nenhum pacote disponível.</p>
+            ) : (
+              <div className="space-y-3">
+                <PackageBlock
+                  title="Sem guarnições"
+                  subtitle="BBQTRAD · BBQSEL · BBQCHO · BBQPRI"
+                  packages={packagesWithoutSides}
+                  selectedPackageId={state.packageId}
+                  expanded={openPackageBlocks.has('without-sides')}
+                  onToggle={() => togglePackageBlock('without-sides')}
+                  onSelect={(id) => updateState({ packageId: id })}
+                  onSelectAndAdvance={selectPackageAndAdvance}
+                />
+                <PackageBlock
+                  title="Com guarnições"
+                  subtitle="BBQTRAD+ · BBQSEL+ · BBQCHO+ · BBQPRI+"
+                  packages={packagesWithSides}
+                  selectedPackageId={state.packageId}
+                  expanded={openPackageBlocks.has('with-sides')}
+                  onToggle={() => togglePackageBlock('with-sides')}
+                  onSelect={(id) => updateState({ packageId: id })}
+                  onSelectAndAdvance={selectPackageAndAdvance}
+                />
+                <PackageBlock
+                  title="Personalizado"
+                  subtitle="BBQPERS sem guarnições · BBQPERS+ com guarnições"
+                  packages={customPackages}
+                  selectedPackageId={state.packageId}
+                  expanded={openPackageBlocks.has('custom')}
+                  onToggle={() => togglePackageBlock('custom')}
+                  onSelect={(id) => updateState({ packageId: id })}
+                  onSelectAndAdvance={selectPackageAndAdvance}
+                />
+              </div>
+            )}
+          </div>
+        )}
+
+        {step === 4 && (
+          <div className="space-y-6">
+            <section className="rounded-2xl border border-cdl-border bg-cdl-surface p-7 shadow-cdl sm:p-9">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="cdl-section-title !mb-0 !border-0 !pb-0">
+                    Etapa 5 — Adicionais
+                  </h2>
+                  <p className="mt-1 text-sm text-cdl-muted">
+                    Clique em uma categoria para ver os itens com foto
+                  </p>
+                </div>
+                {additionalsCount > 0 && (
+                  <span className="inline-flex rounded-full border border-cdl-success-border bg-cdl-success-soft px-3 py-1 text-xs font-bold uppercase tracking-wider text-cdl-success">
+                    {additionalsCount} adicionais selecionados
+                  </span>
+                )}
+              </div>
+            </section>
+
+            {additionalItemsByCategory.length === 0 ? (
+              <p className="text-sm text-cdl-muted">Nenhum adicional disponível.</p>
+            ) : (
+              <div className="space-y-3">
+                {additionalItemsByCategory.map(({ category, items }) => (
+                  <AdditionalCategorySection
+                    key={category}
+                    category={category}
+                    items={items}
+                    expanded={openAdditionalCategories.has(category)}
+                    selectedCount={selectedCountByCategory[category] ?? 0}
+                    quantities={state.additionals}
+                    billableGuests={billableGuests}
+                    onToggle={() => toggleAdditionalCategory(category)}
+                    onChangeQty={setAdditionalQty}
+                  />
+                ))}
+              </div>
+            )}
+
+            <div className="flex justify-end rounded-2xl border border-cdl-border bg-cdl-surface p-7 shadow-cdl sm:p-9">
+              <WizardStepButton
+                label="Continuar para Milhagem →"
+                onClick={() => setStep(5)}
+              />
+            </div>
+          </div>
+        )}
+
+        {step === 5 && (
+          <SectionCard title="Etapa 6 — Milhagem">
+            <div className="grid grid-cols-1 gap-4 sm:col-span-2 sm:grid-cols-2">
+              <InputField
+                label="Base Location"
+                value={state.baseLocation}
+                onChange={(v) => updateState({ baseLocation: v })}
+                placeholder="Local base"
+              />
+              <InputField
+                label="Distance (mi)"
+                type="number"
+                value={state.distance}
+                onChange={(v) =>
+                  updateState({ distance: Math.max(0, Number(v) || 0) })
+                }
+              />
+              <InputField
+                label="Free Limit (mi)"
+                type="number"
+                value={state.freeLimit}
+                onChange={(v) =>
+                  updateState({ freeLimit: Math.max(0, Number(v) || 0) })
+                }
+              />
+              <InputField
+                label="Rate ($/mi)"
+                type="number"
+                value={state.rate}
+                onChange={(v) =>
+                  updateState({ rate: Math.max(0, Number(v) || 0) })
+                }
+              />
+              <MileageSummaryPanel
+                distance={state.distance}
+                freeLimit={state.freeLimit}
+                rate={state.rate}
+                mileageFee={mileageFee}
+              />
+            </div>
+          </SectionCard>
+        )}
+
+        {step === 6 && (
+          <SectionCard title="Etapa 7 — Reserva">
+            <div className="grid grid-cols-1 gap-4 sm:col-span-2 sm:grid-cols-2">
+              <div className="sm:col-span-2">
+                <div className="rounded-2xl border border-cdl-border bg-cdl-inset px-4 py-3">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-cdl-muted">
+                    Total da cotação
+                  </p>
+                  <p className="mt-1 text-2xl font-black text-cdl-price">
+                    {formatCurrency(quoteTotal)}
+                  </p>
+                </div>
+              </div>
+              <InputField
+                label="Reservation Percentage (%)"
+                type="number"
+                step="0.001"
+                min={0}
+                max={100}
+                value={state.reservationPercentage}
+                onChange={updateReservationPercentage}
+              />
+              <InputField
+                label="Reservation Amount ($)"
+                type="number"
+                step="0.01"
+                min={0}
+                max={quoteTotal}
+                value={reservationAmount}
+                onChange={updateReservationAmount}
+              />
+              <p className="sm:col-span-2 text-xs text-cdl-subtle">
+                Percentual com até 3 casas decimais ou valor absoluto em $ — o
+                outro campo é recalculado automaticamente. Reserva:{' '}
+                {formatReservationSummary(
+                  state.reservationPercentage,
+                  reservationAmount,
+                  reservationAmountCustomized,
+                )}{' '}
+                · Saldo: {formatCurrency(balanceDue)}
+              </p>
+              <div className="sm:col-span-2">
+                <label className="flex flex-col gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-cdl-muted">
+                    Notes
+                  </span>
+                  <textarea
+                    value={state.reservationNotes}
+                    onChange={(e) =>
+                      updateState({ reservationNotes: e.target.value })
+                    }
+                    rows={4}
+                    placeholder="Observações da reserva..."
+                    className="rounded-xl border border-cdl-border bg-cdl-inset px-4 py-3 text-sm text-cdl-fg outline-none transition-colors placeholder:text-cdl-faint focus:border-cdl-accent-border"
+                  />
+                </label>
+              </div>
+            </div>
+          </SectionCard>
+        )}
+
+        {step === 7 && (
+          <div className="space-y-8">
+            <WizardCompletionProgress stepStatusCtx={stepStatusCtx} />
+
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              <SummarySectionCard title="Pacote CDL">
+                {selectedPackage ? (
+                  <article className="overflow-hidden rounded-2xl border border-cdl-border bg-cdl-inset">
+                    {getPackageImage(selectedPackage) ? (
+                      <div className="aspect-video w-full overflow-hidden bg-cdl-image">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={getPackageImage(selectedPackage)!}
+                          alt={getPackageName(selectedPackage)}
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                    ) : (
+                      <ImagePlaceholder label="Sem imagem" />
+                    )}
+                    <div className="p-5 sm:p-6">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-cdl-muted">
+                        {selectedPackage.package_key}
+                      </p>
+                      <h3 className="mt-1 text-xl font-bold text-cdl-fg sm:text-2xl">
+                        {getPackageName(selectedPackage)}
+                      </h3>
+                      {getPackageDescription(selectedPackage) && (
+                        <p className="mt-2 text-sm text-cdl-text-secondary sm:text-base">
+                          {getPackageDescription(selectedPackage)}
+                        </p>
+                      )}
+                      <div className="mt-5 flex flex-wrap items-end justify-between gap-4">
+                        <p className="text-2xl font-black text-cdl-price sm:text-3xl">
+                          {formatCurrency(packageUnitPrice)}
+                          <span className="ml-1 text-sm font-semibold text-cdl-text-secondary">
+                            / pessoa
+                          </span>
+                        </p>
+                        <div className="text-right">
+                          <p className="text-xs font-semibold uppercase tracking-wider text-cdl-muted">
+                            Total do pacote
+                          </p>
+                          <p className="text-xl font-black text-cdl-price sm:text-2xl">
+                            {formatCurrency(packageTotal)}
+                          </p>
+                          {billableGuests > 0 && (
+                            <p className="mt-1 text-xs text-cdl-subtle">
+                              {formatCurrency(packageUnitPrice)} × {billableGuests}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </article>
+                ) : (
+                  <div className="rounded-xl border border-dashed border-cdl-border bg-cdl-inset px-6 py-10 text-center shadow-cdl sm:px-8 sm:py-12">
+                    <p className="text-lg font-semibold text-cdl-fg sm:text-xl">
+                      Nenhum pacote selecionado ainda.
+                    </p>
+                    <p className="mx-auto mt-2 max-w-sm text-sm text-cdl-text-secondary">
+                      Volte para a etapa Pacote para escolher uma opção.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setStep(3)}
+                      className="cdl-btn-primary mt-6"
+                    >
+                      Ir para Pacote
+                    </button>
+                  </div>
+                )}
+              </SummarySectionCard>
+
+              <SummarySectionCard title="Evento">
+                <p className="text-2xl font-bold text-cdl-fg sm:text-3xl">
+                  {selectedCustomer
+                    ? getCustomerName(selectedCustomer)
+                    : 'Cliente não selecionado'}
+                </p>
+                {selectedCustomer &&
+                  state.eventName.trim() &&
+                  state.eventName.trim() !==
+                    getCustomerName(selectedCustomer).trim() && (
+                    <div className="mt-4">
+                      <SummaryDetail
+                        label="Nome do evento"
+                        value={state.eventName}
+                      />
+                    </div>
+                  )}
+                <div className="mt-6 grid grid-cols-3 gap-3 sm:gap-4">
+                  <SummaryStatCard label="Adultos" value={state.adultsQty} />
+                  <SummaryStatCard label="Crianças" value={state.childrenQty} />
+                  <SummaryStatCard label="Total" value={billableGuests} />
+                </div>
+                <div className="mt-6 space-y-4">
+                  <SummaryDetail
+                    label="Data"
+                    value={formatDate(state.eventDate)}
+                  />
+                  <SummaryDetail
+                    label="Horário"
+                    value={formatTimeRange(state.startTime, state.endTime)}
+                  />
+                  <SummaryDetail label="Endereço" value={state.address} />
+                  <SummaryDetail
+                    label="Cidade / Estado"
+                    value={
+                      [state.city, state.state].filter(Boolean).join(' · ') ||
+                      '—'
+                    }
+                  />
+                  <SummaryDetail label="Zip Code" value={state.zipCode} />
+                </div>
+              </SummarySectionCard>
+            </div>
+
+            <SummarySectionCard title="Churrasqueira">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <SummaryField
+                  label="Cliente tem churrasqueira?"
+                  value={state.hasGrill ? 'Sim' : 'Não'}
+                />
+                <SummaryField
+                  label="Foto da churrasqueira necessária"
+                  value={state.grillPhotoRequired ? 'Sim' : 'Não'}
+                />
+                <SummaryField
+                  label="Necessário alugar churrasqueira?"
+                  value={state.grillRentalRequired ? 'Sim' : 'Não'}
+                />
+                {state.grillRentalRequired && (
+                  <SummaryStatCard
+                    label="Qtd. para aluguel"
+                    value={state.grillRentalQty}
+                  />
+                )}
+              </div>
+              {state.grillNotes && (
+                <div className="mt-4">
+                  <SummaryField
+                    label="Observações sobre a churrasqueira"
+                    value={state.grillNotes}
+                  />
+                </div>
+              )}
+            </SummarySectionCard>
+
+            <SummarySectionCard title="Adicionais">
+              {selectedAdditionalsByCategory.length === 0 ? (
+                <p className="text-base text-cdl-muted sm:text-lg">
+                  Nenhum adicional.
+                </p>
+              ) : (
+                <div className="space-y-8">
+                  {selectedAdditionalsByCategory.map(({ category, items }) => (
+                    <section key={category}>
+                      <h3 className="mb-4 border-b border-cdl-border-subtle pb-2 text-base font-extrabold text-cdl-title sm:text-lg">
+                        {category}
+                      </h3>
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                        {items.map(
+                          ({
+                            item,
+                            quantity,
+                            unitPrice,
+                            perPerson,
+                            totalPrice,
+                          }) => {
+                            const totalWeight = getAdditionalTotalWeight(
+                              item,
+                              quantity,
+                            )
+
+                            return (
+                              <article
+                                key={item.id}
+                                className="flex flex-col rounded-2xl border border-cdl-border bg-cdl-inset p-5 sm:p-6"
+                              >
+                                <h4 className="text-base font-bold text-cdl-fg sm:text-lg">
+                                  {getAdditionalLabel(item)}
+                                </h4>
+                                <div className="mt-5 flex items-end justify-between gap-4">
+                                  <div>
+                                    <p className="text-xs font-bold uppercase tracking-wider text-cdl-muted sm:text-sm">
+                                      {perPerson ? 'Convidados' : 'Quantidade'}
+                                    </p>
+                                    <p className="mt-1 text-3xl font-black text-cdl-price sm:text-4xl">
+                                      {perPerson
+                                        ? billableGuests
+                                        : quantity}
+                                    </p>
+                                    {!perPerson && totalWeight && (
+                                      <p className="mt-1 text-sm font-semibold text-cdl-text-secondary">
+                                        {totalWeight.amount}{' '}
+                                        {formatWeightUom(totalWeight.uom)}
+                                      </p>
+                                    )}
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="text-xs font-bold uppercase tracking-wider text-cdl-muted sm:text-sm">
+                                      Total
+                                    </p>
+                                    <p className="mt-1 text-xl font-bold text-cdl-price sm:text-2xl">
+                                      {formatCurrency(totalPrice)}
+                                    </p>
+                                    {perPerson && billableGuests > 0 && (
+                                      <p className="mt-1 text-xs text-cdl-subtle">
+                                        {formatCurrency(unitPrice)} / pessoa ×{' '}
+                                        {billableGuests}
+                                      </p>
+                                    )}
+                                    {!perPerson && (
+                                      <p className="mt-1 text-xs text-cdl-subtle">
+                                        {getAdditionalPackLabel(item)}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                              </article>
+                            )
+                          },
+                        )}
+                      </div>
+                    </section>
+                  ))}
+                </div>
+              )}
+            </SummarySectionCard>
+
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              <SummarySectionCard title="Milhagem">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <SummaryField
+                    label="Base Location"
+                    value={state.baseLocation}
+                  />
+                  <SummaryField
+                    label="Distance"
+                    value={`${state.distance} mi`}
+                  />
+                  <SummaryField
+                    label="Free Limit"
+                    value={`${state.freeLimit} mi`}
+                  />
+                  <SummaryField
+                    label="Rate"
+                    value={`${formatCurrency(state.rate)}/mi`}
+                  />
+                  <SummaryField
+                    label="Mileage Fee"
+                    value={formatCurrency(mileageFee)}
+                  />
+                </div>
+              </SummarySectionCard>
+
+              <SummarySectionCard title="Reserva">
+                <div className="mb-4 rounded-2xl border border-cdl-border bg-cdl-inset px-5 py-4">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-cdl-muted">
+                    Reserva
+                  </p>
+                  <p className="mt-2 text-xl font-black text-cdl-price sm:text-2xl">
+                    {formatReservationSummary(
+                      state.reservationPercentage,
+                      reservationAmount,
+                      reservationAmountCustomized,
+                    )}
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <SummaryField
+                    label="Percentual"
+                    value={formatPercentage(state.reservationPercentage)}
+                  />
+                  <SummaryField
+                    label="Valor absoluto"
+                    value={formatCurrency(reservationAmount)}
+                  />
+                  <div className="sm:col-span-2">
+                    <SummaryField
+                      label="Notes"
+                      value={state.reservationNotes}
+                    />
+                  </div>
+                </div>
+              </SummarySectionCard>
+            </div>
+
+            <section className="rounded-2xl border border-cdl-border bg-cdl-surface p-7 shadow-cdl sm:p-9">
+              <h2 className="cdl-section-title-lg">Total</h2>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <SummaryField
+                  label="Package Total"
+                  value={formatCurrency(packageTotal)}
+                />
+                <SummaryField
+                  label="Additional Total"
+                  value={formatCurrency(additionalTotal)}
+                />
+                <SummaryField
+                  label="Mileage Fee"
+                  value={formatCurrency(mileageFee)}
+                />
+                <SummaryField
+                  label="Reserva"
+                  value={formatReservationSummary(
+                    state.reservationPercentage,
+                    reservationAmount,
+                    reservationAmountCustomized,
+                  )}
+                />
+                <SummaryField
+                  label="Balance Due"
+                  value={formatCurrency(balanceDue)}
+                />
+              </div>
+              <div className="mt-8 flex flex-col gap-3 rounded-xl border border-cdl-border bg-cdl-inset px-6 py-6 sm:flex-row sm:items-center sm:justify-between sm:px-8 sm:py-7">
+                <span className="cdl-eyebrow sm:text-xs">Quote Total</span>
+                <span className="text-4xl font-black text-cdl-price sm:text-5xl">
+                  {formatCurrency(quoteTotal)}
+                </span>
+              </div>
+            </section>
+          </div>
+        )}
+
+        <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
+          <button
+            type="button"
+            onClick={goBack}
+            disabled={step === 0}
+            className="rounded-xl border border-cdl-border bg-cdl-surface px-6 py-3 text-sm font-bold uppercase tracking-wider text-cdl-fg transition-colors hover:border-cdl-accent-border disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Voltar
+          </button>
+          <button
+            type="button"
+            onClick={goNext}
+            disabled={step === STEPS.length - 1}
+            className="cdl-btn-primary disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Próximo
+          </button>
+        </div>
+      </div>
+    </main>
+  )
+}
