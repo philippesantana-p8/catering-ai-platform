@@ -1,19 +1,17 @@
 import { renderToBuffer } from '@react-pdf/renderer'
 import { QuotePdfDocument } from '@/app/quotes/[id]/QuotePdfDocument'
 import type { QuoteDetail } from '@/app/quotes/[id]/quoteDetailTypes'
-import { getQuotePdfFilename } from '@/Lib/quotePdfFilename'
+import { getQuotePdfContentDisposition } from '@/Lib/quotePdfFilename'
 
 export async function generateQuotePdfBuffer(quote: QuoteDetail) {
   return renderToBuffer(<QuotePdfDocument quote={quote} />)
 }
 
-export function getQuotePdfResponseHeaders(
-  quoteNumber: string | null | undefined,
-) {
-  const filename = getQuotePdfFilename(quoteNumber)
+export function getQuotePdfResponseHeaders(quote: QuoteDetail) {
   return {
     'Content-Type': 'application/pdf',
-    'Content-Disposition': `attachment; filename="${filename}"`,
-    'Cache-Control': 'no-store',
+    'Content-Disposition': getQuotePdfContentDisposition(quote),
+    'Cache-Control': 'no-store, no-transform',
+    'X-Content-Type-Options': 'nosniff',
   }
 }

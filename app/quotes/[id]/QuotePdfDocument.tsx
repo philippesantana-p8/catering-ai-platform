@@ -10,6 +10,7 @@ import {
   BALANCE_PERCENTAGE,
   CANCELLATION_POLICY_SUMMARY,
   IMPORTANT_RULES,
+  MILEAGE_BASE_LOCATION,
   RESERVATION_PAYMENT_TEXT,
   RESERVATION_PERCENTAGE,
 } from '@/Lib/cdlCommercialRules'
@@ -41,68 +42,140 @@ const colors = {
 }
 
 const styles = StyleSheet.create({
-  page: {
-    paddingTop: 36,
-    paddingBottom: 48,
+  coverPage: {
+    backgroundColor: colors.dark,
+    color: colors.white,
+    paddingHorizontal: 48,
+    paddingVertical: 56,
+    fontFamily: 'Helvetica',
+    justifyContent: 'center',
+  },
+  coverAccentBar: {
+    height: 4,
+    backgroundColor: colors.gold,
+    marginBottom: 36,
+    width: 120,
+  },
+  coverBrand: {
+    fontSize: 42,
+    fontFamily: 'Helvetica-Bold',
+    letterSpacing: 3,
+    color: colors.white,
+  },
+  coverTagline: {
+    marginTop: 10,
+    fontSize: 11,
+    letterSpacing: 2.2,
+    textTransform: 'uppercase',
+    color: colors.gold,
+  },
+  coverDivider: {
+    marginVertical: 32,
+    height: 1,
+    backgroundColor: '#333333',
+  },
+  coverLabel: {
+    fontSize: 8,
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
+    color: '#AAAAAA',
+    marginBottom: 6,
+  },
+  coverClient: {
+    fontSize: 28,
+    fontFamily: 'Helvetica-Bold',
+    color: colors.white,
+    marginBottom: 18,
+  },
+  coverMetaGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 24,
+    marginTop: 8,
+  },
+  coverMetaBlock: {
+    minWidth: 140,
+  },
+  coverMetaValue: {
+    fontSize: 14,
+    fontFamily: 'Helvetica-Bold',
+    color: colors.white,
+  },
+  coverInvestmentBox: {
+    marginTop: 40,
+    padding: 22,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.gold,
+    backgroundColor: '#1A1A1A',
+    alignSelf: 'flex-start',
+    minWidth: 260,
+  },
+  coverInvestmentLabel: {
+    fontSize: 9,
+    letterSpacing: 1.6,
+    textTransform: 'uppercase',
+    color: '#BBBBBB',
+  },
+  coverInvestmentValue: {
+    marginTop: 8,
+    fontSize: 32,
+    fontFamily: 'Helvetica-Bold',
+    color: colors.gold,
+  },
+  contentPage: {
+    paddingTop: 58,
+    paddingBottom: 52,
     paddingHorizontal: 40,
     fontSize: 9,
     fontFamily: 'Helvetica',
     color: colors.dark,
     backgroundColor: colors.white,
   },
-  header: {
+  compactHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
     backgroundColor: colors.dark,
-    marginHorizontal: -40,
-    marginTop: -36,
-    paddingHorizontal: 40,
-    paddingTop: 28,
-    paddingBottom: 22,
-    marginBottom: 20,
-    borderBottomWidth: 3,
+    borderBottomWidth: 2,
     borderBottomColor: colors.gold,
-  },
-  headerTitle: {
-    fontSize: 22,
-    fontFamily: 'Helvetica-Bold',
-    color: colors.white,
-    letterSpacing: 1.5,
-  },
-  headerTagline: {
-    marginTop: 4,
-    fontSize: 8,
-    color: colors.gold,
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-  },
-  headerLocation: {
-    marginTop: 2,
-    fontSize: 8,
-    color: '#CCCCCC',
-  },
-  headerMetaRow: {
+    paddingHorizontal: 40,
+    paddingVertical: 10,
     flexDirection: 'row',
-    gap: 12,
-    marginTop: 14,
-    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  metaCard: {
-    backgroundColor: '#1A1A1A',
-    borderRadius: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    minWidth: 110,
-  },
-  metaLabel: {
-    fontSize: 7,
-    color: '#999999',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
-  metaValue: {
-    marginTop: 3,
+  compactHeaderBrand: {
     fontSize: 10,
     fontFamily: 'Helvetica-Bold',
     color: colors.white,
+    letterSpacing: 1,
+  },
+  compactHeaderMeta: {
+    fontSize: 8,
+    color: '#CCCCCC',
+  },
+  pageFooter: {
+    position: 'absolute',
+    bottom: 18,
+    left: 40,
+    right: 40,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: 8,
+    textAlign: 'center',
+  },
+  pageFooterBrand: {
+    fontSize: 9,
+    fontFamily: 'Helvetica-Bold',
+    letterSpacing: 1,
+    color: colors.dark,
+  },
+  pageFooterLine: {
+    marginTop: 2,
+    fontSize: 7.5,
+    color: colors.muted,
   },
   overview: {
     flexDirection: 'row',
@@ -200,9 +273,6 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontFamily: 'Helvetica-Bold',
   },
-  highlightGold: {
-    color: colors.gold,
-  },
   categoryTitle: {
     fontSize: 9,
     fontFamily: 'Helvetica-Bold',
@@ -295,30 +365,6 @@ const styles = StyleSheet.create({
     lineHeight: 1.35,
     marginBottom: 2,
   },
-  footer: {
-    marginTop: 16,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    textAlign: 'center',
-  },
-  footerBrand: {
-    fontSize: 10,
-    fontFamily: 'Helvetica-Bold',
-    letterSpacing: 1,
-  },
-  footerTagline: {
-    marginTop: 2,
-    fontSize: 7,
-    color: colors.muted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
-  footerMeta: {
-    marginTop: 4,
-    fontSize: 6.5,
-    color: colors.muted,
-  },
   muted: {
     fontSize: 8,
     color: colors.muted,
@@ -362,6 +408,33 @@ function RulesBlock({
   )
 }
 
+function PdfPageFooter() {
+  return (
+    <View style={styles.pageFooter} fixed>
+      <Text style={styles.pageFooterBrand}>BBQ AT HOME</Text>
+      <Text style={styles.pageFooterLine}>Orlando, Florida</Text>
+      <Text style={styles.pageFooterLine}>www.cdlbbq.com</Text>
+    </View>
+  )
+}
+
+function PdfCompactHeader({
+  quoteNumber,
+  customerName,
+}: {
+  quoteNumber: string
+  customerName: string
+}) {
+  return (
+    <View style={styles.compactHeader} fixed>
+      <Text style={styles.compactHeaderBrand}>BBQ AT HOME</Text>
+      <Text style={styles.compactHeaderMeta}>
+        {quoteNumber} · {customerName}
+      </Text>
+    </View>
+  )
+}
+
 export function QuotePdfDocument({ quote }: { quote: QuoteDetail }) {
   const lang = quote.language ?? 'pt'
   const packageName = getPackageName(quote) ?? '—'
@@ -373,11 +446,14 @@ export function QuotePdfDocument({ quote }: { quote: QuoteDetail }) {
   const chargedMiles = getChargedMiles(quote)
   const discount = getDiscount(quote)
   const quoteNumber = quote.quote_number ?? 'CDL-Q-0000'
-  const quoteDate = formatDate(quote.created_at)
+  const customerName = displayValue(quote.customer_name)
+  const eventDateLabel = formatDate(quote.event_date)
   const cityState = [quote.city, quote.state].filter(Boolean).join(', ')
   const eventLocation = [quote.address_line, cityState, getZipCode(quote)]
     .filter(Boolean)
     .join(' · ')
+  const mileageBase =
+    quote.mileage_base_location?.trim() || MILEAGE_BASE_LOCATION
 
   const { guestCounts, totals: quoteTotals } =
     calculateQuoteTotalsFromQuoteRecord(quote)
@@ -400,46 +476,54 @@ export function QuotePdfDocument({ quote }: { quote: QuoteDetail }) {
 
   return (
     <Document
-      title={`${quoteNumber} — Proposta BBQ At Home`}
-      author="CDL Catering AI Platform"
+      title={`${quoteNumber} — BBQ At Home Proposal`}
+      author="BBQ AT HOME"
+      subject="Catering Quote Proposal"
+      creator="CDL Catering AI Platform"
+      producer="CDL Catering AI Platform"
     >
-      <Page size="A4" style={styles.page} wrap>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>BBQ AT HOME</Text>
-          <Text style={styles.headerTagline}>
-            Premium Brazilian BBQ Experience
-          </Text>
-          <Text style={styles.headerLocation}>Orlando, Florida</Text>
-          <View style={styles.headerMetaRow}>
-            <View style={styles.metaCard}>
-              <Text style={styles.metaLabel}>Cotação</Text>
-              <Text style={styles.metaValue}>{quoteNumber}</Text>
-            </View>
-            <View style={styles.metaCard}>
-              <Text style={styles.metaLabel}>Data da cotação</Text>
-              <Text style={styles.metaValue}>{quoteDate}</Text>
-            </View>
-            {quote.quote_status ? (
-              <View style={styles.metaCard}>
-                <Text style={styles.metaLabel}>Status</Text>
-                <Text style={styles.metaValue}>{quote.quote_status}</Text>
-              </View>
-            ) : null}
+      <Page size="A4" style={styles.coverPage}>
+        <View style={styles.coverAccentBar} />
+        <Text style={styles.coverBrand}>BBQ AT HOME</Text>
+        <Text style={styles.coverTagline}>
+          Premium Brazilian BBQ Experience
+        </Text>
+        <View style={styles.coverDivider} />
+        <Text style={styles.coverLabel}>Prepared for</Text>
+        <Text style={styles.coverClient}>{customerName}</Text>
+        <View style={styles.coverMetaGrid}>
+          <View style={styles.coverMetaBlock}>
+            <Text style={styles.coverLabel}>Event Date</Text>
+            <Text style={styles.coverMetaValue}>{eventDateLabel}</Text>
+          </View>
+          <View style={styles.coverMetaBlock}>
+            <Text style={styles.coverLabel}>Quote Number</Text>
+            <Text style={styles.coverMetaValue}>{quoteNumber}</Text>
           </View>
         </View>
+        <View style={styles.coverInvestmentBox}>
+          <Text style={styles.coverInvestmentLabel}>Total Investment</Text>
+          <Text style={styles.coverInvestmentValue}>
+            {formatCurrency(quoteTotals.quoteTotal)}
+          </Text>
+        </View>
+      </Page>
+
+      <Page size="A4" style={styles.contentPage} wrap>
+        <PdfCompactHeader
+          quoteNumber={quoteNumber}
+          customerName={customerName}
+        />
+        <PdfPageFooter />
 
         <View style={styles.overview}>
           <View style={styles.overviewItem}>
             <Text style={styles.overviewLabel}>Cliente</Text>
-            <Text style={styles.overviewValue}>
-              {displayValue(quote.customer_name)}
-            </Text>
+            <Text style={styles.overviewValue}>{customerName}</Text>
           </View>
           <View style={styles.overviewItem}>
             <Text style={styles.overviewLabel}>Evento</Text>
-            <Text style={styles.overviewValue}>
-              {formatDate(quote.event_date)}
-            </Text>
+            <Text style={styles.overviewValue}>{eventDateLabel}</Text>
           </View>
           <View style={styles.overviewItem}>
             <Text style={styles.overviewLabel}>Local</Text>
@@ -490,12 +574,6 @@ export function QuotePdfDocument({ quote }: { quote: QuoteDetail }) {
               pessoas cobradas equivalentes
             </Text>
           ) : null}
-          {guestCounts.usingLegacyFallback ? (
-            <Text style={styles.muted}>
-              Fallback legado: campos children_under_3_count e
-              children_4_to_12_count ausentes no Supabase.
-            </Text>
-          ) : null}
         </View>
 
         <View style={styles.section}>
@@ -504,16 +582,12 @@ export function QuotePdfDocument({ quote }: { quote: QuoteDetail }) {
             {displayValue(quote.event_name ?? quote.customer_name)}
           </Text>
           <View style={styles.grid2}>
-            <InfoCell label="Data" value={formatDate(quote.event_date)} />
+            <InfoCell label="Data" value={eventDateLabel} />
             <InfoCell
               label="Horário"
               value={`${formatTime(quote.start_time)} – ${formatTime(quote.end_time)}`}
             />
-            <InfoCell
-              label="Local"
-              value={eventLocation || '—'}
-              wide
-            />
+            <InfoCell label="Local" value={eventLocation || '—'} wide />
           </View>
         </View>
 
@@ -549,11 +623,7 @@ export function QuotePdfDocument({ quote }: { quote: QuoteDetail }) {
               value={displayValue(quote.assistants_qty)}
             />
             {quote.grill_notes ? (
-              <InfoCell
-                label="Observações"
-                value={quote.grill_notes}
-                wide
-              />
+              <InfoCell label="Observações" value={quote.grill_notes} wide />
             ) : null}
           </View>
         </View>
@@ -561,10 +631,7 @@ export function QuotePdfDocument({ quote }: { quote: QuoteDetail }) {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Milhagem</Text>
           <View style={styles.grid2}>
-            <InfoCell
-              label="Local base"
-              value={displayValue(quote.mileage_base_location)}
-            />
+            <InfoCell label="Local base" value={mileageBase} />
             <InfoCell
               label="Distância"
               value={
@@ -666,16 +733,6 @@ export function QuotePdfDocument({ quote }: { quote: QuoteDetail }) {
             title="Política de cancelamento"
             items={CANCELLATION_POLICY_SUMMARY}
           />
-        </View>
-
-        <View style={styles.footer}>
-          <Text style={styles.footerBrand}>BBQ AT HOME</Text>
-          <Text style={styles.footerTagline}>
-            Premium Brazilian BBQ Experience
-          </Text>
-          <Text style={styles.footerMeta}>
-            Generated by: CDL Catering AI Platform · Version 1.0
-          </Text>
         </View>
       </Page>
     </Document>

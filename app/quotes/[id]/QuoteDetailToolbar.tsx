@@ -6,10 +6,14 @@ import QuotePdfDownload from './QuotePdfDownload'
 export default function QuoteDetailToolbar({
   quoteId,
   quoteNumber,
+  customerName,
+  eventDate,
   editHref,
 }: {
   quoteId: string
   quoteNumber: string
+  customerName?: string | null
+  eventDate?: string | null
   editHref?: string | null
 }) {
   function handlePrint() {
@@ -44,7 +48,12 @@ export default function QuoteDetailToolbar({
         >
           Imprimir / PDF
         </button>
-        <QuotePdfDownload quoteId={quoteId} quoteNumber={quoteNumber} />
+        <QuotePdfDownload
+          quoteId={quoteId}
+          quoteNumber={quoteNumber}
+          customerName={customerName}
+          eventDate={eventDate}
+        />
       </div>
     </div>
   )

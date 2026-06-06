@@ -23,7 +23,7 @@ export async function GET(
 
   try {
     const buffer = await generateQuotePdfBuffer(data as QuoteDetail)
-    const headers = getQuotePdfResponseHeaders(data.quote_number)
+    const headers = getQuotePdfResponseHeaders(data as QuoteDetail)
 
     return new Response(new Uint8Array(buffer), { headers })
   } catch (pdfError) {

@@ -595,8 +595,29 @@
 /* ── Print ── */
 @media print {
   @page {
-    margin: 0.75cm 0.85cm;
+    margin: 12mm;
     size: A4 portrait;
+  }
+
+  @page {
+    @top-left {
+      content: none;
+    }
+    @top-center {
+      content: none;
+    }
+    @top-right {
+      content: none;
+    }
+    @bottom-left {
+      content: none;
+    }
+    @bottom-center {
+      content: none;
+    }
+    @bottom-right {
+      content: none;
+    }
   }
 
   body {

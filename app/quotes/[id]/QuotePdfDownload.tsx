@@ -1,15 +1,72 @@
 'use client'
 
 import { useState } from 'react'
-import { getQuotePdfFilename } from '../../../Lib/quotePdfFilename'
+import {
+  getQuotePdfFilename,
+  parseFilenameFromContentDisposition,
+} from '../../../Lib/quotePdfFilename'
+
+type QuotePdfDownloadProps = {
+  quoteId: string
+  quoteNumber: string
+  customerName?: string | null
+  eventDate?: string | null
+}
+
+function isMobileDevice() {
+  if (typeof navigator === 'undefined') return false
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
+}
+
+async function savePdfBlob(blob: Blob, filename: string) {
+  const file = new File([blob], filename, { type: 'application/pdf' })
+
+  if (
+    typeof navigator !== 'undefined' &&
+    typeof navigator.share === 'function' &&
+    typeof navigator.canShare === 'function' &&
+    navigator.canShare({ files: [file] })
+  ) {
+    try {
+      await navigator.share({
+        files: [file],
+        title: filename.replace(/\.pdf$/i, ''),
+      })
+      return
+    } catch (shareError) {
+      if (shareError instanceof Error && shareError.name === 'AbortError') {
+        return
+      }
+    }
+  }
+
+  const url = URL.createObjectURL(blob)
+
+  if (isMobileDevice()) {
+    const opened = window.open(url, '_blank', 'noopener,noreferrer')
+    if (opened) {
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
+      return
+    }
+  }
+
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  link.rel = 'noopener'
+  link.type = 'application/pdf'
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  window.setTimeout(() => URL.revokeObjectURL(url), 0)
+}
 
 export default function QuotePdfDownload({
   quoteId,
   quoteNumber,
-}: {
-  quoteId: string
-  quoteNumber: string
-}) {
+  customerName,
+  eventDate,
+}: QuotePdfDownloadProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -18,44 +75,28 @@ export default function QuotePdfDownload({
     setError(null)
 
     try {
-      const response = await fetch(`/api/quotes/${quoteId}/pdf`)
+      const response = await fetch(`/api/quotes/${quoteId}/pdf`, {
+        method: 'GET',
+        cache: 'no-store',
+      })
+
       if (!response.ok) {
         throw new Error('Não foi possível gerar o PDF.')
       }
 
       const blob = await response.blob()
-      const filename = getQuotePdfFilename(quoteNumber)
-      const file = new File([blob], filename, { type: 'application/pdf' })
+      const headerFilename = parseFilenameFromContentDisposition(
+        response.headers.get('Content-Disposition'),
+      )
+      const filename =
+        headerFilename ??
+        getQuotePdfFilename({
+          quote_number: quoteNumber,
+          customer_name: customerName,
+          event_date: eventDate,
+        })
 
-      if (
-        typeof navigator !== 'undefined' &&
-        typeof navigator.share === 'function' &&
-        typeof navigator.canShare === 'function' &&
-        navigator.canShare({ files: [file] })
-      ) {
-        try {
-          await navigator.share({
-            files: [file],
-            title: `${quoteNumber} — BBQ At Home`,
-            text: `Proposta de cotação ${quoteNumber}`,
-          })
-          return
-        } catch (shareError) {
-          if (shareError instanceof Error && shareError.name === 'AbortError') {
-            return
-          }
-        }
-      }
-
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = filename
-      link.rel = 'noopener'
-      document.body.appendChild(link)
-      link.click()
-      link.remove()
-      URL.revokeObjectURL(url)
+      await savePdfBlob(blob, filename)
     } catch (downloadError) {
       setError(
         downloadError instanceof Error
