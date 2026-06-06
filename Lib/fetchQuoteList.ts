@@ -18,6 +18,11 @@ type QuoteRow = {
   quote_status: string | null
   created_at: string
   customer_id: string | null
+  active: boolean | null
+}
+
+function isActiveQuote(row: Pick<QuoteRow, 'active'>): row is QuoteRow & { active: true } {
+  return row.active === true
 }
 
 type CustomerRow = {
@@ -38,13 +43,14 @@ function resolveCustomerName(
   return abName?.trim() || detailName?.trim() || 'Cliente não informado'
 }
 
+/** Lista cotações ativas direto da tabela `quotes` (não usa quote_list_view). */
 export async function fetchQuoteList() {
   const companyId = getCdlCompanyId()
 
   const { data: quotes, error } = await supabase
     .from('quotes')
     .select(
-      'id, quote_number, quote_total, quote_status, created_at, customer_id',
+      'id, quote_number, quote_total, quote_status, created_at, customer_id, active',
     )
     .eq('active', true)
     .eq('company_id', companyId)
@@ -54,7 +60,7 @@ export async function fetchQuoteList() {
     return { data: null as QuoteListItem[] | null, error }
   }
 
-  const rows = (quotes ?? []) as QuoteRow[]
+  const rows = ((quotes ?? []) as QuoteRow[]).filter(isActiveQuote)
   if (rows.length === 0) {
     return { data: [], error: null }
   }
