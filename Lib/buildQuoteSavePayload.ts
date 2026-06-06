@@ -1,6 +1,13 @@
+import { getCdlCompanyId } from './cdlCompany'
 import { buildQuoteDraftSnapshotPayload } from './calculateQuoteDraftFromSupabasePricing'
+import { calcAdditionalLineTotal } from './calculateQuoteTotals'
 import type { CommercialRulesSnapshot } from './supabaseCommercialRules'
-import { buildOfficialGuestPayload } from './quoteGuestFields'
+import {
+  buildOfficialGuestPayload,
+  calcBillableGuestCount,
+  calcPhysicalGuestCount,
+} from './quoteGuestFields'
+import type { QuoteSnapshotRecord } from './readQuoteSnapshot'
 
 export type QuoteAdditionalSaveLine = {
   itemId: string
@@ -36,9 +43,74 @@ export type QuoteSaveInput = {
   reservationAmount: number
   packagePricePerPerson: number
   additionals: QuoteAdditionalSaveLine[]
+  recalculateSnapshot?: boolean
+  existingSnapshot?: QuoteSnapshotRecord
 }
 
-export function buildQuoteSavePayload(input: QuoteSaveInput) {
+function addDaysIso(date: Date, days: number) {
+  const next = new Date(date)
+  next.setDate(next.getDate() + days)
+  return next.toISOString().slice(0, 10)
+}
+
+function calcAdditionalBreakdown(
+  additionals: QuoteAdditionalSaveLine[],
+  billableGuestCount: number,
+) {
+  let additionalPerPersonTotal = 0
+  let additionalPerUnitTotal = 0
+
+  for (const line of additionals) {
+    const total =
+      line.totalPrice ||
+      calcAdditionalLineTotal(
+        {
+          quantity: line.quantity,
+          unitPrice: line.unitPrice,
+          perPerson: line.perPerson,
+        },
+        billableGuestCount,
+      )
+
+    if (line.perPerson) {
+      additionalPerPersonTotal += total
+    } else {
+      additionalPerUnitTotal += total
+    }
+  }
+
+  return {
+    additional_per_person_total: Math.round(additionalPerPersonTotal * 100) / 100,
+    additional_per_unit_total: Math.round(additionalPerUnitTotal * 100) / 100,
+  }
+}
+
+function buildEventAndGrillPayload(input: QuoteSaveInput) {
+  return {
+    customer_id: input.customerId,
+    package_id: input.packageId,
+    event_name: input.eventName,
+    event_date: input.eventDate || null,
+    start_time: input.startTime || null,
+    end_time: input.endTime || null,
+    address_line: input.address,
+    city: input.city,
+    state: input.state,
+    zip_code: input.zipCode,
+    has_grill: input.hasGrill,
+    grill_photo_required: input.grillPhotoRequired,
+    grill_rental_required: input.grillRentalRequired,
+    grill_rental_qty: input.grillRentalRequired ? input.grillRentalQty : 0,
+    grill_notes: input.grillNotes.trim() || null,
+    mileage_base_location: input.baseLocation.trim() || input.pricing.mileageBaseLocation,
+    mileage_distance: input.distance,
+  }
+}
+
+export function buildQuoteSavePayload(
+  input: QuoteSaveInput,
+  options?: { mode?: 'create' | 'update' },
+) {
   const guestCounts = {
     adultCount: input.adultCount,
     childrenUnder3Count: input.childrenUnder3Count,
@@ -46,6 +118,46 @@ export function buildQuoteSavePayload(input: QuoteSaveInput) {
   }
 
   const officialGuests = buildOfficialGuestPayload(guestCounts)
+  const billableGuestCount = calcBillableGuestCount(guestCounts)
+  const physicalGuestCount = calcPhysicalGuestCount(guestCounts)
+  const additionalBreakdown = calcAdditionalBreakdown(
+    input.additionals,
+    billableGuestCount,
+  )
+
+  const shouldRecalculate =
+    options?.mode !== 'update' || input.recalculateSnapshot === true
+
+  const now = new Date()
+  const quoteDate = now.toISOString().slice(0, 10)
+
+  const basePayload = {
+    ...buildEventAndGrillPayload(input),
+    ...officialGuests,
+    total_guests: physicalGuestCount,
+    additional_per_person_total: additionalBreakdown.additional_per_person_total,
+    additional_per_unit_total: additionalBreakdown.additional_per_unit_total,
+    updated_at: now.toISOString(),
+  }
+
+  if (!shouldRecalculate && input.existingSnapshot) {
+    const existing = input.existingSnapshot
+    return {
+      ...basePayload,
+      package_unit_price: existing.package_unit_price,
+      package_price_per_person:
+        existing.package_price_per_person ?? existing.package_unit_price,
+      package_total: existing.package_total,
+      additional_total: existing.additional_total,
+      mileage_free_limit: existing.mileage_free_limit,
+      mileage_rate: existing.mileage_rate,
+      mileage_fee: existing.mileage_fee,
+      reservation_amount: existing.reservation_amount,
+      reservation_percentage: existing.reservation_percentage,
+      balance_due: existing.balance_due,
+      quote_total: existing.quote_total,
+    }
+  }
 
   const draftSnapshot = buildQuoteDraftSnapshotPayload({
     guestCounts,
@@ -62,29 +174,26 @@ export function buildQuoteSavePayload(input: QuoteSaveInput) {
     useCustomReservation: false,
   })
 
+  const createMeta =
+    options?.mode === 'create'
+      ? {
+          active: true,
+          company_id: getCdlCompanyId(),
+          source: 'wizard',
+          quote_status: 'draft',
+          quote_date: quoteDate,
+          expiration_date: addDaysIso(now, 30),
+          currency_code: 'USD',
+        }
+      : {}
+
   return {
-    customer_id: input.customerId,
-    package_id: input.packageId,
-    event_name: input.eventName,
-    event_date: input.eventDate,
-    start_time: input.startTime,
-    end_time: input.endTime,
-    address_line: input.address,
-    city: input.city,
-    state: input.state,
-    zip_code: input.zipCode,
-    has_grill: input.hasGrill,
-    grill_photo_required: input.grillPhotoRequired,
-    grill_rental_required: input.grillRentalRequired,
-    grill_rental_qty: input.grillRentalRequired ? input.grillRentalQty : 0,
-    grill_notes: input.grillNotes.trim() || null,
+    ...basePayload,
+    ...createMeta,
     package_unit_price: draftSnapshot.packageUnitPrice,
     package_price_per_person: draftSnapshot.packageUnitPrice,
     package_total: draftSnapshot.packageTotal,
     additional_total: draftSnapshot.additionalTotal,
-    mileage_base_location:
-      input.baseLocation.trim() || draftSnapshot.mileageBaseLocation,
-    mileage_distance: input.distance,
     mileage_free_limit: draftSnapshot.mileageFreeLimit,
     mileage_rate: draftSnapshot.mileageRate,
     mileage_fee: draftSnapshot.mileageFee,
@@ -92,9 +201,20 @@ export function buildQuoteSavePayload(input: QuoteSaveInput) {
     reservation_percentage: draftSnapshot.reservationPercentage,
     balance_due: draftSnapshot.balanceDue,
     quote_total: draftSnapshot.quoteTotal,
-    quote_status: 'draft',
-    ...officialGuests,
   }
+}
+
+export function buildAdditionalItemRows(
+  quoteId: string,
+  additionals: QuoteAdditionalSaveLine[],
+) {
+  return additionals.map((line) => ({
+    quote_id: quoteId,
+    additional_item_id: line.itemId,
+    quantity: line.quantity,
+    unit_price: line.unitPrice,
+    total_price: line.totalPrice,
+  }))
 }
 
 export type QuoteSavePayload = ReturnType<typeof buildQuoteSavePayload>

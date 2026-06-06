@@ -1,7 +1,11 @@
-import { createQuote } from '@/Lib/createQuote'
 import type { QuoteSaveInput } from '@/Lib/buildQuoteSavePayload'
+import { updateQuote } from '@/Lib/updateQuote'
 
-export async function POST(request: Request) {
+export async function PATCH(
+  request: Request,
+  context: { params: Promise<{ id: string }> },
+) {
+  const { id } = await context.params
   let body: QuoteSaveInput
 
   try {
@@ -17,14 +21,14 @@ export async function POST(request: Request) {
     )
   }
 
-  const { data, error } = await createQuote(body)
+  const { data, error } = await updateQuote(id, body)
 
   if (error || !data?.id) {
     return Response.json(
-      { error: 'Erro ao gravar cotação no Supabase.' },
+      { error: 'Erro ao atualizar cotação no Supabase.' },
       { status: 500 },
     )
   }
 
-  return Response.json({ id: data.id, quote_number: data.quote_number })
+  return Response.json({ id: data.id })
 }

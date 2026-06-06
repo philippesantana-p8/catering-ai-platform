@@ -5,10 +5,22 @@ export type QuoteListItem = {
   id: string
   quote_number: string
   customer_name: string
-  event_date: string | null
-  quote_total: number | null
   quote_status: string | null
+  event_date: string | null
   created_at: string
+  city: string | null
+  state: string | null
+  package_name: string | null
+  quote_total: number | null
+  reservation_amount: number | null
+  balance_due: number | null
+  physical_guest_count: number | null
+  billable_guest_count: number | null
+  has_additionals: boolean
+  has_grill: boolean | null
+  grill_photo_required: boolean | null
+  grill_rental_required: boolean | null
+  mileage_fee: number | null
 }
 
 type QuoteRow = {
@@ -19,10 +31,24 @@ type QuoteRow = {
   created_at: string
   customer_id: string | null
   active: boolean | null
+  reservation_amount: number | null
+  balance_due: number | null
+  physical_guest_count: number | null
+  billable_guest_count: number | null
+  additional_total: number | null
+  mileage_fee: number | null
+  has_grill: boolean | null
+  grill_photo_required: boolean | null
+  grill_rental_required: boolean | null
 }
 
-function isActiveQuote(row: Pick<QuoteRow, 'active'>): row is QuoteRow & { active: true } {
-  return row.active === true
+type ListViewRow = {
+  id: string
+  event_date?: string | null
+  customer_name?: string | null
+  city?: string | null
+  state?: string | null
+  package_name?: string | null
 }
 
 type CustomerRow = {
@@ -30,10 +56,8 @@ type CustomerRow = {
   ab_name?: string | null
 }
 
-type QuoteDetailRow = {
-  id: string
-  event_date?: string | null
-  customer_name?: string | null
+function isActiveQuote(row: Pick<QuoteRow, 'active'>): row is QuoteRow & { active: true } {
+  return row.active === true
 }
 
 function resolveCustomerName(
@@ -43,14 +67,25 @@ function resolveCustomerName(
   return abName?.trim() || detailName?.trim() || 'Cliente não informado'
 }
 
-/** Lista cotações ativas direto da tabela `quotes` (não usa quote_list_view). */
+export function sortQuoteListItems(items: QuoteListItem[]): QuoteListItem[] {
+  return [...items].sort((a, b) => {
+    const eventA = a.event_date ? new Date(a.event_date).getTime() : 0
+    const eventB = b.event_date ? new Date(b.event_date).getTime() : 0
+    if (eventA !== eventB) return eventB - eventA
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  })
+}
+
+/** Lista cotações ativas da tabela `quotes`, enriquecidas para cards. */
 export async function fetchQuoteList() {
   const companyId = getCdlCompanyId()
 
   const { data: quotes, error } = await supabase
     .from('quotes')
     .select(
-      'id, quote_number, quote_total, quote_status, created_at, customer_id, active',
+      `id, quote_number, quote_total, quote_status, created_at, customer_id, active,
+       reservation_amount, balance_due, physical_guest_count, billable_guest_count,
+       additional_total, mileage_fee, has_grill, grill_photo_required, grill_rental_required`,
     )
     .eq('active', true)
     .eq('company_id', companyId)
@@ -70,22 +105,35 @@ export async function fetchQuoteList() {
     ...new Set(rows.map((row) => row.customer_id).filter(Boolean)),
   ] as string[]
 
-  const [customersRes, detailsRes] = await Promise.all([
+  const [customersRes, listViewRes] = await Promise.all([
     customerIds.length > 0
       ? supabase.from('customers').select('id, ab_name').in('id', customerIds)
       : Promise.resolve({ data: [] as CustomerRow[], error: null }),
     supabase
-      .from('quote_detail_view')
-      .select('id, event_date, customer_name')
+      .from('quote_list_view')
+      .select('id, event_date, customer_name, city, state, package_name')
       .in('id', quoteIds),
   ])
 
-  if (customersRes.error) {
-    return { data: null, error: customersRes.error }
+  let listViewRows = (listViewRes.data ?? []) as ListViewRow[]
+  if (listViewRes.error) {
+    console.warn('[CDL Quote] quote_list_view enrichment failed:', listViewRes.error.message)
+    const { data: detailRows } = await supabase
+      .from('quote_detail_view')
+      .select('id, event_date, customer_name, city, state, package_name_pt')
+      .in('id', quoteIds)
+    listViewRows = (detailRows ?? []).map((row) => ({
+      id: row.id as string,
+      event_date: row.event_date as string | null,
+      customer_name: row.customer_name as string | null,
+      city: row.city as string | null,
+      state: row.state as string | null,
+      package_name: row.package_name_pt as string | null,
+    }))
   }
 
-  if (detailsRes.error) {
-    return { data: null, error: detailsRes.error }
+  if (customersRes.error) {
+    return { data: null, error: customersRes.error }
   }
 
   const customerMap = new Map(
@@ -94,12 +142,10 @@ export async function fetchQuoteList() {
       customer.ab_name,
     ]),
   )
-  const detailMap = new Map(
-    (detailsRes.data ?? []).map((detail) => [detail.id, detail]),
-  )
+  const listViewMap = new Map(listViewRows.map((row) => [row.id, row]))
 
-  const data: QuoteListItem[] = rows.map((row) => {
-    const detail = detailMap.get(row.id) as QuoteDetailRow | undefined
+  const data = rows.map((row) => {
+    const view = listViewMap.get(row.id)
     const abName = row.customer_id
       ? customerMap.get(row.customer_id)
       : undefined
@@ -107,13 +153,25 @@ export async function fetchQuoteList() {
     return {
       id: row.id,
       quote_number: row.quote_number ?? '—',
-      customer_name: resolveCustomerName(abName, detail?.customer_name),
-      event_date: detail?.event_date ?? null,
-      quote_total: row.quote_total,
+      customer_name: resolveCustomerName(abName, view?.customer_name),
       quote_status: row.quote_status,
+      event_date: view?.event_date ?? null,
       created_at: row.created_at,
-    }
+      city: view?.city ?? null,
+      state: view?.state ?? null,
+      package_name: view?.package_name ?? null,
+      quote_total: row.quote_total,
+      reservation_amount: row.reservation_amount,
+      balance_due: row.balance_due,
+      physical_guest_count: row.physical_guest_count,
+      billable_guest_count: row.billable_guest_count,
+      has_additionals: Number(row.additional_total ?? 0) > 0,
+      has_grill: row.has_grill,
+      grill_photo_required: row.grill_photo_required,
+      grill_rental_required: row.grill_rental_required,
+      mileage_fee: row.mileage_fee,
+    } satisfies QuoteListItem
   })
 
-  return { data, error: null }
+  return { data: sortQuoteListItems(data), error: null }
 }

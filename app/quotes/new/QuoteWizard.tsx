@@ -10,6 +10,12 @@ import { calcAdditionalLineTotal } from '../../../Lib/calculateQuoteTotals'
 import type { CommercialRulesSnapshot } from '../../../Lib/supabaseCommercialRules'
 import { calculateQuoteDraftFromSupabasePricing } from '../../../Lib/calculateQuoteDraftFromSupabasePricing'
 import type { QuoteSaveInput } from '../../../Lib/buildQuoteSavePayload'
+import type { QuoteSnapshotRecord } from '../../../Lib/readQuoteSnapshot'
+import {
+  buildPricingFingerprint,
+  createInitialWizardState,
+  type WizardState,
+} from '../../../Lib/quoteWizardTypes'
 import GuestBreakdownPanel from '../../../components/GuestBreakdownPanel'
 import AddressAutocompleteFields from './AddressAutocompleteFields'
 import {
@@ -87,36 +93,6 @@ export type AdditionalItem = {
   active?: boolean | null
 }
 
-type WizardState = {
-  customerId: string | null
-  eventName: string
-  eventDate: string
-  startTime: string
-  endTime: string
-  adultCount: number
-  childrenUnder3Count: number
-  children4To12Count: number
-  address: string
-  city: string
-  state: string
-  zipCode: string
-  hasGrill: boolean
-  grillSetupAnswered: boolean
-  grillPhotoRequired: boolean
-  grillRentalRequired: boolean
-  grillRentalQty: number
-  grillNotes: string
-  packageId: string | null
-  additionals: Record<string, number>
-  baseLocation: string
-  distance: number
-  freeLimit: number
-  rate: number
-  reservationPercentage: number
-  reservationAmount: number
-  reservationNotes: string
-}
-
 const STEPS = [
   'Cliente',
   'Evento',
@@ -127,40 +103,6 @@ const STEPS = [
   'Reserva',
   'Resumo',
 ] as const
-
-function createInitialWizardState(
-  rules: CommercialRulesSnapshot,
-): WizardState {
-  return {
-    customerId: null,
-    eventName: '',
-    eventDate: '',
-    startTime: '',
-    endTime: '',
-    adultCount: 0,
-    childrenUnder3Count: 0,
-    children4To12Count: 0,
-    address: '',
-    city: '',
-    state: '',
-    zipCode: '',
-    hasGrill: false,
-    grillSetupAnswered: false,
-    grillPhotoRequired: false,
-    grillRentalRequired: false,
-    grillRentalQty: 0,
-    grillNotes: '',
-    packageId: null,
-    additionals: {},
-    baseLocation: rules.mileageBaseLocation,
-    distance: 0,
-    freeLimit: rules.mileageFreeLimit,
-    rate: rules.mileageRate,
-    reservationPercentage: rules.reservationPercentage,
-    reservationAmount: 0,
-    reservationNotes: '',
-  }
-}
 
 function formatCurrency(value: number) {
   return `$${value.toFixed(2)}`
@@ -1645,16 +1587,27 @@ export default function QuoteWizard({
   additionalItems,
   commercialRules,
   fetchErrors,
+  mode = 'create',
+  quoteId,
+  initialState,
+  initialPricingFingerprint,
+  existingSnapshot,
 }: {
   customers: Customer[]
   packages: Package[]
   additionalItems: AdditionalItem[]
   commercialRules: CommercialRulesSnapshot
   fetchErrors: string[]
+  mode?: 'create' | 'edit'
+  quoteId?: string
+  initialState?: WizardState
+  initialPricingFingerprint?: string
+  existingSnapshot?: QuoteSnapshotRecord
 }) {
+  const isEditMode = mode === 'edit' && Boolean(quoteId)
   const [step, setStep] = useState(0)
-  const [state, setState] = useState<WizardState>(() =>
-    createInitialWizardState(commercialRules),
+  const [state, setState] = useState<WizardState>(
+    () => initialState ?? createInitialWizardState(commercialRules),
   )
   const [customerSearch, setCustomerSearch] = useState('')
   const [endTimeCustomized, setEndTimeCustomized] = useState(false)
@@ -2001,6 +1954,11 @@ export default function QuoteWizard({
     setSaving(true)
     setSaveError(null)
 
+    const currentPricingFingerprint = buildPricingFingerprint(state)
+    const recalculateSnapshot =
+      !isEditMode ||
+      currentPricingFingerprint !== (initialPricingFingerprint ?? '')
+
     const payload: QuoteSaveInput = {
       customerId: selectedCustomer.id,
       packageId: selectedPackage.id,
@@ -2035,27 +1993,42 @@ export default function QuoteWizard({
           totalPrice,
         }),
       ),
+      recalculateSnapshot,
+      existingSnapshot: isEditMode ? existingSnapshot : undefined,
     }
 
     try {
-      const response = await fetch('/api/quotes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
+      const response = await fetch(
+        isEditMode ? `/api/quotes/${quoteId}` : '/api/quotes',
+        {
+          method: isEditMode ? 'PATCH' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        },
+      )
 
       const result = (await response.json()) as { id?: string; error?: string }
 
       if (!response.ok || !result.id) {
         console.error('[CDL Quote] Save failed:', result.error ?? response.statusText)
-        setSaveError('Não foi possível salvar a cotação. Tente novamente.')
+        setSaveError(
+          isEditMode
+            ? 'Não foi possível atualizar a cotação. Tente novamente.'
+            : 'Não foi possível salvar a cotação. Tente novamente.',
+        )
         return
       }
 
-      router.push(`/quotes/${result.id}`)
+      router.push(
+        `/quotes/${result.id}?${isEditMode ? 'updated=1' : 'created=1'}`,
+      )
     } catch (error) {
       console.error('[CDL Quote] Save request failed:', error)
-      setSaveError('Não foi possível salvar a cotação. Tente novamente.')
+      setSaveError(
+        isEditMode
+          ? 'Não foi possível atualizar a cotação. Tente novamente.'
+          : 'Não foi possível salvar a cotação. Tente novamente.',
+      )
     } finally {
       setSaving(false)
     }
@@ -2079,7 +2052,9 @@ export default function QuoteWizard({
           <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center">
             <CdlBrandLogo size="md" />
             <div className="min-w-0 flex-1">
-              <span className="cdl-hero-tag">Nova cotação</span>
+              <span className="cdl-hero-tag">
+                {isEditMode ? 'Editar cotação' : 'Nova cotação'}
+              </span>
               <h1 className="mt-4 text-4xl font-black tracking-tight text-cdl-title sm:text-5xl lg:text-[3.25rem]">
                 BBQ AT HOME
               </h1>
@@ -2934,7 +2909,11 @@ export default function QuoteWizard({
                 disabled={!quoteReady || saving}
                 className="cdl-btn-primary disabled:cursor-not-allowed disabled:opacity-40"
               >
-                {saving ? 'Salvando…' : 'Salvar / Gerar cotação'}
+                {saving
+                  ? 'Salvando…'
+                  : isEditMode
+                    ? 'Salvar alterações'
+                    : 'Salvar / Gerar cotação'}
               </button>
             </div>
           </div>

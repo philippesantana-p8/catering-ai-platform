@@ -28,6 +28,8 @@ import {
 } from '../../../Lib/readQuoteSnapshot'
 import QuoteDetailToolbar from './QuoteDetailToolbar'
 import GuestBreakdownPanel from '@/components/GuestBreakdownPanel'
+import QuoteFlashBanner from '@/components/QuoteFlashBanner'
+import { Suspense } from 'react'
 import QuoteDebugPanel from './QuoteDebugPanel'
 
 function ProposalSection({
@@ -231,7 +233,11 @@ export default function QuoteDetailView({ quote }: { quote: QuoteDetail }) {
             quoteNumber={quoteNumber}
             customerName={quote.customer_name}
             eventDate={quote.event_date}
+            editHref={`/quotes/${quote.id}/edit`}
           />
+          <Suspense fallback={null}>
+            <QuoteFlashBanner />
+          </Suspense>
         </div>
       </div>
 
