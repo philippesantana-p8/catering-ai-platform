@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import CdlBrandLogo from '../../../components/CdlBrandLogo'
-import { CdlImportantRulesPanel } from '../../../components/CdlImportantRulesPanel'
+import QuoteWizardSummaryStep from '../../../components/quote-review/QuoteWizardSummaryStep'
 import { RESERVATION_PAYMENT_TEXT } from '../../../Lib/cdlCommercialRules'
 import { calcAdditionalLineTotal } from '../../../Lib/calculateQuoteTotals'
 import type { CommercialRulesSnapshot } from '../../../Lib/supabaseCommercialRules'
@@ -16,16 +16,11 @@ import {
   createInitialWizardState,
   type WizardState,
 } from '../../../Lib/quoteWizardTypes'
-import GuestBreakdownPanel from '../../../components/GuestBreakdownPanel'
 import AddressAutocompleteFields from './AddressAutocompleteFields'
 import {
-  countCompletedSteps,
-  countMandatoryPendingSteps,
-  getCompletionPercentage,
   getMandatoryPendingSteps,
   getStepVisualStatus,
   isQuoteReadyToSave,
-  type PendingStepIssue,
   type StepStatusContext,
   type StepVisualStatus,
 } from './wizardStepStatus'
@@ -1225,194 +1220,6 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
   )
 }
 
-function SummaryStatCard({
-  label,
-  value,
-}: {
-  label: string
-  value: React.ReactNode
-}) {
-  return (
-    <div className="rounded-xl border border-cdl-border bg-cdl-inset px-5 py-6 text-center shadow-cdl sm:px-6 sm:py-7">
-      <p className="cdl-eyebrow">{label}</p>
-      <p className="mt-3 text-3xl font-black text-cdl-price sm:text-4xl">{value}</p>
-    </div>
-  )
-}
-
-function SummaryField({
-  label,
-  value,
-}: {
-  label: string
-  value: React.ReactNode
-}) {
-  return (
-    <div className="rounded-xl border border-cdl-border bg-cdl-inset px-5 py-5 shadow-cdl sm:px-6 sm:py-6">
-      <span className="cdl-eyebrow">{label}</span>
-      <p className="mt-3 text-base font-semibold text-cdl-fg sm:text-lg">
-        {value ?? '—'}
-      </p>
-    </div>
-  )
-}
-
-function SummaryDetail({
-  label,
-  value,
-}: {
-  label: string
-  value: React.ReactNode
-}) {
-  return (
-    <div className="flex flex-col gap-1.5 sm:flex-row sm:items-baseline sm:gap-4">
-      <span className="cdl-eyebrow shrink-0 sm:min-w-[7rem]">{label}</span>
-      <span className="text-base font-medium text-cdl-fg sm:text-lg">
-        {value ?? '—'}
-      </span>
-    </div>
-  )
-}
-
-function SummarySectionCard({
-  title,
-  children,
-  className = '',
-}: {
-  title: string
-  children: React.ReactNode
-  className?: string
-}) {
-  return (
-    <section
-      className={`rounded-2xl border border-cdl-border bg-cdl-surface p-7 shadow-cdl sm:p-9 ${className}`}
-    >
-      <h2 className="cdl-section-title-lg">{title}</h2>
-      {children}
-    </section>
-  )
-}
-
-function WizardCompletionProgress({
-  stepStatusCtx,
-}: {
-  stepStatusCtx: StepStatusContext
-}) {
-  const completedSteps = countCompletedSteps(stepStatusCtx)
-  const percentage = getCompletionPercentage(stepStatusCtx)
-  const ready = isQuoteReadyToSave(stepStatusCtx)
-
-  return (
-    <section className="rounded-2xl border border-cdl-border bg-cdl-surface p-7 shadow-cdl sm:p-9">
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <p className="cdl-eyebrow">Progresso da cotação</p>
-          <p className="mt-2 text-2xl font-bold text-cdl-fg sm:text-3xl">
-            {completedSteps} de 8 etapas concluídas
-          </p>
-          <p className="mt-1 text-sm text-cdl-text-secondary">
-            {percentage}% de conclusão
-          </p>
-        </div>
-        <div
-          className={`rounded-xl border px-5 py-4 text-center sm:min-w-[16rem] ${
-            ready
-              ? 'border-cdl-success-border bg-cdl-success-soft'
-              : 'border-cdl-warning-border bg-cdl-warning-soft'
-          }`}
-        >
-          <p
-            className={`text-xs font-bold uppercase tracking-wider ${
-              ready ? 'text-cdl-success' : 'text-cdl-warning'
-            }`}
-          >
-            {ready
-              ? 'Pronto para gerar cotação'
-              : `Faltam ${countMandatoryPendingSteps(stepStatusCtx)} etapas obrigatórias`}
-          </p>
-        </div>
-      </div>
-      <div className="mt-5 flex h-1.5 gap-1 overflow-hidden rounded-full">
-        {STEPS.map((_, index) => (
-          <div
-            key={STEPS[index]}
-            className={`flex-1 rounded-full transition-colors ${stepSegmentClass(getStepVisualStatus(index, stepStatusCtx))}`}
-            title={STEPS[index]}
-          />
-        ))}
-      </div>
-    </section>
-  )
-}
-
-function WizardQuoteValidationPanel({
-  pendingSteps,
-  ready,
-  onGoToStep,
-}: {
-  pendingSteps: PendingStepIssue[]
-  ready: boolean
-  onGoToStep: (stepIndex: number) => void
-}) {
-  return (
-    <section
-      className={`rounded-2xl border p-7 shadow-cdl sm:p-9 ${
-        ready
-          ? 'border-cdl-success-border bg-cdl-success-soft'
-          : 'border-cdl-action bg-cdl-red-soft'
-      }`}
-    >
-      <h2
-        className={`text-xl font-bold sm:text-2xl ${
-          ready ? 'text-cdl-success' : 'text-cdl-action'
-        }`}
-      >
-        Pendências da cotação
-      </h2>
-
-      {ready ? (
-        <p className="mt-4 text-sm font-semibold text-cdl-success sm:text-base">
-          Cotação pronta para salvar e gerar PDF.
-        </p>
-      ) : (
-        <ul className="mt-5 space-y-4">
-          {pendingSteps.map((pending) => (
-            <li
-              key={pending.stepIndex}
-              className="rounded-xl border border-cdl-action/40 bg-cdl-surface p-4 sm:p-5"
-            >
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <p className="text-sm font-bold uppercase tracking-wider text-cdl-action">
-                    {pending.label}
-                  </p>
-                  <ul className="mt-2 space-y-1 text-sm text-cdl-text-secondary">
-                    {pending.issues.map((issue) => (
-                      <li key={issue} className="flex gap-2">
-                        <span className="text-cdl-action" aria-hidden>
-                          •
-                        </span>
-                        <span>{issue}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => onGoToStep(pending.stepIndex)}
-                  className="shrink-0 rounded-xl border border-cdl-action bg-cdl-red-soft px-4 py-2 text-xs font-bold uppercase tracking-wider text-cdl-action transition-colors hover:bg-cdl-action hover:text-white"
-                >
-                  Ir para etapa
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
-  )
-}
-
 function MileageSummaryPanel({
   distance,
   freeLimit,
@@ -1809,6 +1616,23 @@ export default function QuoteWizard({
     [selectedAdditionalsByCategory],
   )
 
+  const reviewAdditionals = useMemo(
+    () =>
+      selectedAdditionalsByCategory.flatMap(({ category, items }) =>
+        items.map(({ item, quantity, unitPrice, perPerson, totalPrice }) => ({
+          id: item.id,
+          label: getAdditionalLabel(item),
+          category,
+          quantity,
+          unitPrice,
+          totalPrice,
+          imageUrl: getAdditionalImage(item),
+          perPerson,
+        })),
+      ),
+    [selectedAdditionalsByCategory],
+  )
+
   const additionalTotal = quoteTotals.additionalTotal
 
   const mileageFee = quoteTotals.mileageFee
@@ -1948,7 +1772,7 @@ export default function QuoteWizard({
 
   const quoteReady = isQuoteReadyToSave(stepStatusCtx)
 
-  async function handleSaveQuote() {
+  async function handleSaveQuote(openReview = false) {
     if (!quoteReady || !selectedCustomer || !selectedPackage || saving) return
 
     setSaving(true)
@@ -2019,9 +1843,12 @@ export default function QuoteWizard({
         return
       }
 
-      router.push(
-        `/quotes/${result.id}?${isEditMode ? 'updated=1' : 'created=1'}`,
-      )
+      const params = new URLSearchParams()
+      params.set(isEditMode ? 'updated' : 'created', '1')
+      if (openReview) {
+        params.set('review', '1')
+      }
+      router.push(`/quotes/${result.id}?${params.toString()}`)
     } catch (error) {
       console.error('[CDL Quote] Save request failed:', error)
       setSaveError(
@@ -2557,368 +2384,35 @@ export default function QuoteWizard({
         )}
 
         {step === 7 && (
-          <div className="space-y-8">
-            <WizardCompletionProgress stepStatusCtx={stepStatusCtx} />
-
-            <WizardQuoteValidationPanel
-              pendingSteps={mandatoryPendingSteps}
-              ready={quoteReady}
-              onGoToStep={setStep}
-            />
-
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              <SummarySectionCard title="Pacote CDL">
-                {selectedPackage ? (
-                  <article className="overflow-hidden rounded-2xl border border-cdl-border bg-cdl-inset">
-                    {getPackageImage(selectedPackage) ? (
-                      <div className="aspect-video w-full overflow-hidden bg-cdl-image">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={getPackageImage(selectedPackage)!}
-                          alt={getPackageName(selectedPackage)}
-                          className="h-full w-full object-cover"
-                        />
-                      </div>
-                    ) : (
-                      <ImagePlaceholder label="Sem imagem" />
-                    )}
-                    <div className="p-5 sm:p-6">
-                      <p className="text-xs font-semibold uppercase tracking-wider text-cdl-muted">
-                        {selectedPackage.package_key}
-                      </p>
-                      <h3 className="mt-1 text-xl font-bold text-cdl-fg sm:text-2xl">
-                        {getPackageName(selectedPackage)}
-                      </h3>
-                      {getPackageDescription(selectedPackage) && (
-                        <p className="mt-2 text-sm text-cdl-text-secondary sm:text-base">
-                          {getPackageDescription(selectedPackage)}
-                        </p>
-                      )}
-                      <div className="mt-5 flex flex-wrap items-end justify-between gap-4">
-                        <p className="text-2xl font-black text-cdl-price sm:text-3xl">
-                          {formatCurrency(packageUnitPrice)}
-                          <span className="ml-1 text-sm font-semibold text-cdl-text-secondary">
-                            / pessoa
-                          </span>
-                        </p>
-                        <div className="text-right">
-                          <p className="text-xs font-semibold uppercase tracking-wider text-cdl-muted">
-                            Total do pacote
-                          </p>
-                          <p className="text-xl font-black text-cdl-price sm:text-2xl">
-                            {formatCurrency(packageTotal)}
-                          </p>
-                          {billableGuestCount > 0 && (
-                            <p className="mt-1 text-xs text-cdl-subtle">
-                              {formatCurrency(packageUnitPrice)} × {billableGuestCount}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </article>
-                ) : (
-                  <div className="rounded-xl border border-dashed border-cdl-border bg-cdl-inset px-6 py-10 text-center shadow-cdl sm:px-8 sm:py-12">
-                    <p className="text-lg font-semibold text-cdl-fg sm:text-xl">
-                      Nenhum pacote selecionado ainda.
-                    </p>
-                    <p className="mx-auto mt-2 max-w-sm text-sm text-cdl-text-secondary">
-                      Volte para a etapa Pacote para escolher uma opção.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => setStep(3)}
-                      className="cdl-btn-primary mt-6"
-                    >
-                      Ir para Pacote
-                    </button>
-                  </div>
-                )}
-              </SummarySectionCard>
-
-              <SummarySectionCard title="Evento">
-                <p className="text-2xl font-bold text-cdl-fg sm:text-3xl">
-                  {selectedCustomer
-                    ? getCustomerName(selectedCustomer)
-                    : 'Cliente não selecionado'}
-                </p>
-                {selectedCustomer &&
-                  state.eventName.trim() &&
-                  state.eventName.trim() !==
-                    getCustomerName(selectedCustomer).trim() && (
-                    <div className="mt-4">
-                      <SummaryDetail
-                        label="Nome do evento"
-                        value={state.eventName}
-                      />
-                    </div>
-                  )}
-                <div className="mt-6">
-                  <GuestBreakdownPanel
-                    guestCounts={{
-                      adultCount: state.adultCount,
-                      childrenUnder3Count: state.childrenUnder3Count,
-                      children4To12Count: state.children4To12Count,
-                    }}
-                    totals={{
-                      billableGuestCount: quoteTotals.billableGuestCount,
-                      physicalGuestCount: quoteTotals.physicalGuestCount,
-                      quoteTotal,
-                    }}
-                    variant="compact"
-                  />
-                </div>
-                <div className="mt-6 space-y-4">
-                  <SummaryDetail
-                    label="Data"
-                    value={formatDate(state.eventDate)}
-                  />
-                  <SummaryDetail
-                    label="Horário"
-                    value={formatTimeRange(state.startTime, state.endTime)}
-                  />
-                  <SummaryDetail label="Endereço" value={state.address} />
-                  <SummaryDetail
-                    label="Cidade / Estado"
-                    value={
-                      [state.city, state.state].filter(Boolean).join(' · ') ||
-                      '—'
-                    }
-                  />
-                  <SummaryDetail label="Zip Code" value={state.zipCode} />
-                </div>
-              </SummarySectionCard>
-            </div>
-
-            <SummarySectionCard title="Churrasqueira">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <SummaryField
-                  label="Cliente tem churrasqueira?"
-                  value={state.hasGrill ? 'Sim' : 'Não'}
-                />
-                <SummaryField
-                  label="Foto da churrasqueira necessária"
-                  value={state.grillPhotoRequired ? 'Sim' : 'Não'}
-                />
-                <SummaryField
-                  label="Necessário alugar churrasqueira?"
-                  value={state.grillRentalRequired ? 'Sim' : 'Não'}
-                />
-                {state.grillRentalRequired && (
-                  <SummaryStatCard
-                    label="Qtd. para aluguel"
-                    value={state.grillRentalQty}
-                  />
-                )}
-              </div>
-              {state.grillNotes && (
-                <div className="mt-4">
-                  <SummaryField
-                    label="Observações sobre a churrasqueira"
-                    value={state.grillNotes}
-                  />
-                </div>
-              )}
-            </SummarySectionCard>
-
-            <SummarySectionCard title="Adicionais">
-              {selectedAdditionalsByCategory.length === 0 ? (
-                <p className="text-base text-cdl-muted sm:text-lg">
-                  Nenhum adicional.
-                </p>
-              ) : (
-                <div className="space-y-8">
-                  {selectedAdditionalsByCategory.map(({ category, items }) => (
-                    <section key={category}>
-                      <h3 className="mb-4 border-b border-cdl-border-subtle pb-2 text-base font-extrabold text-cdl-title sm:text-lg">
-                        {category}
-                      </h3>
-                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                        {items.map(
-                          ({
-                            item,
-                            quantity,
-                            unitPrice,
-                            perPerson,
-                            totalPrice,
-                          }) => {
-                            const totalWeight = getAdditionalTotalWeight(
-                              item,
-                              quantity,
-                            )
-
-                            return (
-                              <article
-                                key={item.id}
-                                className="flex flex-col rounded-2xl border border-cdl-border bg-cdl-inset p-5 sm:p-6"
-                              >
-                                <h4 className="text-base font-bold text-cdl-fg sm:text-lg">
-                                  {getAdditionalLabel(item)}
-                                </h4>
-                                <div className="mt-5 flex items-end justify-between gap-4">
-                                  <div>
-                                    <p className="text-xs font-bold uppercase tracking-wider text-cdl-muted sm:text-sm">
-                                      {perPerson ? 'Convidados' : 'Quantidade'}
-                                    </p>
-                                    <p className="mt-1 text-3xl font-black text-cdl-price sm:text-4xl">
-                                      {perPerson
-                                        ? billableGuestCount
-                                        : quantity}
-                                    </p>
-                                    {!perPerson && totalWeight && (
-                                      <p className="mt-1 text-sm font-semibold text-cdl-text-secondary">
-                                        {totalWeight.amount}{' '}
-                                        {formatWeightUom(totalWeight.uom)}
-                                      </p>
-                                    )}
-                                  </div>
-                                  <div className="text-right">
-                                    <p className="text-xs font-bold uppercase tracking-wider text-cdl-muted sm:text-sm">
-                                      Total
-                                    </p>
-                                    <p className="mt-1 text-xl font-bold text-cdl-price sm:text-2xl">
-                                      {formatCurrency(totalPrice)}
-                                    </p>
-                                    {perPerson && billableGuestCount > 0 && (
-                                      <p className="mt-1 text-xs text-cdl-subtle">
-                                        {formatCurrency(unitPrice)} / pessoa ×{' '}
-                                        {billableGuestCount}
-                                      </p>
-                                    )}
-                                    {!perPerson && (
-                                      <p className="mt-1 text-xs text-cdl-subtle">
-                                        {getAdditionalPackLabel(item)}
-                                      </p>
-                                    )}
-                                  </div>
-                                </div>
-                              </article>
-                            )
-                          },
-                        )}
-                      </div>
-                    </section>
-                  ))}
-                </div>
-              )}
-            </SummarySectionCard>
-
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              <SummarySectionCard title="Milhagem">
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <SummaryField
-                    label="Base Location"
-                    value={state.baseLocation}
-                  />
-                  <SummaryField
-                    label="Distance"
-                    value={`${state.distance} mi`}
-                  />
-                  <SummaryField
-                    label="Free Limit"
-                    value={`${state.freeLimit} mi`}
-                  />
-                  <SummaryField
-                    label="Rate"
-                    value={`${formatCurrency(state.rate)}/mi`}
-                  />
-                  <SummaryField
-                    label="Mileage Fee"
-                    value={formatCurrency(mileageFee)}
-                  />
-                </div>
-              </SummarySectionCard>
-
-              <SummarySectionCard title="Reserva">
-                <div className="mb-4 rounded-2xl border border-cdl-border bg-cdl-inset px-5 py-4">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-cdl-muted">
-                    Reserva
-                  </p>
-                  <p className="mt-2 text-xl font-black text-cdl-price sm:text-2xl">
-                    {formatReservationSummary(
-                      state.reservationPercentage,
-                      reservationAmount,
-                      reservationAmountCustomized,
-                    )}
-                  </p>
-                </div>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <SummaryField
-                    label="Percentual"
-                    value={formatPercentage(state.reservationPercentage)}
-                  />
-                  <SummaryField
-                    label="Valor absoluto"
-                    value={formatCurrency(reservationAmount)}
-                  />
-                  <div className="sm:col-span-2">
-                    <SummaryField
-                      label="Notes"
-                      value={state.reservationNotes}
-                    />
-                  </div>
-                </div>
-              </SummarySectionCard>
-            </div>
-
-            <section className="rounded-2xl border border-cdl-border bg-cdl-surface p-7 shadow-cdl sm:p-9">
-              <h2 className="cdl-section-title-lg">Total</h2>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <SummaryField
-                  label="Package Total"
-                  value={formatCurrency(packageTotal)}
-                />
-                <SummaryField
-                  label="Additional Total"
-                  value={formatCurrency(additionalTotal)}
-                />
-                <SummaryField
-                  label="Mileage Fee"
-                  value={formatCurrency(mileageFee)}
-                />
-                <SummaryField
-                  label="Reserva"
-                  value={formatReservationSummary(
-                    state.reservationPercentage,
-                    reservationAmount,
-                    reservationAmountCustomized,
-                  )}
-                />
-                <SummaryField
-                  label="Balance Due"
-                  value={formatCurrency(balanceDue)}
-                />
-              </div>
-              <div className="mt-8 flex flex-col gap-3 rounded-xl border border-cdl-border bg-cdl-inset px-6 py-6 sm:flex-row sm:items-center sm:justify-between sm:px-8 sm:py-7">
-                <span className="cdl-eyebrow sm:text-xs">Quote Total</span>
-                <span className="text-4xl font-black text-cdl-price sm:text-5xl">
-                  {formatCurrency(quoteTotal)}
-                </span>
-              </div>
-            </section>
-
-            <CdlImportantRulesPanel variant="summary" />
-
-            <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
-              {saveError ? (
-                <p className="text-sm text-red-400 sm:mr-auto">{saveError}</p>
-              ) : null}
-              <button
-                type="button"
-                onClick={handleSaveQuote}
-                disabled={!quoteReady || saving}
-                className="cdl-btn-primary disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                {saving
-                  ? 'Salvando…'
-                  : isEditMode
-                    ? 'Salvar alterações'
-                    : 'Salvar / Gerar cotação'}
-              </button>
-            </div>
-          </div>
+          <QuoteWizardSummaryStep
+            state={state}
+            quoteTotals={quoteTotals}
+            customerName={
+              selectedCustomer ? getCustomerName(selectedCustomer) : '—'
+            }
+            packageName={
+              selectedPackage ? getPackageName(selectedPackage) : null
+            }
+            packageDescription={
+              selectedPackage ? getPackageDescription(selectedPackage) : null
+            }
+            packageUnitPrice={packageUnitPrice}
+            billableGuestCount={billableGuestCount}
+            additionals={reviewAdditionals}
+            commercialRules={commercialRules}
+            stepStatusCtx={stepStatusCtx}
+            mandatoryPendingSteps={mandatoryPendingSteps}
+            quoteReady={quoteReady}
+            saving={saving}
+            saveError={saveError}
+            isEditMode={isEditMode}
+            onGoToStep={setStep}
+            onBack={goBack}
+            onSave={handleSaveQuote}
+          />
         )}
 
+        {step !== 7 && (
         <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
           <button
             type="button"
@@ -2937,6 +2431,7 @@ export default function QuoteWizard({
             Próximo
           </button>
         </div>
+        )}
       </div>
     </main>
   )
