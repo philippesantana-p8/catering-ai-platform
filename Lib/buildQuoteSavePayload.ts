@@ -130,9 +130,12 @@ export function buildEventSavePayload(input: QuoteSaveInput) {
   return payload
 }
 
-function buildQuoteGrillAndMileagePayload(input: QuoteSaveInput) {
+function buildQuoteGrillAndMileagePayload(
+  input: QuoteSaveInput,
+  mode?: 'create' | 'update',
+) {
   return {
-    customer_id: input.customerId,
+    ...(mode !== 'update' ? { customer_id: input.customerId } : {}),
     package_id: input.packageId,
     has_grill: input.hasGrill,
     grill_photo_required: input.grillPhotoRequired,
@@ -170,7 +173,7 @@ export function buildQuoteSavePayload(
   const quoteDate = now.toISOString().slice(0, 10)
 
   const basePayload = {
-    ...buildQuoteGrillAndMileagePayload(input),
+    ...buildQuoteGrillAndMileagePayload(input, options?.mode),
     ...officialGuests,
     total_guests: physicalGuestCount,
     additional_per_person_total: additionalBreakdown.additional_per_person_total,

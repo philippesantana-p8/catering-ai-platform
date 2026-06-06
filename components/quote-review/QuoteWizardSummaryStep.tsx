@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useMemo } from 'react'
 import type { PendingStepIssue, StepStatusContext } from '@/app/quotes/new/wizardStepStatus'
 import type { QuoteTotals } from '@/Lib/calculateQuoteTotals'
@@ -31,6 +32,7 @@ export default function QuoteWizardSummaryStep({
   saving,
   saveErrorInfo,
   isEditMode,
+  quoteId,
   onGoToStep,
   onBack,
   onSave,
@@ -50,6 +52,7 @@ export default function QuoteWizardSummaryStep({
   saving: boolean
   saveErrorInfo: SaveQuoteErrorInfo | null
   isEditMode: boolean
+  quoteId?: string
   onGoToStep: (stepIndex: number) => void
   onBack: () => void
   onSave: (openReview: boolean) => void | Promise<void>
@@ -105,40 +108,59 @@ export default function QuoteWizardSummaryStep({
         <QuoteReviewLayout data={reviewData} rulesVariant="summary" />
       </div>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
-        <button
-          type="button"
-          onClick={onBack}
-          disabled={saving}
-          className="rounded-xl border border-cdl-border bg-cdl-surface px-6 py-3 text-sm font-bold uppercase tracking-wider text-cdl-fg transition-colors hover:border-cdl-accent-border disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          Voltar
-        </button>
-        <button
-          type="button"
-          onClick={() => void onSave(false)}
-          disabled={saveDisabled}
-          className="cdl-btn-primary disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          {saving
-            ? savingLabel
-            : isEditMode
-              ? 'Salvar alterações'
-              : 'Criar cotação'}
-        </button>
-        <button
-          type="button"
-          onClick={() => void onSave(true)}
-          disabled={saveDisabled}
-          className="rounded-xl border border-cdl-accent-border bg-cdl-surface px-6 py-3 text-sm font-bold uppercase tracking-wider text-cdl-fg transition-colors hover:bg-cdl-muted-bg disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          {saving
-            ? savingLabel
-            : isEditMode
-              ? 'Salvar e abrir revisão'
-              : 'Criar cotação e abrir revisão'}
-        </button>
-      </div>
+      {isEditMode && quoteId ? (
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+          <Link
+            href={`/quotes/${quoteId}`}
+            className="rounded-xl border border-cdl-border bg-cdl-surface px-6 py-3 text-center text-sm font-bold uppercase tracking-wider text-cdl-fg transition-colors hover:border-cdl-accent-border"
+          >
+            Voltar para cotação
+          </Link>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <Link
+              href={`/quotes/${quoteId}`}
+              className="rounded-xl border border-cdl-border bg-cdl-surface px-6 py-3 text-center text-sm font-bold uppercase tracking-wider text-cdl-fg transition-colors hover:border-cdl-accent-border"
+            >
+              Cancelar
+            </Link>
+            <button
+              type="button"
+              onClick={() => void onSave(false)}
+              disabled={saveDisabled}
+              className="cdl-btn-primary disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {saving ? savingLabel : 'Salvar alterações'}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+          <button
+            type="button"
+            onClick={onBack}
+            disabled={saving}
+            className="rounded-xl border border-cdl-border bg-cdl-surface px-6 py-3 text-sm font-bold uppercase tracking-wider text-cdl-fg transition-colors hover:border-cdl-accent-border disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Voltar
+          </button>
+          <button
+            type="button"
+            onClick={() => void onSave(false)}
+            disabled={saveDisabled}
+            className="cdl-btn-primary disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {saving ? savingLabel : 'Criar cotação'}
+          </button>
+          <button
+            type="button"
+            onClick={() => void onSave(true)}
+            disabled={saveDisabled}
+            className="rounded-xl border border-cdl-accent-border bg-cdl-surface px-6 py-3 text-sm font-bold uppercase tracking-wider text-cdl-fg transition-colors hover:bg-cdl-muted-bg disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {saving ? savingLabel : 'Criar cotação e abrir revisão'}
+          </button>
+        </div>
+      )}
     </div>
   )
 }

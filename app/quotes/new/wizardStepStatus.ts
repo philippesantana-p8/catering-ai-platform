@@ -56,6 +56,7 @@ export type StepStatusContext = {
   reservationAmount: number
   additionalsCount: number
   commercialRules?: CommercialRulesSnapshot
+  isEditMode?: boolean
 }
 
 export type PendingStepIssue = {
@@ -88,7 +89,13 @@ export function getStepIssues(
 
   switch (stepIndex) {
     case 0:
-      if (!selectedCustomer) issues.push('Selecione um cliente.')
+      if (ctx.isEditMode) {
+        if (!state.customerId) {
+          issues.push('Cotação sem cliente vinculado.')
+        }
+      } else if (!selectedCustomer) {
+        issues.push('Selecione um cliente.')
+      }
       break
     case 1:
       if (!isFilled(state.eventName)) issues.push('Informe o nome do evento.')

@@ -18,6 +18,7 @@ import {
   normalizeSaveQuoteError,
   type SaveQuoteErrorInfo,
 } from '../../../Lib/supabaseSaveError'
+import { getCustomerDisplayName } from '../../../Lib/getCustomerDisplayName'
 import type { QuoteSnapshotRecord } from '../../../Lib/readQuoteSnapshot'
 import {
   buildPricingFingerprint,
@@ -35,8 +36,13 @@ import {
 
 export type Customer = {
   id: string
+  full_name?: string | null
   name?: string | null
   customer_name?: string | null
+  contact_name?: string | null
+  first_name?: string | null
+  last_name?: string | null
+  company_name?: string | null
   ab_name?: string | null
   email?: string | null
   phone?: string | null
@@ -597,7 +603,8 @@ function TimePickerField({
 }
 
 function getCustomerName(customer: Customer) {
-  return customer.name ?? customer.customer_name ?? customer.ab_name ?? '—'
+  const name = getCustomerDisplayName(customer)
+  return name === 'Cliente não informado' ? '—' : name
 }
 
 function getEventDefaultsFromCustomer(customer: Customer) {
@@ -1412,6 +1419,7 @@ export default function QuoteWizard({
   initialState,
   initialPricingFingerprint,
   existingSnapshot,
+  linkedCustomer = null,
 }: {
   customers: Customer[]
   packages: Package[]
@@ -1423,6 +1431,7 @@ export default function QuoteWizard({
   initialState?: WizardState
   initialPricingFingerprint?: string
   existingSnapshot?: QuoteSnapshotRecord
+  linkedCustomer?: Customer | null
 }) {
   const isEditMode = mode === 'edit' && Boolean(quoteId)
   const [step, setStep] = useState(0)
@@ -1445,7 +1454,16 @@ export default function QuoteWizard({
   )
   const router = useRouter()
 
-  const selectedCustomer = customers.find((c) => c.id === state.customerId) ?? null
+  const selectedCustomer = isEditMode
+    ? linkedCustomer ??
+      (state.customerId ? { id: state.customerId } as Customer : null)
+    : customers.find((c) => c.id === state.customerId) ?? null
+
+  const editCustomerDisplayName = linkedCustomer
+    ? getCustomerDisplayName(linkedCustomer)
+    : state.customerId
+      ? 'Cliente vinculado não encontrado'
+      : 'Cliente não informado'
   const selectedPackage = packages.find((p) => p.id === state.packageId) ?? null
 
   const filteredCustomers = useMemo(() => {
@@ -1669,6 +1687,7 @@ export default function QuoteWizard({
       reservationAmount,
       additionalsCount,
       commercialRules,
+      isEditMode,
     }),
     [
       state,
@@ -1678,6 +1697,7 @@ export default function QuoteWizard({
       reservationAmount,
       additionalsCount,
       commercialRules,
+      isEditMode,
     ],
   )
 
@@ -1802,10 +1822,21 @@ export default function QuoteWizard({
       return
     }
 
-    if (!selectedCustomer || !selectedPackage) {
+    const originalCustomerId = isEditMode
+      ? state.customerId ??
+        (existingSnapshot as { customer_id?: string | null } | undefined)
+          ?.customer_id ??
+        null
+      : selectedCustomer?.id ?? null
+
+    if (!originalCustomerId || !selectedPackage) {
       const errorInfo = buildSaveQuoteError(
         'validation',
-        new Error('Cliente ou pacote não selecionado.'),
+        new Error(
+          isEditMode
+            ? 'Pacote não selecionado ou cotação sem cliente vinculado.'
+            : 'Cliente ou pacote não selecionado.',
+        ),
       )
       setSaveErrorInfo(errorInfo)
       return
@@ -1820,7 +1851,7 @@ export default function QuoteWizard({
       currentPricingFingerprint !== (initialPricingFingerprint ?? '')
 
     const payload: QuoteSaveInput = {
-      customerId: selectedCustomer.id,
+      customerId: originalCustomerId,
       packageId: selectedPackage.id,
       eventName: state.eventName,
       eventDate: state.eventDate,
@@ -1893,10 +1924,10 @@ export default function QuoteWizard({
     <main className="min-h-screen bg-cdl-bg px-4 py-8 text-cdl-fg sm:px-8 sm:py-10">
       <div className="mx-auto max-w-6xl">
         <Link
-          href="/quotes"
+          href={isEditMode && quoteId ? `/quotes/${quoteId}` : '/quotes'}
           className="mb-8 inline-flex items-center text-sm text-cdl-muted transition-colors hover:text-cdl-brand"
         >
-          ← Voltar às cotações
+          {isEditMode ? '← Voltar para cotação' : '← Voltar às cotações'}
         </Link>
 
         <header className="relative mb-8 overflow-hidden rounded-2xl border border-cdl-border bg-cdl-surface px-7 py-10 shadow-cdl sm:px-10 sm:py-12">
@@ -1994,24 +2025,28 @@ export default function QuoteWizard({
           </div>
         )}
 
-        {step === 0 && isEditMode && selectedCustomer ? (
+        {step === 0 && isEditMode ? (
           <SectionCard title="Etapa 1 — Cliente">
             <div className="sm:col-span-2 rounded-xl border border-cdl-border bg-cdl-inset p-5">
               <p className="text-xs font-bold uppercase tracking-wider text-cdl-muted">
-                Cliente da cotação (somente leitura)
+                Cliente atual
               </p>
               <p className="mt-2 text-xl font-black text-cdl-title">
-                {getCustomerName(selectedCustomer)}
+                {editCustomerDisplayName}
               </p>
-              {selectedCustomer.email ? (
-                <p className="mt-1 text-sm text-cdl-muted">{selectedCustomer.email}</p>
+              {linkedCustomer?.email ? (
+                <p className="mt-1 text-sm text-cdl-muted">{linkedCustomer.email}</p>
               ) : null}
-              {selectedCustomer.phone ? (
-                <p className="text-sm text-cdl-muted">{selectedCustomer.phone}</p>
+              {linkedCustomer?.phone ? (
+                <p className="text-sm text-cdl-muted">{linkedCustomer.phone}</p>
+              ) : null}
+              {!linkedCustomer && state.customerId ? (
+                <p className="mt-2 font-mono text-xs text-cdl-subtle">
+                  ID: {state.customerId}
+                </p>
               ) : null}
               <p className="mt-4 text-sm text-cdl-text-secondary">
-                O cliente não pode ser alterado nesta tela. Para trocar o
-                cliente, use o cadastro de clientes no futuro.
+                O cliente não pode ser alterado nesta tela.
               </p>
             </div>
           </SectionCard>
@@ -2076,14 +2111,6 @@ export default function QuoteWizard({
             </div>
           </SectionCard>
         )}
-
-        {step === 0 && isEditMode && !selectedCustomer ? (
-          <SectionCard title="Etapa 1 — Cliente">
-            <p className="text-sm text-cdl-action sm:col-span-2">
-              Cliente não encontrado para esta cotação.
-            </p>
-          </SectionCard>
-        ) : null}
 
         {step === 1 && (
           <SectionCard title="Etapa 2 — Evento">
@@ -2460,7 +2487,11 @@ export default function QuoteWizard({
             state={state}
             quoteTotals={quoteTotals}
             customerName={
-              selectedCustomer ? getCustomerName(selectedCustomer) : '—'
+              isEditMode
+                ? editCustomerDisplayName
+                : selectedCustomer
+                  ? getCustomerName(selectedCustomer)
+                  : '—'
             }
             packageName={
               selectedPackage ? getPackageName(selectedPackage) : null
@@ -2478,6 +2509,7 @@ export default function QuoteWizard({
             saving={saving}
             saveErrorInfo={saveErrorInfo}
             isEditMode={isEditMode}
+            quoteId={quoteId}
             onGoToStep={setStep}
             onBack={goBack}
             onSave={handleSaveQuote}
