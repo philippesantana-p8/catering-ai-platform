@@ -6,9 +6,9 @@ import {
 export const WIZARD_STEP_LABELS = [
   'Cliente',
   'Evento',
-  'Churrasqueira',
   'Pacote',
   'Adicionais',
+  'Churrasqueira',
   'Milhagem',
   'Reserva',
   'Resumo',
@@ -64,7 +64,8 @@ export type PendingStepIssue = {
   issues: string[]
 }
 
-const MANDATORY_STEP_INDICES = [0, 1, 2, 3, 5, 6] as const
+/** Etapas obrigatórias (Adicionais = opcional, índice 3). */
+const MANDATORY_STEP_INDICES = [0, 1, 2, 4, 5, 6] as const
 
 function isFilled(value: string) {
   return value.trim().length > 0
@@ -103,6 +104,14 @@ export function getStepIssues(
       }
       break
     case 2:
+      if (!selectedPackage) issues.push('Selecione um pacote.')
+      break
+    case 3:
+      if (ctx.additionalsCount === 0) {
+        issues.push('Nenhum adicional selecionado (opcional).')
+      }
+      break
+    case 4:
       if (!state.grillSetupAnswered) {
         issues.push('Informe se o cliente possui churrasqueira.')
       }
@@ -113,14 +122,6 @@ export function getStepIssues(
       }
       if (state.grillRentalRequired && state.grillRentalQty <= 0) {
         issues.push('Informe a quantidade de churrasqueiras para aluguel.')
-      }
-      break
-    case 3:
-      if (!selectedPackage) issues.push('Selecione um pacote.')
-      break
-    case 4:
-      if (ctx.additionalsCount === 0) {
-        issues.push('Nenhum adicional selecionado (opcional).')
       }
       break
     case 5:
@@ -193,7 +194,7 @@ export function getStepVisualStatus(
     return areMandatoryStepsComplete(ctx) ? 'complete' : 'error'
   }
 
-  if (stepIndex === 4) {
+  if (stepIndex === 3) {
     return ctx.additionalsCount > 0 ? 'complete' : 'pending'
   }
 
@@ -219,7 +220,7 @@ export function getStepStatus(
 
 /** @deprecated Use isMandatoryStepComplete */
 export function isStepComplete(stepIndex: number, ctx: StepStatusContext): boolean {
-  if (stepIndex === 4) return ctx.additionalsCount > 0
+  if (stepIndex === 3) return ctx.additionalsCount > 0
   if (stepIndex === 7) return areMandatoryStepsComplete(ctx)
   return isMandatoryStepComplete(stepIndex, ctx)
 }

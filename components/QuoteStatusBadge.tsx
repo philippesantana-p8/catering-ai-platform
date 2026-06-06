@@ -45,18 +45,26 @@ export function QuoteBoolBadge({
   label,
   value,
   variant = 'default',
+  hasGrill,
 }: {
   label: string
   value: boolean | null | undefined
   variant?: 'default' | 'photo'
+  hasGrill?: boolean | null
 }) {
   let text = '—'
   let className = 'border-cdl-border bg-cdl-inset text-cdl-muted'
 
   if (variant === 'photo') {
-    if (value === true) {
+    if (hasGrill === false) {
+      text = 'Não aplica'
+      className = 'border-cdl-border bg-cdl-inset text-cdl-text-secondary'
+    } else if (value === true) {
       text = 'Pendente'
       className = 'border-cdl-warning-border bg-cdl-warning-soft text-cdl-warning'
+    } else if (value === false && hasGrill === true) {
+      text = 'Recebida'
+      className = 'border-cdl-success-border bg-cdl-success-soft text-cdl-success'
     } else if (value === false) {
       text = 'Não aplica'
       className = 'border-cdl-border bg-cdl-inset text-cdl-text-secondary'

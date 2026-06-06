@@ -99,9 +99,9 @@ export type AdditionalItem = {
 const STEPS = [
   'Cliente',
   'Evento',
-  'Churrasqueira',
   'Pacote',
   'Adicionais',
+  'Churrasqueira',
   'Milhagem',
   'Reserva',
   'Resumo',
@@ -1752,7 +1752,7 @@ export default function QuoteWizard({
 
   function selectPackageAndAdvance(packageId: string) {
     updateState({ packageId })
-    setStep(4)
+    setStep(3)
   }
 
   function setAdditionalQty(itemId: string, quantity: number) {
@@ -1777,7 +1777,7 @@ export default function QuoteWizard({
   }
 
   function goNext() {
-    if (step === 2 && !state.grillSetupAnswered) {
+    if (step === 4 && !state.grillSetupAnswered) {
       updateState({ grillSetupAnswered: true })
     }
     if (step < STEPS.length - 1) setStep((s) => s + 1)
@@ -2165,7 +2165,108 @@ export default function QuoteWizard({
         )}
 
         {step === 2 && (
-          <SectionCard title="Etapa 3 — Churrasqueira">
+          <div className="space-y-6">
+            <section className="rounded-2xl border border-cdl-border bg-cdl-surface p-7 shadow-cdl sm:p-9">
+              <h2 className="cdl-section-title !mb-0 !border-0 !pb-0">
+                Etapa 3 — Pacote
+              </h2>
+              <p className="mt-1 text-sm text-cdl-muted">
+                Clique em uma categoria para ver os pacotes com foto
+              </p>
+            </section>
+
+            {packagesWithoutSides.length === 0 &&
+            packagesWithSides.length === 0 &&
+            customPackages.length === 0 ? (
+              <p className="text-sm text-cdl-muted">Nenhum pacote disponível.</p>
+            ) : (
+              <div className="space-y-3">
+                <PackageBlock
+                  title="Sem guarnições"
+                  subtitle="BBQTRAD · BBQSEL · BBQCHO · BBQPRI"
+                  packages={packagesWithoutSides}
+                  selectedPackageId={state.packageId}
+                  expanded={openPackageBlocks.has('without-sides')}
+                  onToggle={() => togglePackageBlock('without-sides')}
+                  onSelect={(id) => updateState({ packageId: id })}
+                  onSelectAndAdvance={selectPackageAndAdvance}
+                />
+                <PackageBlock
+                  title="Com guarnições"
+                  subtitle="BBQTRAD+ · BBQSEL+ · BBQCHO+ · BBQPRI+"
+                  packages={packagesWithSides}
+                  selectedPackageId={state.packageId}
+                  expanded={openPackageBlocks.has('with-sides')}
+                  onToggle={() => togglePackageBlock('with-sides')}
+                  onSelect={(id) => updateState({ packageId: id })}
+                  onSelectAndAdvance={selectPackageAndAdvance}
+                />
+                <PackageBlock
+                  title="Personalizado"
+                  subtitle="BBQPERS sem guarnições · BBQPERS+ com guarnições"
+                  packages={customPackages}
+                  selectedPackageId={state.packageId}
+                  expanded={openPackageBlocks.has('custom')}
+                  onToggle={() => togglePackageBlock('custom')}
+                  onSelect={(id) => updateState({ packageId: id })}
+                  onSelectAndAdvance={selectPackageAndAdvance}
+                />
+              </div>
+            )}
+          </div>
+        )}
+
+        {step === 3 && (
+          <div className="space-y-6">
+            <section className="rounded-2xl border border-cdl-border bg-cdl-surface p-7 shadow-cdl sm:p-9">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="cdl-section-title !mb-0 !border-0 !pb-0">
+                    Etapa 4 — Adicionais
+                  </h2>
+                  <p className="mt-1 text-sm text-cdl-muted">
+                    Clique em uma categoria para ver os itens com foto
+                  </p>
+                </div>
+                {additionalsCount > 0 && (
+                  <span className="inline-flex rounded-full border border-cdl-success-border bg-cdl-success-soft px-3 py-1 text-xs font-bold uppercase tracking-wider text-cdl-success">
+                    {additionalsCount} adicionais selecionados
+                  </span>
+                )}
+              </div>
+            </section>
+
+            {additionalItemsByCategory.length === 0 ? (
+              <p className="text-sm text-cdl-muted">Nenhum adicional disponível.</p>
+            ) : (
+              <div className="space-y-3">
+                {additionalItemsByCategory.map(({ category, items }) => (
+                  <AdditionalCategorySection
+                    key={category}
+                    category={category}
+                    items={items}
+                    expanded={openAdditionalCategories.has(category)}
+                    selectedCount={selectedCountByCategory[category] ?? 0}
+                    quantities={state.additionals}
+                    billableGuestCount={billableGuestCount}
+                    onToggle={() => toggleAdditionalCategory(category)}
+                    onChangeQty={setAdditionalQty}
+                  />
+                ))}
+              </div>
+            )}
+
+            <div className="flex justify-end rounded-2xl border border-cdl-border bg-cdl-surface p-7 shadow-cdl sm:p-9">
+              <WizardStepButton
+                label="Continuar para Churrasqueira →"
+                onClick={() => setStep(4)}
+              />
+            </div>
+          </div>
+        )}
+
+        {step === 4 && (
+          <SectionCard title="Etapa 5 — Churrasqueira">
             <div className="grid grid-cols-1 gap-5 sm:col-span-2 sm:grid-cols-2">
               <CheckboxField
                 label="Cliente tem churrasqueira?"
@@ -2229,107 +2330,6 @@ export default function QuoteWizard({
               </div>
             </div>
           </SectionCard>
-        )}
-
-        {step === 3 && (
-          <div className="space-y-6">
-            <section className="rounded-2xl border border-cdl-border bg-cdl-surface p-7 shadow-cdl sm:p-9">
-              <h2 className="cdl-section-title !mb-0 !border-0 !pb-0">
-                Etapa 4 — Pacote
-              </h2>
-              <p className="mt-1 text-sm text-cdl-muted">
-                Clique em uma categoria para ver os pacotes com foto
-              </p>
-            </section>
-
-            {packagesWithoutSides.length === 0 &&
-            packagesWithSides.length === 0 &&
-            customPackages.length === 0 ? (
-              <p className="text-sm text-cdl-muted">Nenhum pacote disponível.</p>
-            ) : (
-              <div className="space-y-3">
-                <PackageBlock
-                  title="Sem guarnições"
-                  subtitle="BBQTRAD · BBQSEL · BBQCHO · BBQPRI"
-                  packages={packagesWithoutSides}
-                  selectedPackageId={state.packageId}
-                  expanded={openPackageBlocks.has('without-sides')}
-                  onToggle={() => togglePackageBlock('without-sides')}
-                  onSelect={(id) => updateState({ packageId: id })}
-                  onSelectAndAdvance={selectPackageAndAdvance}
-                />
-                <PackageBlock
-                  title="Com guarnições"
-                  subtitle="BBQTRAD+ · BBQSEL+ · BBQCHO+ · BBQPRI+"
-                  packages={packagesWithSides}
-                  selectedPackageId={state.packageId}
-                  expanded={openPackageBlocks.has('with-sides')}
-                  onToggle={() => togglePackageBlock('with-sides')}
-                  onSelect={(id) => updateState({ packageId: id })}
-                  onSelectAndAdvance={selectPackageAndAdvance}
-                />
-                <PackageBlock
-                  title="Personalizado"
-                  subtitle="BBQPERS sem guarnições · BBQPERS+ com guarnições"
-                  packages={customPackages}
-                  selectedPackageId={state.packageId}
-                  expanded={openPackageBlocks.has('custom')}
-                  onToggle={() => togglePackageBlock('custom')}
-                  onSelect={(id) => updateState({ packageId: id })}
-                  onSelectAndAdvance={selectPackageAndAdvance}
-                />
-              </div>
-            )}
-          </div>
-        )}
-
-        {step === 4 && (
-          <div className="space-y-6">
-            <section className="rounded-2xl border border-cdl-border bg-cdl-surface p-7 shadow-cdl sm:p-9">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <h2 className="cdl-section-title !mb-0 !border-0 !pb-0">
-                    Etapa 5 — Adicionais
-                  </h2>
-                  <p className="mt-1 text-sm text-cdl-muted">
-                    Clique em uma categoria para ver os itens com foto
-                  </p>
-                </div>
-                {additionalsCount > 0 && (
-                  <span className="inline-flex rounded-full border border-cdl-success-border bg-cdl-success-soft px-3 py-1 text-xs font-bold uppercase tracking-wider text-cdl-success">
-                    {additionalsCount} adicionais selecionados
-                  </span>
-                )}
-              </div>
-            </section>
-
-            {additionalItemsByCategory.length === 0 ? (
-              <p className="text-sm text-cdl-muted">Nenhum adicional disponível.</p>
-            ) : (
-              <div className="space-y-3">
-                {additionalItemsByCategory.map(({ category, items }) => (
-                  <AdditionalCategorySection
-                    key={category}
-                    category={category}
-                    items={items}
-                    expanded={openAdditionalCategories.has(category)}
-                    selectedCount={selectedCountByCategory[category] ?? 0}
-                    quantities={state.additionals}
-                    billableGuestCount={billableGuestCount}
-                    onToggle={() => toggleAdditionalCategory(category)}
-                    onChangeQty={setAdditionalQty}
-                  />
-                ))}
-              </div>
-            )}
-
-            <div className="flex justify-end rounded-2xl border border-cdl-border bg-cdl-surface p-7 shadow-cdl sm:p-9">
-              <WizardStepButton
-                label="Continuar para Milhagem →"
-                onClick={() => setStep(5)}
-              />
-            </div>
-          </div>
         )}
 
         {step === 5 && (

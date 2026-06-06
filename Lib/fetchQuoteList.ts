@@ -33,6 +33,7 @@ export type QuoteListItem = {
   grill_photo_required: boolean
   grill_rental_required: boolean
   mileage_fee: number | null
+  mileage_distance: number | null
 }
 
 type QuoteRow = {
@@ -51,6 +52,7 @@ type QuoteRow = {
   billable_guest_count: number | null
   additional_total: number | null
   mileage_fee: number | null
+  mileage_distance: number | null
 }
 
 type ListViewRow = {
@@ -89,7 +91,7 @@ type GrillViewRow = {
 
 /** Colunas base de `quotes` — sem filtro por source ou quote_status. */
 const QUOTE_LIST_SELECT =
-  'id, quote_number, quote_total, quote_status, created_at, customer_id, event_id, package_id, active, reservation_amount, balance_due, physical_guest_count, billable_guest_count, additional_total, mileage_fee'
+  'id, quote_number, quote_total, quote_status, created_at, customer_id, event_id, package_id, active, reservation_amount, balance_due, physical_guest_count, billable_guest_count, additional_total, mileage_fee, mileage_distance'
 
 function resolveCustomerName(
   abName: string | null | undefined,
@@ -297,6 +299,7 @@ export async function fetchQuoteList() {
       grill_photo_required: grill.grill_photo_required,
       grill_rental_required: grill.grill_rental_required,
       mileage_fee: row.mileage_fee,
+      mileage_distance: row.mileage_distance,
     } satisfies QuoteListItem
   })
 
