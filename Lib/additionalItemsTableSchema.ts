@@ -1,31 +1,34 @@
 /**
- * Colunas reais de `public.additional_items` (inferidas de queries do wizard).
- * `image_url` existe no catálogo; upload de imagem ainda não implementado.
+ * Colunas reais de `public.additional_items` (schema-safe).
+ * Não inclui: unit_price, price_per_person, photo_url, name.
  */
 export const ADDITIONAL_ITEMS_TABLE_COLUMNS = [
+  'id',
   'company_id',
+  'item_name',
+  'price',
+  'charge_type',
+  'unit_label',
+  'active',
+  'created_at',
   'item_key',
   'label_pt',
   'label_en',
   'label_es',
+  'category_key',
   'category_pt',
   'category_en',
   'category_es',
-  'price',
-  'price_per_person',
-  'price_per_unit',
-  'amount',
-  'pricing_type',
-  'charge_type',
   'quantity',
   'unit',
   'quantity_2',
   'uom_2',
-  'unit_label',
-  'display_order',
+  'pricing_type',
   'image_url',
-  'active',
-  'created_at',
+  'image_status',
+  'image_notes',
+  'currency_code',
+  'display_order',
   'updated_at',
 ] as const
 
@@ -34,68 +37,54 @@ export type AdditionalItemsTableColumn =
 
 export const ADDITIONAL_ITEMS_INSERT_COLUMNS = [
   'company_id',
+  'item_name',
+  'price',
+  'charge_type',
+  'unit_label',
+  'active',
   'item_key',
   'label_pt',
   'label_en',
   'label_es',
+  'category_key',
   'category_pt',
   'category_en',
   'category_es',
-  'price',
-  'price_per_person',
-  'price_per_unit',
-  'amount',
-  'pricing_type',
-  'charge_type',
   'quantity',
   'unit',
   'quantity_2',
   'uom_2',
-  'unit_label',
-  'display_order',
+  'pricing_type',
   'image_url',
-  'active',
+  'image_status',
+  'image_notes',
+  'currency_code',
+  'display_order',
 ] as const satisfies ReadonlyArray<AdditionalItemsTableColumn>
 
 export type AdditionalItemsInsertColumn =
   (typeof ADDITIONAL_ITEMS_INSERT_COLUMNS)[number]
 
 export type AdditionalItemsInsertPayload = Partial<
-  Record<
-    AdditionalItemsInsertColumn,
-    string | number | boolean | null
-  >
+  Record<AdditionalItemsInsertColumn, string | number | boolean | null>
 >
 
+/** Colunas para listagem no backoffice e selects do app. */
 export const ADDITIONAL_ITEMS_LIST_COLUMNS = [
   'id',
   'item_key',
+  'item_name',
   'label_pt',
-  'label_en',
-  'label_es',
   'category_pt',
-  'category_en',
-  'category_es',
   'price',
-  'price_per_person',
-  'price_per_unit',
-  'amount',
-  'pricing_type',
   'charge_type',
-  'quantity',
-  'unit',
-  'quantity_2',
-  'uom_2',
+  'pricing_type',
   'unit_label',
+  'currency_code',
   'display_order',
   'image_url',
   'active',
-  'updated_at',
 ] as const
-
-const ADDITIONAL_ITEMS_TABLE_COLUMN_SET = new Set<string>(
-  ADDITIONAL_ITEMS_TABLE_COLUMNS,
-)
 
 export function buildAdditionalItemsListSelect(): string {
   return ADDITIONAL_ITEMS_LIST_COLUMNS.join(', ')

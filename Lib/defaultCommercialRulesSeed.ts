@@ -1,83 +1,103 @@
-import type { CommercialRuleRow } from './commercialRulesTableSchema'
+import type { CommercialRuleValue } from './commercialRulesTableSchema'
 
-export const DEFAULT_COMMERCIAL_RULE_SEEDS: Array<
-  Omit<CommercialRuleRow, 'id' | 'updated_at'>
-> = [
+export type CommercialRuleSeed = {
+  rule_key: string
+  rule_value: CommercialRuleValue
+  active: boolean
+}
+
+export const DEFAULT_COMMERCIAL_RULE_SEEDS: CommercialRuleSeed[] = [
   {
     rule_key: 'deposit_percentage',
-    rule_value: '30',
-    rule_type: 'number',
-    description: 'Percentual padrão de reserva/sinal',
-    active: true,
-  },
-  {
-    rule_key: 'reservation_percentage',
-    rule_value: '30',
-    rule_type: 'number',
-    description: 'Alias de deposit_percentage',
+    rule_value: {
+      value: 30,
+      type: 'number',
+      label_pt: 'Reserva padrão (%)',
+    },
     active: true,
   },
   {
     rule_key: 'mileage_base_location',
-    rule_value: 'Orlando Eye',
-    rule_type: 'text',
-    description: 'Base de cálculo de milhagem',
+    rule_value: {
+      value: 'Orlando Eye',
+      type: 'text',
+      label_pt: 'Ponto base de milhagem',
+    },
     active: true,
   },
   {
     rule_key: 'mileage_free_limit',
-    rule_value: '20',
-    rule_type: 'number',
-    description: 'Milhas gratuitas a partir da base',
+    rule_value: {
+      value: 20,
+      type: 'number',
+      unit: 'mi',
+      label_pt: 'Milhas grátis',
+    },
     active: true,
   },
   {
     rule_key: 'mileage_rate',
-    rule_value: '2',
-    rule_type: 'number',
-    description: 'Taxa por milha acima do limite (USD)',
+    rule_value: {
+      value: 2,
+      type: 'number',
+      unit: 'USD/mi',
+      label_pt: 'Taxa por milha',
+    },
     active: true,
   },
   {
     rule_key: 'children_under_3_factor',
-    rule_value: '0',
-    rule_type: 'number',
-    description: 'Fator de cobrança crianças até 3 anos',
+    rule_value: {
+      value: 0,
+      type: 'number',
+      label_pt: 'Crianças até 3 anos',
+    },
     active: true,
   },
   {
     rule_key: 'children_4_to_12_factor',
-    rule_value: '0.5',
-    rule_type: 'number',
-    description: 'Fator de cobrança crianças 4–12 anos',
+    rule_value: {
+      value: 0.5,
+      type: 'number',
+      label_pt: 'Crianças 4 a 12 anos',
+    },
     active: true,
   },
   {
     rule_key: 'quote_validity_days',
-    rule_value: '7',
-    rule_type: 'number',
-    description: 'Validade padrão da cotação (dias)',
+    rule_value: {
+      value: 7,
+      type: 'number',
+      unit: 'days',
+      label_pt: 'Validade da cotação',
+    },
     active: true,
   },
   {
     rule_key: 'cancellation_policy_pt',
-    rule_value: '',
-    rule_type: 'text',
-    description: 'Política de cancelamento (PT)',
+    rule_value: {
+      value: 'Texto da política de cancelamento',
+      type: 'long_text',
+      label_pt: 'Política de cancelamento',
+    },
     active: true,
   },
   {
     rule_key: 'holiday_policy_pt',
-    rule_value: '',
-    rule_type: 'text',
-    description: 'Política de feriados (PT)',
+    rule_value: {
+      value: 'Texto da política de feriados',
+      type: 'long_text',
+      label_pt: 'Política de feriados',
+    },
     active: true,
   },
   {
     rule_key: 'commercial_notes_pt',
-    rule_value: '',
-    rule_type: 'text',
-    description: 'Observações comerciais (PT)',
+    rule_value: {
+      value: 'Observações comerciais',
+      type: 'long_text',
+      label_pt: 'Observações comerciais',
+    },
     active: true,
   },
 ]

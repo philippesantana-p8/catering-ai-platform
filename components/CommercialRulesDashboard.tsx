@@ -1,8 +1,13 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import BackofficeTableShell from '@/components/BackofficeTableShell'
-import type { CommercialRuleRow } from '@/Lib/commercialRulesTableSchema'
+import type {
+  CommercialRuleRow,
+  CommercialRuleValue,
+} from '@/Lib/commercialRulesTableSchema'
+import { formatCommercialRuleDisplayValue } from '@/Lib/commercialRulesTableSchema'
+import { getCommercialRuleDescription } from '@/Lib/getCommercialRuleDescription'
 import type { CommercialRulesSnapshot } from '@/Lib/supabaseCommercialRules'
 
 type ActiveFilter = 'active' | 'all'
@@ -15,12 +20,26 @@ type RulesApiResponse = {
   fallback: CommercialRulesSnapshot
 }
 
-const EMPTY_RULE: Omit<CommercialRuleRow, 'id'> = {
+type RuleDraft = {
+  rule_key: string
+  rule_value: CommercialRuleValue
+  active: boolean
+}
+
+const EMPTY_RULE_VALUE: CommercialRuleValue = {
+  value: '',
+  type: 'text',
+  label_pt: '',
+}
+
+const EMPTY_RULE: RuleDraft = {
   rule_key: '',
-  rule_value: '',
-  rule_type: 'text',
-  description: '',
+  rule_value: { ...EMPTY_RULE_VALUE },
   active: true,
+}
+
+function isLongTextType(type: string) {
+  return type === 'long_text' || type === 'text'
 }
 
 export default function CommercialRulesDashboard({
@@ -45,12 +64,15 @@ export default function CommercialRulesDashboard({
       rows = rows.filter((row) => row.active !== false)
     }
     if (!q) return rows
-    return rows.filter(
-      (row) =>
+    return rows.filter((row) => {
+      const label = getCommercialRuleDescription(row.rule_key, row.rule_value)
+      const display = formatCommercialRuleDisplayValue(row.rule_value)
+      return (
         row.rule_key.toLowerCase().includes(q) ||
-        (row.description ?? '').toLowerCase().includes(q) ||
-        (row.rule_value ?? '').toLowerCase().includes(q),
-    )
+        label.toLowerCase().includes(q) ||
+        display.toLowerCase().includes(q)
+      )
+    })
   }, [data.rows, search, activeFilter])
 
   const refresh = useCallback(async () => {
@@ -82,23 +104,34 @@ export default function CommercialRulesDashboard({
 
   function startNew() {
     setEditingId('new')
-    setDraft({ ...EMPTY_RULE })
+    setDraft({ ...EMPTY_RULE, rule_value: { ...EMPTY_RULE_VALUE } })
   }
 
   function startEdit(row: CommercialRuleRow) {
     setEditingId(row.id)
     setDraft({
       rule_key: row.rule_key,
-      rule_value: row.rule_value ?? '',
-      rule_type: row.rule_type ?? 'text',
-      description: row.description ?? '',
+      rule_value: row.rule_value ?? { ...EMPTY_RULE_VALUE },
       active: row.active !== false,
     })
   }
 
   function cancelEdit() {
     setEditingId(null)
-    setDraft({ ...EMPTY_RULE })
+    setDraft({ ...EMPTY_RULE, rule_value: { ...EMPTY_RULE_VALUE } })
+  }
+
+  function updateDraftValue(value: string) {
+    setDraft((current) => ({
+      ...current,
+      rule_value: {
+        ...current.rule_value,
+        value:
+          current.rule_value.type === 'number'
+            ? Number(value)
+            : value,
+      },
+    }))
   }
 
   async function saveRow() {
@@ -109,7 +142,9 @@ export default function CommercialRulesDashboard({
         method: editingId === 'new' ? 'POST' : 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(
-          editingId === 'new' ? draft : { id: editingId, ...draft },
+          editingId === 'new'
+            ? draft
+            : { id: editingId, ...draft },
         ),
       })
       const result = (await response.json()) as { error?: string }
@@ -192,13 +227,25 @@ export default function CommercialRulesDashboard({
     )
   }
 
+  function renderValueCell(row: CommercialRuleRow, editing: boolean) {
+    const ruleValue = editing ? draft.rule_value : row.rule_value
+    const displayValue = String(ruleValue?.value ?? '')
+    const multiline = isLongTextType(ruleValue?.type ?? 'text')
+
+    if (editing) {
+      return renderEditableField(displayValue, updateDraftValue, multiline)
+    }
+
+    return formatCommercialRuleDisplayValue(row.rule_value)
+  }
+
   return (
     <BackofficeTableShell
       title="Regras comerciais"
       subtitle="Parâmetros editáveis · Catering AI (fallback se tabela ausente)"
       search={search}
       onSearchChange={setSearch}
-      searchPlaceholder="rule_key ou descrição"
+      searchPlaceholder="rule_key ou rótulo"
       activeFilter={activeFilter}
       onActiveFilterChange={setActiveFilter}
       onRefresh={() => void refresh()}
@@ -239,7 +286,7 @@ export default function CommercialRulesDashboard({
         <table className="w-full min-w-[900px] border-collapse text-left">
           <thead>
             <tr className="border-b border-cdl-border bg-cdl-inset/50">
-              {['rule_key', 'rule_value', 'rule_type', 'description', 'Ações', 'Status'].map(
+              {['rule_key', 'valor', 'tipo', 'rótulo', 'Ações', 'Status'].map(
                 (h) => (
                   <th
                     key={h}
@@ -260,27 +307,37 @@ export default function CommercialRulesDashboard({
                   )}
                 </td>
                 <td className="px-3 py-2">
-                  {renderEditableField(draft.rule_value ?? '', (v) =>
-                    setDraft((c) => ({ ...c, rule_value: v })),
-                    true,
+                  {renderEditableField(
+                    String(draft.rule_value.value ?? ''),
+                    updateDraftValue,
+                    isLongTextType(draft.rule_value.type),
                   )}
                 </td>
                 <td className="px-3 py-2">
                   <select
-                    value={draft.rule_type ?? 'text'}
+                    value={draft.rule_value.type ?? 'text'}
                     onChange={(e) =>
-                      setDraft((c) => ({ ...c, rule_type: e.target.value }))
+                      setDraft((c) => ({
+                        ...c,
+                        rule_value: { ...c.rule_value, type: e.target.value },
+                      }))
                     }
                     className="rounded-lg border border-cdl-border bg-cdl-inset px-2 py-1.5 text-xs"
                   >
                     <option value="text">text</option>
                     <option value="number">number</option>
+                    <option value="long_text">long_text</option>
                     <option value="boolean">boolean</option>
                   </select>
                 </td>
                 <td className="px-3 py-2">
-                  {renderEditableField(draft.description ?? '', (v) =>
-                    setDraft((c) => ({ ...c, description: v })),
+                  {renderEditableField(
+                    draft.rule_value.label_pt ?? '',
+                    (v) =>
+                      setDraft((c) => ({
+                        ...c,
+                        rule_value: { ...c.rule_value, label_pt: v },
+                      })),
                   )}
                 </td>
                 <td className="px-3 py-2">
@@ -326,36 +383,40 @@ export default function CommercialRulesDashboard({
                       : row.rule_key}
                   </td>
                   <td className="px-3 py-2 align-top text-sm text-cdl-fg max-w-xs">
-                    {editingId === row.id
-                      ? renderEditableField(draft.rule_value ?? '', (v) =>
-                          setDraft((c) => ({ ...c, rule_value: v })),
-                          true,
-                        )
-                      : row.rule_value ?? '—'}
+                    {renderValueCell(row, editingId === row.id)}
                   </td>
                   <td className="px-3 py-2 align-top text-sm">
                     {editingId === row.id ? (
                       <select
-                        value={draft.rule_type ?? 'text'}
+                        value={draft.rule_value.type ?? 'text'}
                         onChange={(e) =>
-                          setDraft((c) => ({ ...c, rule_type: e.target.value }))
+                          setDraft((c) => ({
+                            ...c,
+                            rule_value: { ...c.rule_value, type: e.target.value },
+                          }))
                         }
                         className="rounded-lg border border-cdl-border bg-cdl-inset px-2 py-1.5 text-xs"
                       >
                         <option value="text">text</option>
                         <option value="number">number</option>
+                        <option value="long_text">long_text</option>
                         <option value="boolean">boolean</option>
                       </select>
                     ) : (
-                      row.rule_type ?? '—'
+                      row.rule_value?.type ?? '—'
                     )}
                   </td>
                   <td className="px-3 py-2 align-top text-sm text-cdl-muted">
                     {editingId === row.id
-                      ? renderEditableField(draft.description ?? '', (v) =>
-                          setDraft((c) => ({ ...c, description: v })),
+                      ? renderEditableField(
+                          draft.rule_value.label_pt ?? '',
+                          (v) =>
+                            setDraft((c) => ({
+                              ...c,
+                              rule_value: { ...c.rule_value, label_pt: v },
+                            })),
                         )
-                      : row.description ?? '—'}
+                      : getCommercialRuleDescription(row.rule_key, row.rule_value)}
                   </td>
                   <td className="px-3 py-2 align-top">
                     <div className="flex flex-wrap gap-1">

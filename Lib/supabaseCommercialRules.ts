@@ -44,6 +44,13 @@ function toText(value: unknown, fallback: string) {
   return fallback
 }
 
+function extractRuleScalar(raw: unknown): unknown {
+  if (raw && typeof raw === 'object' && 'value' in (raw as object)) {
+    return (raw as { value: unknown }).value
+  }
+  return raw
+}
+
 export function getFallbackCommercialRules(): CommercialRulesSnapshot {
   return {
     mileageBaseLocation: MILEAGE_BASE_LOCATION,
@@ -72,11 +79,13 @@ function mapKeyValueRules(rows: RuleRow[]): CommercialRulesSnapshot {
     if (row.active === false) continue
     byKey.set(
       key,
-      row.numeric_value ??
-        row.number_value ??
-        row.text_value ??
-        row.rule_value ??
-        row.value,
+      extractRuleScalar(
+        row.numeric_value ??
+          row.number_value ??
+          row.text_value ??
+          row.rule_value ??
+          row.value,
+      ),
     )
   }
 

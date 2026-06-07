@@ -3,39 +3,45 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import BackofficeTableShell from '@/components/BackofficeTableShell'
 import type { AdditionalItemListItem } from '@/Lib/fetchAdditionalItems'
-import { getAdditionalItemUnitPrice } from '@/Lib/getAdditionalItemUnitPrice'
+import { getAdditionalItemPrice } from '@/Lib/getAdditionalItemPrice'
 import type { AdditionalItemsInsertPayload } from '@/Lib/additionalItemsTableSchema'
 
 type ActiveFilter = 'active' | 'all'
 
+type ColumnKey = keyof AdditionalItemsInsertPayload | 'active'
+
 const EMPTY_ROW: AdditionalItemsInsertPayload = {
   item_key: '',
+  item_name: '',
   label_pt: '',
-  label_en: '',
-  label_es: '',
   category_pt: '',
   price: 0,
-  pricing_type: 'PER_UNIT',
   charge_type: 'UNIT',
+  pricing_type: 'PER_UNIT',
+  unit_label: 'UN',
+  currency_code: 'USD',
   display_order: 0,
   image_url: '',
   active: true,
 }
 
 const COLUMNS: Array<{
-  key: keyof AdditionalItemsInsertPayload
+  key: ColumnKey
   label: string
   type?: 'text' | 'number'
 }> = [
   { key: 'item_key', label: 'Chave', type: 'text' },
+  { key: 'item_name', label: 'Nome', type: 'text' },
   { key: 'label_pt', label: 'PT', type: 'text' },
-  { key: 'label_en', label: 'EN', type: 'text' },
-  { key: 'label_es', label: 'ES', type: 'text' },
   { key: 'category_pt', label: 'Categoria', type: 'text' },
   { key: 'price', label: 'Preço', type: 'number' },
-  { key: 'pricing_type', label: 'Tipo', type: 'text' },
+  { key: 'charge_type', label: 'charge_type', type: 'text' },
+  { key: 'pricing_type', label: 'pricing_type', type: 'text' },
+  { key: 'unit_label', label: 'unit_label', type: 'text' },
+  { key: 'currency_code', label: 'Moeda', type: 'text' },
   { key: 'display_order', label: 'Ordem', type: 'number' },
   { key: 'image_url', label: 'image_url', type: 'text' },
+  { key: 'active', label: 'Ativo', type: 'text' },
 ]
 
 async function fetchItemsFromApi(
@@ -78,7 +84,7 @@ export default function AdditionalItemsDashboard({
     const q = search.trim().toLowerCase()
     if (!q) return items
     return items.filter((item) =>
-      [item.item_key, item.label_pt, item.label_en, item.category_pt]
+      [item.item_key, item.item_name, item.label_pt, item.category_pt]
         .filter(Boolean)
         .join(' ')
         .toLowerCase()
@@ -115,15 +121,15 @@ export default function AdditionalItemsDashboard({
     setEditingId(item.id)
     setDraft({
       item_key: item.item_key ?? '',
+      item_name: item.item_name ?? '',
       label_pt: item.label_pt ?? '',
-      label_en: item.label_en ?? '',
-      label_es: item.label_es ?? '',
       category_pt: item.category_pt ?? '',
-      price: getAdditionalItemUnitPrice(item),
-      pricing_type: item.pricing_type ?? 'PER_UNIT',
+      price: getAdditionalItemPrice(item),
       charge_type: item.charge_type ?? 'UNIT',
+      pricing_type: item.pricing_type ?? 'PER_UNIT',
+      unit_label: item.unit_label ?? 'UN',
+      currency_code: item.currency_code ?? 'USD',
       display_order: item.display_order ?? 0,
-      image_url: item.image_url ?? '',
       active: item.active !== false,
     })
   }
@@ -139,8 +145,8 @@ export default function AdditionalItemsDashboard({
     const payload = {
       ...draft,
       charge_type:
-        draft.pricing_type === 'PER_PERSON' ? 'PERSON' : 'UNIT',
-      price: getAdditionalItemUnitPrice(draft),
+        draft.pricing_type === 'PER_PERSON' ? 'PERSON' : draft.charge_type ?? 'UNIT',
+      price: getAdditionalItemPrice(draft),
     }
     try {
       const url =
@@ -169,7 +175,7 @@ export default function AdditionalItemsDashboard({
   }
 
   async function deactivate(item: AdditionalItemListItem) {
-    const label = item.label_pt ?? item.item_key ?? 'Item'
+    const label = item.item_name ?? item.label_pt ?? item.item_key ?? 'Item'
     if (!window.confirm(`Inativar "${label}"?`)) return
     const response = await fetch(`/api/additional-items/${item.id}`, {
       method: 'PATCH',
@@ -186,9 +192,27 @@ export default function AdditionalItemsDashboard({
 
   function renderCell(
     item: AdditionalItemListItem,
-    key: keyof AdditionalItemsInsertPayload,
+    key: ColumnKey,
     type: 'text' | 'number' = 'text',
   ) {
+    if (key === 'active') {
+      if (editingId === item.id) {
+        return (
+          <select
+            value={draft.active === false ? 'false' : 'true'}
+            onChange={(e) =>
+              setDraft((c) => ({ ...c, active: e.target.value === 'true' }))
+            }
+            className="w-full rounded-lg border border-cdl-border bg-cdl-inset px-2 py-1.5 text-xs"
+          >
+            <option value="true">Ativo</option>
+            <option value="false">Inativo</option>
+          </select>
+        )
+      }
+      return item.active === false ? 'Inativo' : 'Ativo'
+    }
+
     if (editingId === item.id) {
       if (key === 'pricing_type') {
         return (
@@ -204,14 +228,16 @@ export default function AdditionalItemsDashboard({
           </select>
         )
       }
+      const draftKey = key as keyof AdditionalItemsInsertPayload
       return (
         <input
           type={type}
-          value={String(draft[key] ?? '')}
+          value={String(draft[draftKey] ?? '')}
           onChange={(e) =>
             setDraft((c) => ({
               ...c,
-              [key]: type === 'number' ? Number(e.target.value) : e.target.value,
+              [draftKey]:
+                type === 'number' ? Number(e.target.value) : e.target.value,
             }))
           }
           className="w-full min-w-[70px] rounded-lg border border-cdl-border bg-cdl-inset px-2 py-1.5 text-xs"
@@ -219,7 +245,7 @@ export default function AdditionalItemsDashboard({
       )
     }
     if (key === 'price') {
-      return String(getAdditionalItemUnitPrice(item))
+      return String(getAdditionalItemPrice(item))
     }
     return String(item[key as keyof AdditionalItemListItem] ?? '—')
   }
@@ -237,28 +263,17 @@ export default function AdditionalItemsDashboard({
       loading={loading}
       error={error}
       actions={
-        <>
-          <button
-            type="button"
-            onClick={startNew}
-            className="cdl-btn-primary inline-flex min-h-[44px] items-center justify-center rounded-xl px-5 py-3 text-sm font-bold"
-          >
-            Novo item adicional
-          </button>
-          {/* TODO: upload para bucket additional-item-images quando API existir */}
-          <button
-            type="button"
-            disabled
-            title="Upload de foto em breve"
-            className="inline-flex min-h-[44px] cursor-not-allowed items-center justify-center rounded-xl border border-cdl-border px-5 py-3 text-sm font-bold uppercase tracking-wider text-cdl-muted opacity-50"
-          >
-            Foto em breve
-          </button>
-        </>
+        <button
+          type="button"
+          onClick={startNew}
+          className="cdl-btn-primary inline-flex min-h-[44px] items-center justify-center rounded-xl px-5 py-3 text-sm font-bold"
+        >
+          Novo item adicional
+        </button>
       }
     >
       <div className="overflow-x-auto rounded-2xl border border-cdl-border bg-cdl-surface shadow-cdl">
-        <table className="w-full min-w-[1000px] border-collapse text-left">
+        <table className="w-full min-w-[1200px] border-collapse text-left">
           <thead>
             <tr className="border-b border-cdl-border bg-cdl-inset/50">
               {COLUMNS.map((col) => (
@@ -271,9 +286,6 @@ export default function AdditionalItemsDashboard({
               ))}
               <th className="px-3 py-3 text-xs font-bold uppercase tracking-wider text-cdl-muted">
                 Ações
-              </th>
-              <th className="px-3 py-3 text-xs font-bold uppercase tracking-wider text-cdl-muted">
-                Status
               </th>
             </tr>
           </thead>
@@ -293,10 +305,26 @@ export default function AdditionalItemsDashboard({
                         <option value="PER_UNIT">PER_UNIT</option>
                         <option value="PER_PERSON">PER_PERSON</option>
                       </select>
+                    ) : col.key === 'active' ? (
+                      <select
+                        value={draft.active === false ? 'false' : 'true'}
+                        onChange={(e) =>
+                          setDraft((c) => ({
+                            ...c,
+                            active: e.target.value === 'true',
+                          }))
+                        }
+                        className="w-full rounded-lg border border-cdl-border bg-cdl-inset px-2 py-1.5 text-xs"
+                      >
+                        <option value="true">Ativo</option>
+                        <option value="false">Inativo</option>
+                      </select>
                     ) : (
                       <input
                         type={col.type ?? 'text'}
-                        value={String(draft[col.key] ?? '')}
+                        value={String(
+                          draft[col.key as keyof AdditionalItemsInsertPayload] ?? '',
+                        )}
                         onChange={(e) =>
                           setDraft((c) => ({
                             ...c,
@@ -330,14 +358,13 @@ export default function AdditionalItemsDashboard({
                     </button>
                   </div>
                 </td>
-                <td className="px-3 py-2 text-xs">Novo</td>
               </tr>
             ) : null}
 
             {filteredItems.length === 0 && editingId !== 'new' ? (
               <tr>
                 <td
-                  colSpan={COLUMNS.length + 2}
+                  colSpan={COLUMNS.length + 1}
                   className="px-4 py-10 text-center text-cdl-muted"
                 >
                   {loading ? 'Carregando…' : 'Nenhum item encontrado.'}
@@ -395,9 +422,6 @@ export default function AdditionalItemsDashboard({
                         </>
                       )}
                     </div>
-                  </td>
-                  <td className="px-3 py-2 text-xs text-cdl-muted">
-                    {item.active === false ? 'Inativo' : 'Ativo'}
                   </td>
                 </tr>
               ))

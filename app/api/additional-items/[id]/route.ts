@@ -1,5 +1,5 @@
 import { getCdlCompanyId } from '@/Lib/cdlCompany'
-import { getAdditionalItemUnitPrice } from '@/Lib/getAdditionalItemUnitPrice'
+import { getAdditionalItemPrice } from '@/Lib/getAdditionalItemPrice'
 import {
   buildAdditionalItemsListSelect,
   pickAdditionalItemsUpdatePayload,
@@ -16,11 +16,10 @@ export async function PATCH(
 ) {
   const { id } = await context.params
 
-  let body: AdditionalItemsInsertPayload & { active?: boolean; price?: number | null }
+  let body: AdditionalItemsInsertPayload & { active?: boolean }
   try {
     body = (await request.json()) as AdditionalItemsInsertPayload & {
       active?: boolean
-      price?: number | null
     }
   } catch {
     return Response.json({ error: 'Payload inválido.' }, { status: 400 })
@@ -33,12 +32,7 @@ export async function PATCH(
     ? { active: false, updated_at: new Date().toISOString() }
     : {
         ...pickAdditionalItemsUpdatePayload(body),
-        ...(body.price != null ||
-        body.price_per_person != null ||
-        body.price_per_unit != null ||
-        body.amount != null
-          ? { price: getAdditionalItemUnitPrice(body) }
-          : {}),
+        ...(body.price != null ? { price: getAdditionalItemPrice(body) } : {}),
         ...(body.active !== undefined ? { active: body.active } : {}),
         updated_at: new Date().toISOString(),
       }

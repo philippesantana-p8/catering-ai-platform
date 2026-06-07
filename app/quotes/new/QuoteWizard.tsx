@@ -23,7 +23,7 @@ import {
   CUSTOMER_DISPLAY_NAME_EMPTY,
   getCustomerDisplayName,
 } from '../../../Lib/getCustomerDisplayName'
-import { getAdditionalItemUnitPrice } from '../../../Lib/getAdditionalItemUnitPrice'
+import { getAdditionalItemPrice } from '../../../Lib/getAdditionalItemPrice'
 import { isUsablePhone, normalizePhone } from '../../../Lib/normalizePhone'
 import {
   dedupeCustomersList,
@@ -98,14 +98,12 @@ export type Package = {
 export type AdditionalItem = {
   id: string
   item_key?: string | null
+  item_name?: string | null
   label_pt?: string | null
   label_en?: string | null
   label_es?: string | null
   category_pt?: string | null
   price?: number | null
-  price_per_person?: number | null
-  price_per_unit?: number | null
-  amount?: number | null
   pricing_type?: string | null
   charge_type?: string | null
   quantity?: number | null
@@ -669,7 +667,14 @@ function getPackageImage(pkg: Package) {
 }
 
 function getAdditionalLabel(item: AdditionalItem) {
-  return item.label_pt ?? item.label_en ?? item.label_es ?? item.item_key ?? '—'
+  return (
+    item.item_name ??
+    item.label_pt ??
+    item.label_en ??
+    item.label_es ??
+    item.item_key ??
+    '—'
+  )
 }
 
 function isPerPersonAdditional(item: AdditionalItem) {
@@ -679,7 +684,7 @@ function isPerPersonAdditional(item: AdditionalItem) {
 }
 
 function getAdditionalUnitPrice(item: AdditionalItem) {
-  return getAdditionalItemUnitPrice(item)
+  return getAdditionalItemPrice(item)
 }
 
 function normalizeAdditionalQuantity(item: AdditionalItem, quantity: number) {

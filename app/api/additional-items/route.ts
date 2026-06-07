@@ -1,6 +1,6 @@
 import { getCdlCompanyId } from '@/Lib/cdlCompany'
 import { fetchAdditionalItems } from '@/Lib/fetchAdditionalItems'
-import { getAdditionalItemUnitPrice } from '@/Lib/getAdditionalItemUnitPrice'
+import { getAdditionalItemPrice } from '@/Lib/getAdditionalItemPrice'
 import {
   pickAdditionalItemsInsertPayload,
   type AdditionalItemsInsertPayload,
@@ -13,18 +13,16 @@ export const revalidate = 0
 function itemMatchesSearch(
   item: {
     item_key?: string | null
+    item_name?: string | null
     label_pt?: string | null
-    label_en?: string | null
-    label_es?: string | null
     category_pt?: string | null
   },
   query: string,
 ) {
   const haystack = [
     item.item_key,
+    item.item_name,
     item.label_pt,
-    item.label_en,
-    item.label_es,
     item.category_pt,
   ]
     .filter(Boolean)
@@ -73,11 +71,9 @@ export async function POST(request: Request) {
     return Response.json({ error: 'company_id não configurado.' }, { status: 500 })
   }
 
-  let body: AdditionalItemsInsertPayload & { price?: number | null }
+  let body: AdditionalItemsInsertPayload
   try {
-    body = (await request.json()) as AdditionalItemsInsertPayload & {
-      price?: number | null
-    }
+    body = (await request.json()) as AdditionalItemsInsertPayload
   } catch {
     return Response.json({ error: 'Payload inválido.' }, { status: 400 })
   }
@@ -85,12 +81,12 @@ export async function POST(request: Request) {
   if (!body.item_key?.toString().trim()) {
     return Response.json({ error: 'item_key é obrigatório.' }, { status: 400 })
   }
-  if (!body.label_pt?.toString().trim()) {
-    return Response.json({ error: 'label_pt é obrigatório.' }, { status: 400 })
+  if (!body.item_name?.toString().trim()) {
+    return Response.json({ error: 'item_name é obrigatório.' }, { status: 400 })
   }
 
   const now = new Date().toISOString()
-  const price = getAdditionalItemUnitPrice(body)
+  const price = getAdditionalItemPrice(body)
   const payload = {
     ...pickAdditionalItemsInsertPayload(body),
     company_id: companyId,

@@ -4,11 +4,18 @@ import {
   RESERVATION_PAYMENT_TEXT,
 } from '@/Lib/cdlCommercialRules'
 import {
+  buildCommercialRulesListSelect,
+  parseCommercialRuleValue,
+  pickCommercialRulesInsertPayload,
+  type CommercialRuleRow,
+  type CommercialRuleValue,
+} from '@/Lib/commercialRulesTableSchema'
+import { getCdlCompanyId } from '@/Lib/cdlCompany'
+import {
   fetchSupabaseCommercialRules,
   getFallbackCommercialRules,
   type CommercialRulesSnapshot,
 } from '@/Lib/supabaseCommercialRules'
-import type { CommercialRuleRow } from '@/Lib/commercialRulesTableSchema'
 import { supabase } from '@/Lib/supabase'
 
 export const dynamic = 'force-dynamic'
@@ -26,7 +33,7 @@ function buildTextRules() {
     foodPolicy: [...IMPORTANT_RULES.foodPolicy],
     latePayment: [...IMPORTANT_RULES.latePayment],
     decemberJanuary: [...IMPORTANT_RULES.decemberJanuary],
-    quoteValidityDays: 30,
+    quoteValidityDays: 7,
   }
 }
 
@@ -38,7 +45,7 @@ async function tableExists(): Promise<boolean> {
 async function fetchRuleRows(activeOnly: boolean): Promise<CommercialRuleRow[]> {
   let query = supabase
     .from(RULE_TABLE)
-    .select('id, rule_key, rule_value, rule_type, description, active, updated_at')
+    .select(buildCommercialRulesListSelect())
     .order('rule_key', { ascending: true })
 
   if (activeOnly) {
@@ -47,7 +54,22 @@ async function fetchRuleRows(activeOnly: boolean): Promise<CommercialRuleRow[]> 
 
   const { data, error } = await query
   if (error) return []
-  return (data ?? []) as CommercialRuleRow[]
+  return (data ?? []).map((row) => {
+    const typed = row as unknown as Record<string, unknown>
+    return {
+      ...typed,
+      rule_value: parseCommercialRuleValue(typed.rule_value),
+    } as CommercialRuleRow
+  })
+}
+
+function normalizeRuleValueInput(
+  body: Partial<CommercialRuleRow>,
+): CommercialRuleValue | null {
+  if (body.rule_value) {
+    return parseCommercialRuleValue(body.rule_value)
+  }
+  return null
 }
 
 export async function GET(request: Request) {
@@ -81,6 +103,11 @@ export async function POST(request: Request) {
     )
   }
 
+  const companyId = getCdlCompanyId()
+  if (!companyId?.trim()) {
+    return Response.json({ error: 'company_id não configurado.' }, { status: 500 })
+  }
+
   let body: Partial<CommercialRuleRow>
   try {
     body = (await request.json()) as Partial<CommercialRuleRow>
@@ -93,24 +120,40 @@ export async function POST(request: Request) {
     return Response.json({ error: 'rule_key é obrigatório.' }, { status: 400 })
   }
 
+  const ruleValue = normalizeRuleValueInput(body)
+  if (!ruleValue) {
+    return Response.json({ error: 'rule_value é obrigatório.' }, { status: 400 })
+  }
+
+  const now = new Date().toISOString()
+  const insertPayload = {
+    ...pickCommercialRulesInsertPayload({
+      company_id: companyId,
+      rule_key: ruleKey,
+      rule_value: ruleValue,
+      active: body.active !== false,
+    }),
+    created_at: now,
+    updated_at: now,
+  }
+
   const { data, error } = await supabase
     .from(RULE_TABLE)
-    .insert({
-      rule_key: ruleKey,
-      rule_value: body.rule_value ?? '',
-      rule_type: body.rule_type ?? 'text',
-      description: body.description ?? null,
-      active: body.active !== false,
-      updated_at: new Date().toISOString(),
-    })
-    .select('id, rule_key, rule_value, rule_type, description, active, updated_at')
+    .insert(insertPayload)
+    .select(buildCommercialRulesListSelect())
     .single()
 
   if (error) {
     return Response.json({ error: error.message }, { status: 500 })
   }
 
-  return Response.json({ data })
+  const typed = data as unknown as Record<string, unknown>
+  return Response.json({
+    data: {
+      ...typed,
+      rule_value: parseCommercialRuleValue(typed.rule_value),
+    },
+  })
 }
 
 export async function PATCH(request: Request) {
@@ -137,17 +180,36 @@ export async function PATCH(request: Request) {
     updated_at: new Date().toISOString(),
   }
 
-  if (body.rule_value !== undefined) updatePayload.rule_value = body.rule_value
-  if (body.rule_type !== undefined) updatePayload.rule_type = body.rule_type
-  if (body.description !== undefined) updatePayload.description = body.description
-  if (body.rule_key !== undefined) updatePayload.rule_key = body.rule_key
-  if (body.active !== undefined) updatePayload.active = body.active
+  if (body.rule_key !== undefined) {
+    updatePayload.rule_key = body.rule_key
+  }
+  if (body.active !== undefined) {
+    updatePayload.active = body.active
+  }
+  if (body.rule_value) {
+    const existing = await supabase
+      .from(RULE_TABLE)
+      .select('rule_value')
+      .eq('id', body.id)
+      .maybeSingle()
+
+    const current = parseCommercialRuleValue(
+      (existing.data as { rule_value?: unknown } | null)?.rule_value,
+    )
+    const incoming = parseCommercialRuleValue(body.rule_value)
+    if (incoming) {
+      updatePayload.rule_value = {
+        ...(current ?? {}),
+        ...incoming,
+      }
+    }
+  }
 
   const { data, error } = await supabase
     .from(RULE_TABLE)
     .update(updatePayload)
     .eq('id', body.id)
-    .select('id, rule_key, rule_value, rule_type, description, active, updated_at')
+    .select(buildCommercialRulesListSelect())
     .single()
 
   if (error) {
@@ -155,5 +217,12 @@ export async function PATCH(request: Request) {
   }
 
   const rules: CommercialRulesSnapshot = await fetchSupabaseCommercialRules()
-  return Response.json({ data, rules })
+  const typed = data as unknown as Record<string, unknown>
+  return Response.json({
+    data: {
+      ...typed,
+      rule_value: parseCommercialRuleValue(typed.rule_value),
+    },
+    rules,
+  })
 }

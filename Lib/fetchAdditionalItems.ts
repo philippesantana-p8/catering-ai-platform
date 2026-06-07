@@ -5,27 +5,17 @@ import { supabase } from './supabase'
 export type AdditionalItemListItem = {
   id: string
   item_key?: string | null
+  item_name?: string | null
   label_pt?: string | null
-  label_en?: string | null
-  label_es?: string | null
   category_pt?: string | null
-  category_en?: string | null
-  category_es?: string | null
   price?: number | null
-  price_per_person?: number | null
-  price_per_unit?: number | null
-  amount?: number | null
-  pricing_type?: string | null
   charge_type?: string | null
-  quantity?: number | null
-  unit?: string | null
-  quantity_2?: number | null
-  uom_2?: string | null
+  pricing_type?: string | null
   unit_label?: string | null
+  currency_code?: string | null
   display_order?: number | null
   image_url?: string | null
   active?: boolean | null
-  updated_at?: string | null
 }
 
 type FetchAdditionalItemsOptions = {
@@ -43,7 +33,7 @@ export async function fetchAdditionalItems(
     .select(buildAdditionalItemsListSelect())
     .order('category_pt', { ascending: true, nullsFirst: false })
     .order('display_order', { ascending: true, nullsFirst: false })
-    .order('label_pt', { ascending: true })
+    .order('item_name', { ascending: true })
 
   if (companyId?.trim()) {
     query = query.or(`company_id.eq.${companyId},company_id.is.null`)

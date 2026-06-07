@@ -1,5 +1,9 @@
 import CommercialRulesDashboard from '@/components/CommercialRulesDashboard'
-import type { CommercialRuleRow } from '@/Lib/commercialRulesTableSchema'
+import {
+  buildCommercialRulesListSelect,
+  parseCommercialRuleValue,
+  type CommercialRuleRow,
+} from '@/Lib/commercialRulesTableSchema'
 import { getFallbackCommercialRules } from '@/Lib/supabaseCommercialRules'
 import { fetchSupabaseCommercialRules } from '@/Lib/supabaseCommercialRules'
 import { supabase } from '@/Lib/supabase'
@@ -7,14 +11,20 @@ import { supabase } from '@/Lib/supabase'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-async function fetchRuleRows() {
+async function fetchRuleRows(): Promise<CommercialRuleRow[]> {
   const { data, error } = await supabase
     .from('commercial_rules')
-    .select('id, rule_key, rule_value, rule_type, description, active, updated_at')
+    .select(buildCommercialRulesListSelect())
     .order('rule_key', { ascending: true })
 
   if (error) return []
-  return (data ?? []) as CommercialRuleRow[]
+  return (data ?? []).map((row) => {
+    const typed = row as unknown as Record<string, unknown>
+    return {
+      ...typed,
+      rule_value: parseCommercialRuleValue(typed.rule_value),
+    } as CommercialRuleRow
+  })
 }
 
 async function tableExists() {
