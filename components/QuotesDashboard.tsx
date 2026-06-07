@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { QuoteListItem } from '@/Lib/fetchQuoteList'
 import CdlBrandLogo from './CdlBrandLogo'
 import QuoteCard from './QuoteCard'
@@ -21,7 +21,7 @@ function formatRefreshTime(date: Date) {
 }
 
 async function fetchQuotesFromApi(): Promise<QuoteListItem[]> {
-  const response = await fetch('/api/quotes', {
+  const response = await fetch(`/api/quotes?_=${Date.now()}`, {
     cache: 'no-store',
     headers: { 'Cache-Control': 'no-cache' },
   })
@@ -48,6 +48,26 @@ function buildQuotesSummary(items: QuoteListItem[]) {
   }
 }
 
+function withoutDeletedQuotes(
+  items: QuoteListItem[],
+  deletedIds: ReadonlySet<string>,
+) {
+  if (deletedIds.size === 0) return items
+  return items.filter((quote) => !deletedIds.has(quote.id))
+}
+
+function pruneConfirmedDeletes(
+  deletedIds: Set<string>,
+  items: QuoteListItem[],
+) {
+  const apiIds = new Set(items.map((quote) => quote.id))
+  for (const id of deletedIds) {
+    if (!apiIds.has(id)) {
+      deletedIds.delete(id)
+    }
+  }
+}
+
 export default function QuotesDashboard({
   initialQuotes,
 }: {
@@ -55,17 +75,30 @@ export default function QuotesDashboard({
 }) {
   const router = useRouter()
   const isMobile = useIsMobile()
-  const [quotes, setQuotes] = useState<QuoteListItem[]>(initialQuotes)
+  const deletedIdsRef = useRef<Set<string>>(new Set())
+  const [quotes, setQuotes] = useState<QuoteListItem[]>(() =>
+    withoutDeletedQuotes(initialQuotes, deletedIdsRef.current),
+  )
   const [filters, setFilters] = useState<QuoteFiltersState>(EMPTY_FILTERS)
   const [loading, setLoading] = useState(false)
   const [refreshError, setRefreshError] = useState<string | null>(null)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(() => new Date())
   const [expandedQuoteId, setExpandedQuoteId] = useState<string | null>(null)
+  const [listVersion, setListVersion] = useState(0)
 
   const filteredQuotes = useFilteredQuotes(quotes, filters)
+  const summary = buildQuotesSummary(filteredQuotes)
+
+  const applyServerQuotes = useCallback((items: QuoteListItem[]) => {
+    pruneConfirmedDeletes(deletedIdsRef.current, items)
+    const next = withoutDeletedQuotes(items, deletedIdsRef.current)
+    setQuotes(next)
+    setListVersion((version) => version + 1)
+    return next
+  }, [])
 
   const refreshQuotes = useCallback(
-    async (options?: { silent?: boolean; excludeIds?: string[] }) => {
+    async (options?: { silent?: boolean }) => {
       if (!options?.silent) {
         setLoading(true)
       }
@@ -73,12 +106,7 @@ export default function QuotesDashboard({
 
       try {
         const next = await fetchQuotesFromApi()
-        const exclude = new Set(options?.excludeIds ?? [])
-        const sanitized =
-          exclude.size > 0
-            ? next.filter((quote) => !exclude.has(quote.id))
-            : next
-        setQuotes(sanitized)
+        applyServerQuotes(next)
         setLastUpdated(new Date())
         router.refresh()
       } catch (error) {
@@ -93,12 +121,20 @@ export default function QuotesDashboard({
         }
       }
     },
-    [router],
+    [applyServerQuotes, router],
   )
 
+  const didInitialFetchRef = useRef(false)
+
   useEffect(() => {
-    void refreshQuotes()
+    if (didInitialFetchRef.current) return
+    didInitialFetchRef.current = true
+    void refreshQuotes({ silent: true })
   }, [refreshQuotes])
+
+  useEffect(() => {
+    applyServerQuotes(initialQuotes)
+  }, [initialQuotes, applyServerQuotes])
 
   useEffect(() => {
     if (!isMobile) {
@@ -108,9 +144,11 @@ export default function QuotesDashboard({
 
   const handleQuoteDeleted = useCallback(
     (quoteId: string) => {
+      deletedIdsRef.current.add(quoteId)
       setQuotes((current) => current.filter((quote) => quote.id !== quoteId))
       setExpandedQuoteId((current) => (current === quoteId ? null : current))
-      void refreshQuotes({ silent: true, excludeIds: [quoteId] })
+      setListVersion((version) => version + 1)
+      void refreshQuotes({ silent: true })
     },
     [refreshQuotes],
   )
@@ -118,11 +156,6 @@ export default function QuotesDashboard({
   const handleToggleExpand = useCallback((quoteId: string) => {
     setExpandedQuoteId((current) => (current === quoteId ? null : quoteId))
   }, [])
-
-  const summary = useMemo(
-    () => buildQuotesSummary(filteredQuotes),
-    [filteredQuotes],
-  )
 
   return (
     <main className="quotes-pscs min-h-screen overflow-x-hidden px-4 py-6 sm:px-6 sm:py-10">
@@ -138,8 +171,8 @@ export default function QuotesDashboard({
                 Catering AI · CDL BBQ At Home
               </p>
               <p
+                key={`summary-${listVersion}-${summary.count}-${summary.totalValue}`}
                 className="mt-1 text-sm text-[var(--brand-text-muted)]"
-                key={`${summary.count}-${summary.totalValue.toFixed(2)}`}
               >
                 {summary.count} cotação(ões) · ${summary.totalValue.toFixed(2)}{' '}
                 em propostas
