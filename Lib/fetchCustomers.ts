@@ -1,6 +1,10 @@
 import { getCdlCompanyId } from './cdlCompany'
 import { buildCustomersListSelect } from './customersTableSchema'
-import { sortCustomersByRecency, type CustomerSearchRecord } from './searchCustomers'
+import {
+  dedupeCustomersList,
+  sortCustomersByRecency,
+  type CustomerSearchRecord,
+} from './searchCustomers'
 import { supabase } from './supabase'
 
 export type CustomerListItem = CustomerSearchRecord & { id: string }
@@ -27,7 +31,9 @@ export async function fetchActiveCustomers() {
   }
 
   return {
-    data: sortCustomersByRecency((data ?? []) as unknown as CustomerListItem[]),
+    data: dedupeCustomersList(
+      sortCustomersByRecency((data ?? []) as unknown as CustomerListItem[]),
+    ),
     error: null,
   }
 }

@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import AppMainNav from '@/components/AppMainNav'
 import PackageImageUploadPanel from '@/components/PackageImageUploadPanel'
 import { supabase } from '@/Lib/supabase'
 
@@ -12,6 +13,8 @@ export default async function PackageImagesPage() {
   return (
     <main className="min-h-screen bg-cdl-bg px-4 py-8 text-cdl-fg sm:px-6 sm:py-10">
       <div className="mx-auto max-w-2xl space-y-6">
+        <AppMainNav />
+
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-black text-cdl-title">

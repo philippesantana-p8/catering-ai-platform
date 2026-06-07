@@ -9,12 +9,26 @@ export type CustomerSearchRecord = {
   company_name?: string | null
   email?: string | null
   phone?: string | null
+  phone_normalized?: string | null
   ab_number?: string | null
+  city?: string | null
+  state?: string | null
+  source?: string | null
   updated_at?: string | null
   created_at?: string | null
 }
 
-function fieldMatchesQuery(field: string | null | undefined, query: string, queryDigits: string) {
+function resolvePhoneKey(customer: CustomerSearchRecord): string {
+  const normalized =
+    customer.phone_normalized?.trim() || normalizePhone(customer.phone)
+  return normalized.length >= 10 ? normalized : ''
+}
+
+function fieldMatchesQuery(
+  field: string | null | undefined,
+  query: string,
+  queryDigits: string,
+) {
   const text = field == null ? '' : String(field).trim().toLowerCase()
   if (!text) return false
   if (text.includes(query)) return true
@@ -55,19 +69,47 @@ export function customerMatchesSearch(
     customer.company_name,
     customer.email,
     customer.phone,
+    customer.phone_normalized,
     customer.ab_number,
   ]
 
   return fields.some((field) => fieldMatchesQuery(field, query, queryDigits))
 }
 
+/** Remove duplicados visíveis (mesmo id ou mesmo phone_normalized). */
+export function dedupeCustomersList<T extends CustomerSearchRecord & { id: string }>(
+  customers: T[],
+): T[] {
+  const sorted = sortCustomersByRecency(customers)
+  const seenIds = new Set<string>()
+  const seenPhones = new Set<string>()
+  const result: T[] = []
+
+  for (const customer of sorted) {
+    if (seenIds.has(customer.id)) continue
+
+    const phoneKey = resolvePhoneKey(customer)
+    if (phoneKey && seenPhones.has(phoneKey)) continue
+
+    seenIds.add(customer.id)
+    if (phoneKey) seenPhones.add(phoneKey)
+    result.push(customer)
+  }
+
+  return result
+}
+
 export function filterCustomersBySearch<T extends CustomerSearchRecord>(
   customers: T[],
   rawQuery: string,
 ): T[] {
+  const deduped = dedupeCustomersList(
+    customers.filter((row): row is T & { id: string } => Boolean(row.id)),
+  ) as T[]
+
   const query = rawQuery.trim()
-  if (!query) return customers
-  return customers.filter((customer) => customerMatchesSearch(customer, query))
+  if (!query) return deduped
+  return deduped.filter((customer) => customerMatchesSearch(customer, query))
 }
 
 export function sortCustomersByRecency<T extends CustomerSearchRecord>(
@@ -80,10 +122,13 @@ export function sortCustomersByRecency<T extends CustomerSearchRecord>(
   })
 }
 
-export function mergeCustomerIntoList<T extends CustomerSearchRecord & { id: string }>(
-  current: T[],
-  incoming: T,
-): T[] {
+export function mergeCustomerIntoList<
+  T extends CustomerSearchRecord & { id: string },
+>(current: T[], incoming: T): T[] {
   const without = current.filter((row) => row.id !== incoming.id)
-  return sortCustomersByRecency([incoming, ...without])
+  const phoneKey = resolvePhoneKey(incoming)
+  const withoutPhoneDup = phoneKey
+    ? without.filter((row) => resolvePhoneKey(row) !== phoneKey)
+    : without
+  return dedupeCustomersList(sortCustomersByRecency([incoming, ...withoutPhoneDup]))
 }

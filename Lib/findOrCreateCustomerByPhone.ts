@@ -15,6 +15,7 @@ import { supabase } from './supabase'
 export type CustomerRecord = {
   id: string
   phone?: string | null
+  phone_normalized?: string | null
   email?: string | null
   full_name?: string | null
   contact_name?: string | null
@@ -37,6 +38,8 @@ export type FindOrCreateCustomerResult = {
   error: { message: string } | null
 }
 
+const UNIQUE_VIOLATION = '23505'
+
 function resolveAbName(input: FindOrCreateCustomerInput): string {
   const name = input.name?.trim()
   if (name) return name
@@ -46,6 +49,7 @@ function resolveAbName(input: FindOrCreateCustomerInput): string {
 async function buildInsertRow(
   input: FindOrCreateCustomerInput,
   companyId: string,
+  phoneNormalized: string,
 ): Promise<CustomersInsertPayload> {
   const { number: abNumber, error: numberError } =
     await getNextAbNumber(companyId)
@@ -64,6 +68,7 @@ async function buildInsertRow(
 
   const row: CustomersInsertPayload = {
     phone,
+    phone_normalized: phoneNormalized,
     email,
     company_id: companyId,
     active: true,
@@ -79,26 +84,64 @@ async function buildInsertRow(
   return row
 }
 
-function phonesMatch(
-  stored: string | null | undefined,
-  normalizedTarget: string,
-): boolean {
-  if (!stored || !normalizedTarget) return false
-  const normalizedStored = normalizePhone(stored)
-  if (!normalizedStored) return false
-  if (normalizedStored === normalizedTarget) return true
-  if (normalizedStored.length >= 10 && normalizedTarget.length >= 10) {
-    return (
-      normalizedStored.slice(-10) === normalizedTarget.slice(-10)
+async function findActiveCustomerByPhoneNormalized(
+  companyId: string,
+  phoneNormalized: string,
+): Promise<CustomerRecord | null> {
+  const { data, error } = await supabase
+    .from('customers')
+    .select(buildCustomersListSelect())
+    .eq('company_id', companyId)
+    .eq('active', true)
+    .eq('phone_normalized', phoneNormalized)
+    .order('updated_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (error) {
+    console.warn(
+      '[CDL Customer] lookup by phone_normalized failed:',
+      error.message,
     )
+    return null
   }
-  return false
+
+  return (data as CustomerRecord | null) ?? null
+}
+
+async function findActiveCustomerByPhoneFallback(
+  companyId: string,
+  phoneNormalized: string,
+): Promise<CustomerRecord | null> {
+  const { data, error } = await supabase
+    .from('customers')
+    .select(buildCustomersListSelect())
+    .eq('company_id', companyId)
+    .eq('active', true)
+
+  if (error) {
+    return null
+  }
+
+  const rows = (data ?? []) as unknown as CustomerRecord[]
+  return (
+    rows.find((row) => {
+      const stored =
+        row.phone_normalized?.trim() || normalizePhone(row.phone)
+      if (!stored) return false
+      if (stored === phoneNormalized) return true
+      if (stored.length >= 10 && phoneNormalized.length >= 10) {
+        return stored.slice(-10) === phoneNormalized.slice(-10)
+      }
+      return false
+    }) ?? null
+  )
 }
 
 export async function findOrCreateCustomerByPhone(
   input: FindOrCreateCustomerInput,
 ): Promise<FindOrCreateCustomerResult> {
-  const normalized = normalizePhone(input.phone)
+  const phoneNormalized = normalizePhone(input.phone)
   if (!isUsablePhone(input.phone)) {
     return {
       customer: null,
@@ -116,29 +159,16 @@ export async function findOrCreateCustomerByPhone(
     }
   }
 
-  const { data: rows, error: searchError } = await supabase
-    .from('customers')
-    .select(buildCustomersListSelect())
-    .eq('company_id', companyId)
-
-  if (searchError) {
-    return {
-      customer: null,
-      created: false,
-      error: { message: searchError.message },
-    }
-  }
-
-  const existing = ((rows ?? []) as unknown as CustomerRecord[]).find((row) =>
-    phonesMatch(row.phone, normalized),
-  )
+  let existing =
+    (await findActiveCustomerByPhoneNormalized(companyId, phoneNormalized)) ??
+    (await findActiveCustomerByPhoneFallback(companyId, phoneNormalized))
 
   if (existing) {
     return { customer: existing, created: false, error: null }
   }
 
   const insertRow = pickCustomersInsertPayload(
-    await buildInsertRow(input, companyId),
+    await buildInsertRow(input, companyId, phoneNormalized),
   )
 
   const { data: created, error: insertError } = await supabase
@@ -147,15 +177,33 @@ export async function findOrCreateCustomerByPhone(
     .select(buildCustomersListSelect())
     .single()
 
-  if (insertError || !created) {
+  if (insertError) {
+    if (insertError.code === UNIQUE_VIOLATION) {
+      existing =
+        (await findActiveCustomerByPhoneNormalized(companyId, phoneNormalized)) ??
+        (await findActiveCustomerByPhoneFallback(companyId, phoneNormalized))
+
+      if (existing) {
+        return { customer: existing, created: false, error: null }
+      }
+    }
+
     return {
       customer: null,
       created: false,
       error: {
         message:
-          insertError?.message ??
+          insertError.message ??
           'Não foi possível criar cliente automaticamente.',
       },
+    }
+  }
+
+  if (!created) {
+    return {
+      customer: null,
+      created: false,
+      error: { message: 'Não foi possível criar cliente automaticamente.' },
     }
   }
 

@@ -4,6 +4,7 @@ import {
 } from '@/Lib/fetchCustomers'
 import {
   customerMatchesSearch,
+  dedupeCustomersList,
   sortCustomersByRecency,
 } from '@/Lib/searchCustomers'
 
@@ -26,10 +27,12 @@ export async function GET(request: Request) {
     )
   }
 
-  let result: CustomerListItem[] = data
+  let result = dedupeCustomersList(data)
   if (query) {
-    result = sortCustomersByRecency(
-      data.filter((customer) => customerMatchesSearch(customer, query)),
+    result = dedupeCustomersList(
+      sortCustomersByRecency(
+        data.filter((customer) => customerMatchesSearch(customer, query)),
+      ),
     )
   }
 

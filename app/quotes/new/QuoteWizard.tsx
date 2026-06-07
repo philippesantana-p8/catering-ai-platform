@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import AppMainNav from '../../../components/AppMainNav'
 import CdlBrandLogo from '../../../components/CdlBrandLogo'
 import QuoteWizardSummaryStep from '../../../components/quote-review/QuoteWizardSummaryStep'
 import { RESERVATION_PAYMENT_TEXT } from '../../../Lib/cdlCommercialRules'
@@ -24,6 +25,7 @@ import {
 } from '../../../Lib/getCustomerDisplayName'
 import { isUsablePhone, normalizePhone } from '../../../Lib/normalizePhone'
 import {
+  dedupeCustomersList,
   filterCustomersBySearch,
   mergeCustomerIntoList,
   sortCustomersByRecency,
@@ -56,6 +58,7 @@ export type Customer = {
   company_name?: string | null
   email?: string | null
   phone?: string | null
+  phone_normalized?: string | null
   address_line?: string | null
   address?: string | null
   street?: string | null
@@ -1541,7 +1544,7 @@ export default function QuoteWizard({
     null,
   )
   const [localCustomers, setLocalCustomers] = useState(() =>
-    sortCustomersByRecency(customers),
+    dedupeCustomersList(sortCustomersByRecency(customers)),
   )
   const [customersRefreshing, setCustomersRefreshing] = useState(false)
   const [customerLinkSuccess, setCustomerLinkSuccess] = useState<string | null>(
@@ -1558,7 +1561,7 @@ export default function QuoteWizard({
           merged.unshift(row)
         }
       }
-      return sortCustomersByRecency(merged)
+      return dedupeCustomersList(sortCustomersByRecency(merged))
     })
   }, [customers])
 
@@ -1585,7 +1588,7 @@ export default function QuoteWizard({
             merged.unshift(row)
           }
         }
-        return sortCustomersByRecency(merged)
+        return dedupeCustomersList(sortCustomersByRecency(merged))
       })
     } catch (refreshError) {
       updateState({
@@ -2202,12 +2205,15 @@ export default function QuoteWizard({
   return (
     <main className="min-h-screen bg-cdl-bg px-4 py-8 text-cdl-fg sm:px-8 sm:py-10">
       <div className="mx-auto max-w-6xl">
-        <Link
-          href={isEditMode && quoteId ? `/quotes/${quoteId}` : '/quotes'}
-          className="mb-8 inline-flex items-center text-sm text-cdl-muted transition-colors hover:text-cdl-brand"
-        >
-          {isEditMode ? '← Voltar para cotação' : '← Voltar às cotações'}
-        </Link>
+        <div className="mb-6 flex flex-col gap-4">
+          <AppMainNav />
+          <Link
+            href={isEditMode && quoteId ? `/quotes/${quoteId}` : '/quotes'}
+            className="inline-flex items-center text-sm text-cdl-muted transition-colors hover:text-cdl-brand"
+          >
+            {isEditMode ? '← Voltar para cotação' : '← Voltar às cotações'}
+          </Link>
+        </div>
 
         <header className="relative mb-8 overflow-hidden rounded-2xl border border-cdl-border bg-cdl-surface px-7 py-10 shadow-cdl sm:px-10 sm:py-12">
           <div

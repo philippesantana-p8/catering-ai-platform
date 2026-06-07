@@ -2,14 +2,37 @@
 
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import AppMainNav from '@/components/AppMainNav'
 import { getCustomerDisplayName } from '@/Lib/getCustomerDisplayName'
 import {
+  dedupeCustomersList,
   filterCustomersBySearch,
   sortCustomersByRecency,
   type CustomerSearchRecord,
 } from '@/Lib/searchCustomers'
 
 type CustomerRow = CustomerSearchRecord & { id: string }
+
+function formatUpdatedAt(value: string | null | undefined) {
+  if (!value) return '—'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '—'
+  return date.toLocaleString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+function formatCityState(
+  city: string | null | undefined,
+  state: string | null | undefined,
+) {
+  const parts = [city?.trim(), state?.trim()].filter(Boolean)
+  return parts.length > 0 ? parts.join(' / ') : null
+}
 
 async function fetchCustomersFromApi(query: string): Promise<CustomerRow[]> {
   const params = new URLSearchParams({ _: String(Date.now()) })
@@ -38,7 +61,7 @@ export default function CustomersDashboard({
   initialCustomers: CustomerRow[]
 }) {
   const [customers, setCustomers] = useState<CustomerRow[]>(() =>
-    sortCustomersByRecency(initialCustomers),
+    dedupeCustomersList(sortCustomersByRecency(initialCustomers)),
   )
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(false)
@@ -55,7 +78,7 @@ export default function CustomersDashboard({
     setError(null)
     try {
       const next = await fetchCustomersFromApi(query)
-      setCustomers(sortCustomersByRecency(next))
+      setCustomers(dedupeCustomersList(sortCustomersByRecency(next)))
     } catch (refreshError) {
       setError(
         refreshError instanceof Error
@@ -68,7 +91,7 @@ export default function CustomersDashboard({
   }, [search])
 
   useEffect(() => {
-    setCustomers(sortCustomersByRecency(initialCustomers))
+    setCustomers(dedupeCustomersList(sortCustomersByRecency(initialCustomers)))
   }, [initialCustomers])
 
   async function handleDeactivate(customer: CustomerRow) {
@@ -106,13 +129,15 @@ export default function CustomersDashboard({
   return (
     <main className="min-h-screen bg-cdl-bg px-4 py-6 sm:px-6 sm:py-10">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
+        <AppMainNav />
+
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-black text-cdl-title sm:text-3xl">
-              Clientes
+              Cadastros
             </h1>
             <p className="mt-1 text-sm text-cdl-muted">
-              Address Book · cadastros ativos da empresa
+              Clientes e contatos da operação
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -121,6 +146,12 @@ export default function CustomersDashboard({
               className="cdl-btn-primary inline-flex min-h-[44px] items-center justify-center rounded-xl px-5 py-3 text-sm font-bold"
             >
               Nova cotação
+            </Link>
+            <Link
+              href="/quotes"
+              className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-cdl-border bg-cdl-surface px-5 py-3 text-sm font-bold uppercase tracking-wider text-cdl-fg"
+            >
+              Cotações
             </Link>
             <button
               type="button"
@@ -156,40 +187,52 @@ export default function CustomersDashboard({
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {filteredCustomers.map((customer) => (
-              <article
-                key={customer.id}
-                className="flex flex-col gap-3 rounded-2xl border border-cdl-border bg-cdl-surface p-5 shadow-cdl"
-              >
-                <div>
-                  <h2 className="text-lg font-bold text-cdl-fg">
-                    {getCustomerDisplayName(customer)}
-                  </h2>
-                  {customer.ab_number ? (
-                    <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-cdl-muted">
-                      {customer.ab_number}
+            {filteredCustomers.map((customer) => {
+              const cityState = formatCityState(customer.city, customer.state)
+              return (
+                <article
+                  key={customer.id}
+                  className="flex flex-col gap-3 rounded-2xl border border-cdl-border bg-cdl-surface p-5 shadow-cdl"
+                >
+                  <div>
+                    {customer.ab_number ? (
+                      <p className="text-xs font-semibold uppercase tracking-wider text-cdl-brand">
+                        {customer.ab_number}
+                      </p>
+                    ) : null}
+                    <h2 className="mt-1 text-lg font-bold text-cdl-fg">
+                      {getCustomerDisplayName(customer)}
+                    </h2>
+                  </div>
+                  <div className="space-y-1 text-sm text-cdl-muted">
+                    {customer.phone ? <p>{customer.phone}</p> : null}
+                    {customer.email ? <p>{customer.email}</p> : null}
+                    {cityState ? <p>{cityState}</p> : null}
+                    {customer.source ? (
+                      <p>
+                        <span className="font-semibold text-cdl-fg">Origem:</span>{' '}
+                        {customer.source}
+                      </p>
+                    ) : null}
+                    <p className="text-xs">
+                      Atualizado em {formatUpdatedAt(customer.updated_at)}
                     </p>
-                  ) : null}
-                </div>
-                <div className="space-y-1 text-sm text-cdl-muted">
-                  {customer.phone ? <p>{customer.phone}</p> : null}
-                  {customer.email ? <p>{customer.email}</p> : null}
-                  {customer.company_name ? <p>{customer.company_name}</p> : null}
-                </div>
-                <div className="mt-auto flex flex-wrap gap-2 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => void handleDeactivate(customer)}
-                    disabled={deletingId === customer.id}
-                    className="inline-flex min-h-[40px] items-center justify-center rounded-xl border border-cdl-action px-4 py-2 text-xs font-bold uppercase tracking-wider text-cdl-action disabled:opacity-50"
-                  >
-                    {deletingId === customer.id
-                      ? 'Excluindo…'
-                      : 'Excluir cadastro'}
-                  </button>
-                </div>
-              </article>
-            ))}
+                  </div>
+                  <div className="mt-auto flex flex-wrap gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => void handleDeactivate(customer)}
+                      disabled={deletingId === customer.id}
+                      className="inline-flex min-h-[40px] items-center justify-center rounded-xl border border-cdl-action px-4 py-2 text-xs font-bold uppercase tracking-wider text-cdl-action disabled:opacity-50"
+                    >
+                      {deletingId === customer.id
+                        ? 'Excluindo…'
+                        : 'Excluir cadastro'}
+                    </button>
+                  </div>
+                </article>
+              )
+            })}
           </div>
         )}
       </div>
