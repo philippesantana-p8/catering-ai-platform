@@ -2,7 +2,10 @@ import type { CommercialRulesSnapshot } from './supabaseCommercialRules'
 
 import type { GrillPhotoStatus } from './grillPhotoStatus'
 
+export type QuoteLanguage = 'pt' | 'en' | 'es'
+
 export type WizardState = {
+  language: QuoteLanguage
   customerId: string | null
   customerDraftPhone: string
   customerDraftName: string
@@ -44,6 +47,7 @@ export function createInitialWizardState(
   rules: CommercialRulesSnapshot,
 ): WizardState {
   return {
+    language: 'pt',
     customerId: null,
     customerDraftPhone: '',
     customerDraftName: '',

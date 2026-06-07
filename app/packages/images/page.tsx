@@ -21,14 +21,14 @@ export default async function PackageImagesPage() {
               Imagens dos pacotes
             </h1>
             <p className="mt-1 text-sm text-cdl-muted">
-              Upload temporário para o catálogo de pacotes.
+              Upload de imagens do catálogo de pacotes.
             </p>
           </div>
           <Link
-            href="/quotes"
+            href="/packages"
             className="text-sm font-semibold text-cdl-brand hover:underline"
           >
-            ← Voltar às cotações
+            ← Voltar aos pacotes
           </Link>
         </div>
 

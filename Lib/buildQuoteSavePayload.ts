@@ -23,6 +23,7 @@ export type QuoteAdditionalSaveLine = {
 }
 
 export type QuoteSaveInput = {
+  language?: 'pt' | 'en' | 'es' | null
   customerId: string | null
   packageId: string
   eventName: string
@@ -188,6 +189,13 @@ export function buildQuoteSavePayload(
     const existing = input.existingSnapshot
     return {
       ...basePayload,
+      ...(options?.mode === 'update' && input.language
+        ? {
+            language: (['pt', 'en', 'es'].includes(String(input.language))
+              ? input.language
+              : 'pt') as 'pt' | 'en' | 'es',
+          }
+        : {}),
       package_price_per_person:
         existing.package_price_per_person ?? existing.package_unit_price,
       package_total: existing.package_total,
@@ -217,6 +225,10 @@ export function buildQuoteSavePayload(
     useCustomReservation: false,
   })
 
+  const quoteLanguage = (['pt', 'en', 'es'].includes(String(input.language ?? 'pt'))
+    ? (input.language ?? 'pt')
+    : 'pt') as 'pt' | 'en' | 'es'
+
   const createMeta =
     options?.mode === 'create'
       ? {
@@ -227,12 +239,19 @@ export function buildQuoteSavePayload(
           quote_date: quoteDate,
           expiration_date: addDaysIso(now, 30),
           currency_code: 'USD',
+          language: quoteLanguage,
         }
+      : {}
+
+  const updateLanguageMeta =
+    options?.mode === 'update' && input.language
+      ? { language: quoteLanguage }
       : {}
 
   return {
     ...basePayload,
     ...createMeta,
+    ...updateLanguageMeta,
     package_price_per_person: draftSnapshot.packageUnitPrice,
     package_total: draftSnapshot.packageTotal,
     additional_total: draftSnapshot.additionalTotal,

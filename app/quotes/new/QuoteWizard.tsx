@@ -2133,6 +2133,7 @@ export default function QuoteWizard({
       currentPricingFingerprint !== (initialPricingFingerprint ?? '')
 
     const payload: QuoteSaveInput = {
+      language: state.language,
       customerId: customerIdToSave,
       packageId: packageForSave.id,
       eventName: state.eventName,
@@ -2312,6 +2313,24 @@ export default function QuoteWizard({
 
         {step === 0 && isEditMode ? (
           <SectionCard title="Etapa 1 — Cliente">
+            <div className="sm:col-span-2">
+              <label className="flex flex-col gap-2">
+                <span className="cdl-eyebrow">Idioma da cotação</span>
+                <select
+                  value={state.language}
+                  onChange={(e) =>
+                    updateState({
+                      language: e.target.value as 'pt' | 'en' | 'es',
+                    })
+                  }
+                  className="rounded-xl border border-cdl-border bg-cdl-inset px-4 py-3 text-sm text-cdl-fg outline-none focus:border-cdl-accent-border"
+                >
+                  <option value="pt">Português (PT)</option>
+                  <option value="en">English (EN)</option>
+                  <option value="es">Español (ES)</option>
+                </select>
+              </label>
+            </div>
             <div className="sm:col-span-2 rounded-xl border border-cdl-border bg-cdl-inset p-5">
               <p className="text-xs font-bold uppercase tracking-wider text-cdl-muted">
                 Cliente atual
@@ -2339,6 +2358,27 @@ export default function QuoteWizard({
 
         {step === 0 && !isEditMode && (
           <SectionCard title="Etapa 1 — Cliente">
+            <div className="sm:col-span-2">
+              <label className="flex flex-col gap-2">
+                <span className="cdl-eyebrow">Idioma da cotação</span>
+                <select
+                  value={state.language}
+                  onChange={(e) =>
+                    updateState({
+                      language: e.target.value as 'pt' | 'en' | 'es',
+                    })
+                  }
+                  className="rounded-xl border border-cdl-border bg-cdl-inset px-4 py-3 text-sm text-cdl-fg outline-none focus:border-cdl-accent-border"
+                >
+                  <option value="pt">Português (PT)</option>
+                  <option value="en">English (EN)</option>
+                  <option value="es">Español (ES)</option>
+                </select>
+                <p className="text-xs text-cdl-muted">
+                  Usado no PDF, visualização pública e comunicações futuras.
+                </p>
+              </label>
+            </div>
             {!selectedCustomer ? (
               <div className="sm:col-span-2 rounded-xl border border-cdl-warning-border bg-cdl-warning-soft px-4 py-3">
                 <p className="text-sm leading-relaxed text-cdl-text-secondary">

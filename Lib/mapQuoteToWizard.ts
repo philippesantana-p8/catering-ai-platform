@@ -47,8 +47,15 @@ export function mapQuoteDetailToWizardState(
     grillPhotoMediaId,
   })
 
+  const quoteLanguage = quote.language
+  const language =
+    quoteLanguage === 'en' || quoteLanguage === 'es' || quoteLanguage === 'pt'
+      ? quoteLanguage
+      : 'pt'
+
   const state: WizardState = {
     ...createInitialWizardState(rules),
+    language,
     customerId: quote.customer_id ?? null,
     eventName:
       quote.event_name ??

@@ -6,28 +6,54 @@ import { usePathname } from 'next/navigation'
 const NAV_LINKS = [
   { href: '/quotes', label: 'Cotações' },
   { href: '/customers', label: 'Cadastros' },
-  { href: '/packages/images', label: 'Pacotes' },
+  { href: '/packages', label: 'Pacotes' },
+  { href: '/additional-items', label: 'Itens adicionais' },
+  { href: '/commercial-rules', label: 'Regras comerciais' },
+  { href: '/packages/images', label: 'Imagens' },
 ] as const
 
 function isNavActive(pathname: string, href: string) {
   if (href === '/quotes') {
-    return pathname === '/quotes' || pathname.startsWith('/quotes/')
+    return (
+      pathname === '/quotes' ||
+      (pathname.startsWith('/quotes/') && !pathname.startsWith('/quotes/new'))
+    )
   }
   if (href === '/customers') {
     return pathname === '/customers' || pathname.startsWith('/customers/')
   }
+  if (href === '/packages') {
+    return (
+      pathname === '/packages' ||
+      (pathname.startsWith('/packages/') && !pathname.startsWith('/packages/images'))
+    )
+  }
   if (href === '/packages/images') {
-    return pathname.startsWith('/packages')
+    return pathname.startsWith('/packages/images')
+  }
+  if (href === '/additional-items') {
+    return (
+      pathname === '/additional-items' ||
+      pathname.startsWith('/additional-items/')
+    )
+  }
+  if (href === '/commercial-rules') {
+    return (
+      pathname === '/commercial-rules' ||
+      pathname.startsWith('/commercial-rules/')
+    )
   }
   return pathname === href
 }
 
 export default function AppMainNav({ className = '' }: { className?: string }) {
   const pathname = usePathname() ?? ''
+  const isNewQuoteActive =
+    pathname === '/quotes/new' || pathname.startsWith('/quotes/new/')
 
   return (
     <nav
-      className={`flex flex-wrap gap-2 ${className}`}
+      className={`flex flex-wrap items-center gap-2 ${className}`}
       aria-label="Navegação principal"
     >
       {NAV_LINKS.map((link) => {
@@ -46,6 +72,16 @@ export default function AppMainNav({ className = '' }: { className?: string }) {
           </Link>
         )
       })}
+      <Link
+        href="/quotes/new"
+        className={`inline-flex min-h-[40px] items-center justify-center rounded-xl px-4 py-2 text-xs font-bold uppercase tracking-wider transition-colors sm:text-sm ${
+          isNewQuoteActive
+            ? 'border border-[var(--brand-accent)] bg-[color-mix(in_srgb,var(--brand-accent)_18%,transparent)] text-[var(--brand-accent)]'
+            : 'border border-[var(--brand-primary)] bg-[var(--brand-primary)] text-white hover:opacity-90'
+        }`}
+      >
+        Nova cotação
+      </Link>
     </nav>
   )
 }
