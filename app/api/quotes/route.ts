@@ -33,9 +33,9 @@ export async function POST(request: Request) {
     return Response.json({ error: 'Payload inválido.' }, { status: 400 })
   }
 
-  if (!body.customerId || !body.packageId) {
+  if (!body.packageId) {
     return Response.json(
-      { error: 'Cliente e pacote são obrigatórios.' },
+      { error: 'Pacote é obrigatório.' },
       { status: 400 },
     )
   }

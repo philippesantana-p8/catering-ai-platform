@@ -19,6 +19,7 @@ import {
   type SaveQuoteErrorInfo,
 } from '../../../Lib/supabaseSaveError'
 import { getCustomerDisplayName } from '../../../Lib/getCustomerDisplayName'
+import { isUsablePhone, normalizePhone } from '../../../Lib/normalizePhone'
 import {
   grillPhotoStatusToRequired,
   type GrillPhotoStatus,
@@ -1530,13 +1531,18 @@ export default function QuoteWizard({
   const [saveErrorInfo, setSaveErrorInfo] = useState<SaveQuoteErrorInfo | null>(
     null,
   )
+  const [localCustomers, setLocalCustomers] = useState(customers)
   const router = useRouter()
   const distanceInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    setLocalCustomers(customers)
+  }, [customers])
 
   const selectedCustomer = isEditMode
     ? linkedCustomer ??
       (state.customerId ? { id: state.customerId } as Customer : null)
-    : customers.find((c) => c.id === state.customerId) ?? null
+    : localCustomers.find((c) => c.id === state.customerId) ?? null
 
   const editCustomerDisplayName = linkedCustomer
     ? getCustomerDisplayName(linkedCustomer)
@@ -1547,8 +1553,8 @@ export default function QuoteWizard({
 
   const filteredCustomers = useMemo(() => {
     const query = customerSearch.trim().toLowerCase()
-    if (!query) return customers
-    return customers.filter((customer) => {
+    if (!query) return localCustomers
+    return localCustomers.filter((customer) => {
       const haystack = [
         getCustomerName(customer),
         customer.email,
@@ -1559,7 +1565,7 @@ export default function QuoteWizard({
         .toLowerCase()
       return haystack.includes(query)
     })
-  }, [customers, customerSearch])
+  }, [localCustomers, customerSearch])
 
   const packagesWithoutSides = useMemo(
     () =>
@@ -1830,7 +1836,7 @@ export default function QuoteWizard({
   }
 
   function selectCustomer(customerId: string) {
-    const customer = customers.find((c) => c.id === customerId)
+    const customer = localCustomers.find((c) => c.id === customerId)
     if (!customer) {
       updateState({ customerId })
       return
@@ -1840,9 +1846,104 @@ export default function QuoteWizard({
     setState((prev) => ({
       ...prev,
       customerId,
+      customerDraftPhone: customer.phone ?? '',
+      customerDraftName: getCustomerDisplayName(customer),
+      customerDraftEmail: customer.email ?? '',
+      customerPhoneLinkError: null,
       ...eventDefaults,
     }))
   }
+
+  async function resolveCustomerByPhone(
+    phone: string,
+    name: string,
+    email: string,
+  ): Promise<string | null> {
+    if (!isUsablePhone(phone)) return null
+
+    updateState({ customerPhoneLinking: true, customerPhoneLinkError: null })
+
+    try {
+      const response = await fetch('/api/customers/resolve-by-phone', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone,
+          name: name || undefined,
+          email: email || undefined,
+        }),
+      })
+      const result = (await response.json()) as {
+        customer?: Customer
+        created?: boolean
+        error?: string
+      }
+
+      if (!response.ok || !result.customer) {
+        updateState({
+          customerPhoneLinking: false,
+          customerPhoneLinkError:
+            result.error ?? 'Não foi possível vincular cliente pelo telefone.',
+        })
+        return null
+      }
+
+      const customer = result.customer
+      setLocalCustomers((current) => {
+        if (current.some((row) => row.id === customer.id)) return current
+        return [customer, ...current]
+      })
+
+      const eventDefaults = getEventDefaultsFromCustomer(customer)
+      setState((prev) => ({
+        ...prev,
+        customerId: customer.id,
+        customerDraftPhone: customer.phone ?? phone,
+        customerDraftName: getCustomerDisplayName(customer) || name,
+        customerDraftEmail: customer.email ?? email,
+        customerPhoneLinking: false,
+        customerPhoneLinkError: null,
+        ...eventDefaults,
+      }))
+      return customer.id
+    } catch {
+      updateState({
+        customerPhoneLinking: false,
+        customerPhoneLinkError: 'Erro de rede ao vincular cliente.',
+      })
+      return null
+    }
+  }
+
+  useEffect(() => {
+    if (isEditMode) return
+    if (!isUsablePhone(state.customerDraftPhone)) return
+    if (
+      state.customerId &&
+      selectedCustomer?.phone &&
+      normalizePhone(selectedCustomer.phone) ===
+        normalizePhone(state.customerDraftPhone)
+    ) {
+      return
+    }
+
+    const timer = window.setTimeout(() => {
+      void resolveCustomerByPhone(
+        state.customerDraftPhone,
+        state.customerDraftName,
+        state.customerDraftEmail,
+      )
+    }, 600)
+
+    return () => window.clearTimeout(timer)
+  }, [
+    isEditMode,
+    state.customerDraftPhone,
+    state.customerDraftName,
+    state.customerDraftEmail,
+    state.customerId,
+    selectedCustomer,
+  ])
 
   function selectCustomerAndAdvance(customerId: string) {
     selectCustomer(customerId)
@@ -1922,21 +2023,26 @@ export default function QuoteWizard({
       return
     }
 
-    const originalCustomerId = isEditMode
+    let customerIdToSave = isEditMode
       ? state.customerId ??
         (existingSnapshot as { customer_id?: string | null } | undefined)
           ?.customer_id ??
         null
-      : selectedCustomer?.id ?? null
+      : selectedCustomer?.id ?? state.customerId ?? null
 
-    if (!originalCustomerId || !state.packageId) {
+    if (!isEditMode && !customerIdToSave && isUsablePhone(state.customerDraftPhone)) {
+      const resolvedId = await resolveCustomerByPhone(
+        state.customerDraftPhone,
+        state.customerDraftName,
+        state.customerDraftEmail,
+      )
+      customerIdToSave = resolvedId
+    }
+
+    if (!state.packageId) {
       const errorInfo = buildSaveQuoteError(
         'validation',
-        new Error(
-          isEditMode
-            ? 'Pacote não selecionado ou cotação sem cliente vinculado.'
-            : 'Cliente ou pacote não selecionado.',
-        ),
+        new Error('Pacote não selecionado.'),
       )
       setSaveErrorInfo(errorInfo)
       return
@@ -1965,7 +2071,7 @@ export default function QuoteWizard({
       currentPricingFingerprint !== (initialPricingFingerprint ?? '')
 
     const payload: QuoteSaveInput = {
-      customerId: originalCustomerId,
+      customerId: customerIdToSave,
       packageId: packageForSave.id,
       eventName: state.eventName,
       eventDate: state.eventDate,
@@ -2168,9 +2274,73 @@ export default function QuoteWizard({
 
         {step === 0 && !isEditMode && (
           <SectionCard title="Etapa 1 — Cliente">
+            {!selectedCustomer ? (
+              <div className="sm:col-span-2 rounded-xl border border-cdl-warning-border bg-cdl-warning-soft px-4 py-3">
+                <p className="text-sm leading-relaxed text-cdl-text-secondary">
+                  Cliente ainda não vinculado. A cotação pode ser criada, mas
+                  deverá ser revisada antes do envio final.
+                </p>
+              </div>
+            ) : null}
+
+            <div className="grid grid-cols-1 gap-4 sm:col-span-2 sm:grid-cols-2">
+              <InputField
+                label="Telefone do cliente"
+                value={state.customerDraftPhone}
+                onChange={(v) =>
+                  updateState({
+                    customerDraftPhone: v,
+                    customerPhoneLinkError: null,
+                  })
+                }
+                placeholder="(555) 123-4567"
+                completion={
+                  selectedCustomer || isUsablePhone(state.customerDraftPhone)
+                    ? 'filled'
+                    : 'empty'
+                }
+              />
+              <InputField
+                label="Nome do cliente"
+                value={state.customerDraftName}
+                onChange={(v) => updateState({ customerDraftName: v })}
+                placeholder="Nome para contato"
+                completion={getFieldCompletion(state.customerDraftName)}
+              />
+              <InputField
+                label="E-mail"
+                value={state.customerDraftEmail}
+                onChange={(v) => updateState({ customerDraftEmail: v })}
+                placeholder="email@exemplo.com"
+                className="sm:col-span-2"
+                completion={getFieldCompletion(state.customerDraftEmail)}
+              />
+            </div>
+
+            {state.customerPhoneLinking ? (
+              <p className="sm:col-span-2 text-sm text-cdl-muted">
+                Buscando ou criando cliente pelo telefone…
+              </p>
+            ) : null}
+            {state.customerPhoneLinkError ? (
+              <p className="sm:col-span-2 text-sm text-cdl-action">
+                {state.customerPhoneLinkError}
+              </p>
+            ) : null}
+            {selectedCustomer ? (
+              <div className="sm:col-span-2 rounded-xl border border-cdl-success-border bg-cdl-success-soft px-4 py-3">
+                <p className="text-xs font-bold uppercase tracking-wider text-cdl-success">
+                  Cliente vinculado
+                </p>
+                <p className="mt-1 font-bold text-cdl-fg">
+                  {getCustomerName(selectedCustomer)}
+                </p>
+              </div>
+            ) : null}
+
             <div className="sm:col-span-2">
               <InputField
-                label="Pesquisar cliente"
+                label="Pesquisar cliente existente"
                 value={customerSearch}
                 onChange={setCustomerSearch}
                 placeholder="Nome, e-mail ou telefone..."
@@ -2631,7 +2801,8 @@ export default function QuoteWizard({
                 ? editCustomerDisplayName
                 : selectedCustomer
                   ? getCustomerName(selectedCustomer)
-                  : '—'
+                  : state.customerDraftName.trim() ||
+                    'Cliente ainda não vinculado'
             }
             packageName={
               selectedPackage ? getPackageName(selectedPackage) : null

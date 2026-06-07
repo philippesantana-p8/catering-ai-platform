@@ -19,9 +19,6 @@ export type CreateQuoteResult = {
 
 function validateSaveInput(input: QuoteSaveInput): SaveQuoteErrorInfo | null {
   const companyId = getCdlCompanyId()
-  if (!input.customerId?.trim()) {
-    return buildSaveQuoteError('validation', new Error('customer_id vazio.'))
-  }
   if (!input.packageId?.trim()) {
     return buildSaveQuoteError('validation', new Error('package_id vazio.'))
   }

@@ -23,7 +23,7 @@ export type QuoteAdditionalSaveLine = {
 }
 
 export type QuoteSaveInput = {
-  customerId: string
+  customerId: string | null
   packageId: string
   eventName: string
   eventDate: string
@@ -135,7 +135,9 @@ function buildQuoteGrillAndMileagePayload(
   mode?: 'create' | 'update',
 ) {
   return {
-    ...(mode !== 'update' ? { customer_id: input.customerId } : {}),
+    ...(mode !== 'update'
+      ? { customer_id: input.customerId?.trim() || null }
+      : {}),
     package_id: input.packageId,
     has_grill: input.hasGrill,
     grill_photo_required: input.grillPhotoRequired,

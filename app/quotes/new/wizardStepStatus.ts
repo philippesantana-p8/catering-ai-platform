@@ -66,8 +66,8 @@ export type PendingStepIssue = {
   issues: string[]
 }
 
-/** Etapas obrigatórias (Adicionais = opcional, índice 3). */
-const MANDATORY_STEP_INDICES = [0, 1, 2, 4, 5, 6] as const
+/** Etapas obrigatórias (Cliente e Adicionais = opcionais). */
+const MANDATORY_STEP_INDICES = [1, 2, 4, 5, 6] as const
 
 function isFilled(value: string) {
   return value.trim().length > 0
@@ -78,6 +78,27 @@ function isReservationPercentageValid(
   expected: number,
 ) {
   return Math.abs(value - expected) < 0.001
+}
+
+function hasLinkedCustomer(ctx: StepStatusContext): boolean {
+  if (ctx.isEditMode) return Boolean(ctx.state.customerId)
+  return Boolean(ctx.selectedCustomer || ctx.state.customerId)
+}
+
+export function getOptionalStepWarnings(
+  ctx: StepStatusContext,
+): PendingStepIssue[] {
+  if (ctx.isEditMode || hasLinkedCustomer(ctx)) return []
+
+  return [
+    {
+      stepIndex: 0,
+      label: 'Cliente',
+      issues: [
+        'Cliente ainda não vinculado. A cotação pode ser criada, mas deverá ser revisada antes do envio final.',
+      ],
+    },
+  ]
 }
 
 function hasValidPackage(ctx: StepStatusContext): boolean {
@@ -95,13 +116,6 @@ export function getStepIssues(
 
   switch (stepIndex) {
     case 0:
-      if (ctx.isEditMode) {
-        if (!state.customerId) {
-          issues.push('Cotação sem cliente vinculado.')
-        }
-      } else if (!selectedCustomer) {
-        issues.push('Selecione um cliente.')
-      }
       break
     case 1:
       if (!isFilled(state.eventName)) issues.push('Informe o nome do evento.')
@@ -203,6 +217,10 @@ export function getStepVisualStatus(
 ): StepVisualStatus {
   if (stepIndex === 7) {
     return areMandatoryStepsComplete(ctx) ? 'complete' : 'error'
+  }
+
+  if (stepIndex === 0) {
+    return hasLinkedCustomer(ctx) ? 'complete' : 'pending'
   }
 
   if (stepIndex === 3) {

@@ -4,13 +4,17 @@ import type { PendingStepIssue } from '@/app/quotes/new/wizardStepStatus'
 
 export default function WizardQuoteValidationPanel({
   pendingSteps,
+  optionalWarnings = [],
   ready,
   onGoToStep,
 }: {
   pendingSteps: PendingStepIssue[]
+  optionalWarnings?: PendingStepIssue[]
   ready: boolean
   onGoToStep: (stepIndex: number) => void
 }) {
+  const hasWarnings = optionalWarnings.length > 0
+
   return (
     <section
       className={`rounded-2xl border p-7 shadow-cdl sm:p-9 ${
@@ -66,6 +70,42 @@ export default function WizardQuoteValidationPanel({
           ))}
         </ul>
       )}
+
+      {hasWarnings ? (
+        <ul className={`space-y-4 ${ready ? 'mt-5' : 'mt-4'}`}>
+          {optionalWarnings.map((warning) => (
+            <li
+              key={`warning-${warning.stepIndex}`}
+              className="rounded-xl border border-cdl-warning-border bg-cdl-warning-soft p-4 sm:p-5"
+            >
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="text-sm font-bold uppercase tracking-wider text-cdl-warning">
+                    Aviso — {warning.label}
+                  </p>
+                  <ul className="mt-2 space-y-1 text-sm text-cdl-text-secondary">
+                    {warning.issues.map((issue) => (
+                      <li key={issue} className="flex gap-2">
+                        <span className="text-cdl-warning" aria-hidden>
+                          •
+                        </span>
+                        <span>{issue}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onGoToStep(warning.stepIndex)}
+                  className="shrink-0 rounded-xl border border-cdl-warning-border bg-cdl-surface px-4 py-2 text-xs font-bold uppercase tracking-wider text-cdl-warning transition-colors hover:bg-cdl-warning hover:text-[#070707]"
+                >
+                  Ir para etapa
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </section>
   )
 }

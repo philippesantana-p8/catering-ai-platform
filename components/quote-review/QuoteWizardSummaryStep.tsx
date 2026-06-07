@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useMemo } from 'react'
 import type { PendingStepIssue, StepStatusContext } from '@/app/quotes/new/wizardStepStatus'
+import { getOptionalStepWarnings } from '@/app/quotes/new/wizardStepStatus'
 import type { QuoteTotals } from '@/Lib/calculateQuoteTotals'
 import type { WizardState } from '@/Lib/quoteWizardTypes'
 import type { CommercialRulesSnapshot } from '@/Lib/supabaseCommercialRules'
@@ -84,6 +85,10 @@ export default function QuoteWizardSummaryStep({
   )
 
   const hasMandatoryPending = mandatoryPendingSteps.length > 0
+  const optionalWarnings = useMemo(
+    () => (isEditMode ? [] : getOptionalStepWarnings(stepStatusCtx)),
+    [isEditMode, stepStatusCtx],
+  )
   const saveDisabled = saving || hasMandatoryPending
   const savingLabel = isEditMode ? 'Salvando…' : 'Criando cotação...'
 
@@ -93,6 +98,7 @@ export default function QuoteWizardSummaryStep({
 
       <WizardQuoteValidationPanel
         pendingSteps={mandatoryPendingSteps}
+        optionalWarnings={optionalWarnings}
         ready={quoteReady}
         onGoToStep={onGoToStep}
       />

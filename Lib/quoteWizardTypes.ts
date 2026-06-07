@@ -4,6 +4,11 @@ import type { GrillPhotoStatus } from './grillPhotoStatus'
 
 export type WizardState = {
   customerId: string | null
+  customerDraftPhone: string
+  customerDraftName: string
+  customerDraftEmail: string
+  customerPhoneLinking: boolean
+  customerPhoneLinkError: string | null
   eventName: string
   eventDate: string
   startTime: string
@@ -40,6 +45,11 @@ export function createInitialWizardState(
 ): WizardState {
   return {
     customerId: null,
+    customerDraftPhone: '',
+    customerDraftName: '',
+    customerDraftEmail: '',
+    customerPhoneLinking: false,
+    customerPhoneLinkError: null,
     eventName: '',
     eventDate: '',
     startTime: '',
