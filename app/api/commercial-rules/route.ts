@@ -8,35 +8,13 @@ import {
   getFallbackCommercialRules,
   type CommercialRulesSnapshot,
 } from '@/Lib/supabaseCommercialRules'
+import type { CommercialRuleRow } from '@/Lib/commercialRulesTableSchema'
 import { supabase } from '@/Lib/supabase'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-const RULE_TABLE_CANDIDATES = ['commercial_rules', 'pricing_rules'] as const
-
-type RuleUpdateBody = Partial<{
-  mileage_base_location: string
-  mileage_free_limit: number
-  mileage_rate: number
-  reservation_percentage: number
-  sides_price_per_person: number
-  min_order_weekday: number
-  min_order_weekend: number
-  min_order_dec_jan: number
-  holiday_surcharge_percent: number
-  holiday_min_order: number
-  child_free_age_max: number
-  child_half_age_max: number
-}>
-
-async function findRulesTable(): Promise<string | null> {
-  for (const table of RULE_TABLE_CANDIDATES) {
-    const { error } = await supabase.from(table).select('id').limit(1)
-    if (!error) return table
-  }
-  return null
-}
+const RULE_TABLE = 'commercial_rules'
 
 function buildTextRules() {
   return {
@@ -52,15 +30,41 @@ function buildTextRules() {
   }
 }
 
-export async function GET() {
-  const rules = await fetchSupabaseCommercialRules()
-  const table = await findRulesTable()
+async function tableExists(): Promise<boolean> {
+  const { error } = await supabase.from(RULE_TABLE).select('id').limit(1)
+  return !error
+}
+
+async function fetchRuleRows(activeOnly: boolean): Promise<CommercialRuleRow[]> {
+  let query = supabase
+    .from(RULE_TABLE)
+    .select('id, rule_key, rule_value, rule_type, description, active, updated_at')
+    .order('rule_key', { ascending: true })
+
+  if (activeOnly) {
+    query = query.eq('active', true)
+  }
+
+  const { data, error } = await query
+  if (error) return []
+  return (data ?? []) as CommercialRuleRow[]
+}
+
+export async function GET(request: Request) {
+  const url = new URL(request.url)
+  const activeParam = url.searchParams.get('active')
+  const activeOnly = activeParam !== 'all'
+
+  const exists = await tableExists()
+  const rules: CommercialRulesSnapshot = await fetchSupabaseCommercialRules()
+  const rows = exists ? await fetchRuleRows(activeOnly) : []
 
   return Response.json(
     {
       rules,
-      editable: table != null,
-      table,
+      rows,
+      editable: exists,
+      table: exists ? RULE_TABLE : null,
       textRules: buildTextRules(),
       fallback: getFallbackCommercialRules(),
     },
@@ -68,91 +72,88 @@ export async function GET() {
   )
 }
 
-export async function PATCH(request: Request) {
-  const table = await findRulesTable()
-  if (!table) {
+export async function POST(request: Request) {
+  const exists = await tableExists()
+  if (!exists) {
     return Response.json(
-      {
-        error:
-          'Nenhuma tabela commercial_rules ou pricing_rules encontrada. Usando fallback em cdlCommercialRules.ts.',
-        editable: false,
-      },
+      { error: 'Tabela commercial_rules não encontrada. Execute a migration SQL.' },
       { status: 409 },
     )
   }
 
-  let body: RuleUpdateBody
+  let body: Partial<CommercialRuleRow>
   try {
-    body = (await request.json()) as RuleUpdateBody
+    body = (await request.json()) as Partial<CommercialRuleRow>
   } catch {
     return Response.json({ error: 'Payload inválido.' }, { status: 400 })
   }
 
-  const { data: existingRows, error: readError } = await supabase
-    .from(table)
-    .select('*')
-    .limit(50)
-
-  if (readError) {
-    return Response.json({ error: readError.message }, { status: 500 })
+  const ruleKey = body.rule_key?.trim()
+  if (!ruleKey) {
+    return Response.json({ error: 'rule_key é obrigatório.' }, { status: 400 })
   }
 
-  const rows = existingRows ?? []
-  const first = rows[0] as Record<string, unknown> | undefined
+  const { data, error } = await supabase
+    .from(RULE_TABLE)
+    .insert({
+      rule_key: ruleKey,
+      rule_value: body.rule_value ?? '',
+      rule_type: body.rule_type ?? 'text',
+      description: body.description ?? null,
+      active: body.active !== false,
+      updated_at: new Date().toISOString(),
+    })
+    .select('id, rule_key, rule_value, rule_type, description, active, updated_at')
+    .single()
 
-  if (first && ('rule_key' in first || 'key' in first)) {
-    for (const [field, value] of Object.entries(body)) {
-      if (value === undefined) continue
-      const ruleKey = field
-      const existing = rows.find(
-        (row) =>
-          String(
-            (row as Record<string, unknown>).rule_key ??
-              (row as Record<string, unknown>).key ??
-              '',
-          ) === ruleKey,
-      ) as Record<string, unknown> | undefined
+  if (error) {
+    return Response.json({ error: error.message }, { status: 500 })
+  }
 
-      const writeResult = existing?.id
-        ? await supabase
-            .from(table)
-            .update({
-              numeric_value: typeof value === 'number' ? value : null,
-              text_value: typeof value === 'string' ? value : null,
-              value,
-            })
-            .eq('id', existing.id)
-        : await supabase.from(table).insert({
-            rule_key: ruleKey,
-            numeric_value: typeof value === 'number' ? value : null,
-            text_value: typeof value === 'string' ? value : null,
-            value,
-          })
+  return Response.json({ data })
+}
 
-      if (writeResult.error) {
-        return Response.json(
-          { error: writeResult.error.message },
-          { status: 500 },
-        )
-      }
-    }
-  } else if (first) {
-    const { error } = await supabase
-      .from(table)
-      .update(body)
-      .eq('id', first.id)
+export async function PATCH(request: Request) {
+  const exists = await tableExists()
+  if (!exists) {
+    return Response.json(
+      { error: 'Tabela commercial_rules não encontrada.' },
+      { status: 409 },
+    )
+  }
 
-    if (error) {
-      return Response.json({ error: error.message }, { status: 500 })
-    }
-  } else {
-    const { error } = await supabase.from(table).insert(body)
-    if (error) {
-      return Response.json({ error: error.message }, { status: 500 })
-    }
+  let body: Partial<CommercialRuleRow> & { id?: string }
+  try {
+    body = (await request.json()) as Partial<CommercialRuleRow> & { id?: string }
+  } catch {
+    return Response.json({ error: 'Payload inválido.' }, { status: 400 })
+  }
+
+  if (!body.id?.trim()) {
+    return Response.json({ error: 'id é obrigatório.' }, { status: 400 })
+  }
+
+  const updatePayload: Record<string, unknown> = {
+    updated_at: new Date().toISOString(),
+  }
+
+  if (body.rule_value !== undefined) updatePayload.rule_value = body.rule_value
+  if (body.rule_type !== undefined) updatePayload.rule_type = body.rule_type
+  if (body.description !== undefined) updatePayload.description = body.description
+  if (body.rule_key !== undefined) updatePayload.rule_key = body.rule_key
+  if (body.active !== undefined) updatePayload.active = body.active
+
+  const { data, error } = await supabase
+    .from(RULE_TABLE)
+    .update(updatePayload)
+    .eq('id', body.id)
+    .select('id, rule_key, rule_value, rule_type, description, active, updated_at')
+    .single()
+
+  if (error) {
+    return Response.json({ error: error.message }, { status: 500 })
   }
 
   const rules: CommercialRulesSnapshot = await fetchSupabaseCommercialRules()
-
-  return Response.json({ rules, editable: true, table })
+  return Response.json({ data, rules })
 }

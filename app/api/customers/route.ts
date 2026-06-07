@@ -1,12 +1,22 @@
+import { getCdlCompanyId } from '@/Lib/cdlCompany'
+import {
+  buildCustomersListSelect,
+  pickCustomersInsertPayload,
+  type CustomersInsertPayload,
+} from '@/Lib/customersTableSchema'
 import {
   fetchActiveCustomers,
+  fetchAllCustomers,
   type CustomerListItem,
 } from '@/Lib/fetchCustomers'
+import { getNextAbNumber } from '@/Lib/getNextDocumentNumber'
+import { normalizePhone } from '@/Lib/normalizePhone'
 import {
   customerMatchesSearch,
   dedupeCustomersList,
   sortCustomersByRecency,
 } from '@/Lib/searchCustomers'
+import { supabase } from '@/Lib/supabase'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -14,8 +24,12 @@ export const revalidate = 0
 export async function GET(request: Request) {
   const url = new URL(request.url)
   const query = url.searchParams.get('q')?.trim() ?? ''
+  const activeParam = url.searchParams.get('active')
 
-  const { data, error } = await fetchActiveCustomers()
+  const { data, error } =
+    activeParam === 'all'
+      ? await fetchAllCustomers()
+      : await fetchActiveCustomers()
 
   if (error || !data) {
     return Response.json(
@@ -44,4 +58,69 @@ export async function GET(request: Request) {
       },
     },
   )
+}
+
+export async function POST(request: Request) {
+  const companyId = getCdlCompanyId()
+  if (!companyId?.trim()) {
+    return Response.json({ error: 'company_id não configurado.' }, { status: 500 })
+  }
+
+  let body: CustomersInsertPayload
+  try {
+    body = (await request.json()) as CustomersInsertPayload
+  } catch {
+    return Response.json({ error: 'Payload inválido.' }, { status: 400 })
+  }
+
+  const phone =
+    typeof body.phone === 'string' ? body.phone.trim() : String(body.phone ?? '').trim()
+  const phoneNormalized = normalizePhone(phone)
+  if (!phoneNormalized || phoneNormalized.length < 10) {
+    return Response.json(
+      { error: 'Telefone inválido (mínimo 10 dígitos).' },
+      { status: 400 },
+    )
+  }
+
+  const { number: abNumber } = await getNextAbNumber(companyId)
+
+  const row = pickCustomersInsertPayload({
+    ...body,
+    company_id: companyId,
+    phone,
+    phone_normalized: phoneNormalized,
+    active: body.active !== false,
+    ...(abNumber ? { ab_number: abNumber } : {}),
+    ab_name:
+      (typeof body.ab_name === 'string' ? body.ab_name.trim() : '') ||
+      (typeof body.full_name === 'string' ? body.full_name.trim() : '') ||
+      (typeof body.contact_name === 'string' ? body.contact_name.trim() : '') ||
+      phone,
+  })
+
+  const { data, error } = await supabase
+    .from('customers')
+    .insert(row)
+    .select(buildCustomersListSelect())
+    .single()
+
+  if (error) {
+    if (error.code === '23505') {
+      const { data: existing } = await supabase
+        .from('customers')
+        .select(buildCustomersListSelect())
+        .eq('company_id', companyId)
+        .eq('active', true)
+        .eq('phone_normalized', phoneNormalized)
+        .maybeSingle()
+
+      if (existing) {
+        return Response.json({ data: existing, duplicate: true })
+      }
+    }
+    return Response.json({ error: error.message }, { status: 500 })
+  }
+
+  return Response.json({ data })
 }

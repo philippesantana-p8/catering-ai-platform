@@ -5,7 +5,9 @@ import {
   type QuoteSaveInput,
 } from './buildQuoteSavePayload'
 import { getCdlCompanyId } from './cdlCompany'
+import { findOrCreateCustomerByPhone } from './findOrCreateCustomerByPhone'
 import { getNextQuoteNumber } from './getNextDocumentNumber'
+import { isUsablePhone } from './normalizePhone'
 import {
   buildSaveQuoteError,
   logSaveQuoteError,
@@ -29,11 +31,65 @@ function validateSaveInput(input: QuoteSaveInput): SaveQuoteErrorInfo | null {
   return null
 }
 
+async function resolveCustomerIdForSave(
+  input: QuoteSaveInput,
+): Promise<{ customerId: string | null; error: SaveQuoteErrorInfo | null }> {
+  if (input.customerId?.trim()) {
+    return { customerId: input.customerId.trim(), error: null }
+  }
+
+  const draft = input.customerDraft
+  if (!draft?.phone?.trim()) {
+    return { customerId: null, error: null }
+  }
+
+  if (!isUsablePhone(draft.phone)) {
+    return {
+      customerId: null,
+      error: buildSaveQuoteError(
+        'validation',
+        new Error('Telefone do cliente inválido (mínimo 10 dígitos).'),
+      ),
+    }
+  }
+
+  const { customer, error } = await findOrCreateCustomerByPhone({
+    phone: draft.phone,
+    name: draft.name,
+    email: draft.email,
+  })
+
+  if (error || !customer?.id) {
+    return {
+      customerId: null,
+      error: buildSaveQuoteError(
+        'validation',
+        new Error(error?.message ?? 'Não foi possível criar ou vincular cliente.'),
+      ),
+    }
+  }
+
+  return { customerId: customer.id, error: null }
+}
+
 export async function createQuote(input: QuoteSaveInput): Promise<CreateQuoteResult> {
   const validationError = validateSaveInput(input)
   if (validationError) {
     logSaveQuoteError(validationError)
     return { data: null, error: validationError }
+  }
+
+  const { customerId, error: customerError } =
+    await resolveCustomerIdForSave(input)
+  if (customerError) {
+    logSaveQuoteError(customerError)
+    return { data: null, error: customerError }
+  }
+
+  const saveInput: QuoteSaveInput = {
+    ...input,
+    customerId,
+    customerDraft: null,
   }
 
   const companyId = getCdlCompanyId()
@@ -55,7 +111,7 @@ export async function createQuote(input: QuoteSaveInput): Promise<CreateQuoteRes
     return { data: null, error: errorInfo }
   }
 
-  const eventPayload = buildEventSavePayload(input)
+  const eventPayload = buildEventSavePayload(saveInput)
 
   const { data: eventData, error: eventError } = await supabase
     .from('events')
@@ -78,7 +134,7 @@ export async function createQuote(input: QuoteSaveInput): Promise<CreateQuoteRes
 
   const eventId = eventData.id as string
   const quotePayload = {
-    ...buildQuoteSavePayload(input, {
+    ...buildQuoteSavePayload(saveInput, {
       mode: 'create',
       eventId,
     }),
@@ -110,7 +166,7 @@ export async function createQuote(input: QuoteSaveInput): Promise<CreateQuoteRes
 
   const quoteId = data.id as string
 
-  if (input.additionals.length === 0) {
+  if (saveInput.additionals.length === 0) {
     return {
       data: { id: quoteId, quote_number: data.quote_number as string | null },
       error: null,
@@ -122,7 +178,7 @@ export async function createQuote(input: QuoteSaveInput): Promise<CreateQuoteRes
     additionalItemsPayload = buildAdditionalItemRows(
       quoteId,
       companyId,
-      input.additionals,
+      saveInput.additionals,
     )
   } catch (error) {
     const errorInfo = buildSaveQuoteError('additionals', error, {

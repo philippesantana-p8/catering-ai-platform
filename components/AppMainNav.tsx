@@ -8,7 +8,7 @@ const NAV_LINKS = [
   { href: '/customers', label: 'Cadastros' },
   { href: '/packages', label: 'Pacotes' },
   { href: '/additional-items', label: 'Itens adicionais' },
-  { href: '/commercial-rules', label: 'Regras comerciais' },
+  { href: '/commercial-rules', label: 'Regras' },
   { href: '/packages/images', label: 'Imagens' },
 ] as const
 

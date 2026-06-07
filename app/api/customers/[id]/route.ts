@@ -1,4 +1,10 @@
 import { getCdlCompanyId } from '@/Lib/cdlCompany'
+import {
+  buildCustomersListSelect,
+  pickCustomersUpdatePayload,
+  type CustomersUpdatePayload,
+} from '@/Lib/customersTableSchema'
+import { normalizePhone } from '@/Lib/normalizePhone'
 import { supabase } from '@/Lib/supabase'
 
 export const dynamic = 'force-dynamic'
@@ -15,39 +21,44 @@ export async function PATCH(
     return Response.json({ error: 'company_id não configurado.' }, { status: 500 })
   }
 
-  let body: { active?: boolean }
+  let body: CustomersUpdatePayload
   try {
-    body = (await request.json()) as { active?: boolean }
+    body = (await request.json()) as CustomersUpdatePayload
   } catch {
     return Response.json({ error: 'Payload inválido.' }, { status: 400 })
   }
 
-  if (body.active !== false) {
-    return Response.json(
-      { error: 'Somente desativação (active=false) é suportada.' },
-      { status: 400 },
-    )
+  const isDeactivateOnly =
+    Object.keys(body).length === 1 && body.active === false
+
+  const updatePayload: Record<string, string | boolean | null> = isDeactivateOnly
+    ? { active: false, updated_at: new Date().toISOString() }
+    : {
+        ...pickCustomersUpdatePayload(body),
+        updated_at: new Date().toISOString(),
+      }
+
+  if (!isDeactivateOnly && body.phone !== undefined) {
+    const phone = String(body.phone ?? '').trim()
+    updatePayload.phone = phone
+    updatePayload.phone_normalized = normalizePhone(phone)
   }
 
   const { data, error } = await supabase
     .from('customers')
-    .update({
-      active: false,
-      updated_at: new Date().toISOString(),
-    })
+    .update(updatePayload)
     .eq('id', id)
     .eq('company_id', companyId)
-    .eq('active', true)
-    .select('id')
+    .select(buildCustomersListSelect())
     .maybeSingle()
 
   if (error) {
     return Response.json({ error: error.message }, { status: 500 })
   }
 
-  if (!data?.id) {
+  if (!data) {
     return Response.json({ error: 'Cliente não encontrado.' }, { status: 404 })
   }
 
-  return Response.json({ id: data.id, active: false })
+  return Response.json({ data })
 }

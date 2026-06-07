@@ -69,9 +69,14 @@ function mapKeyValueRules(rows: RuleRow[]): CommercialRulesSnapshot {
   for (const row of rows) {
     const key = String(row.rule_key ?? row.key ?? row.name ?? '').trim()
     if (!key) continue
+    if (row.active === false) continue
     byKey.set(
       key,
-      row.numeric_value ?? row.number_value ?? row.text_value ?? row.value,
+      row.numeric_value ??
+        row.number_value ??
+        row.text_value ??
+        row.rule_value ??
+        row.value,
     )
   }
 
@@ -86,7 +91,7 @@ function mapKeyValueRules(rows: RuleRow[]): CommercialRulesSnapshot {
     ),
     mileageRate: toNumber(byKey.get('mileage_rate'), fallback.mileageRate),
     reservationPercentage: toNumber(
-      byKey.get('reservation_percentage'),
+      byKey.get('reservation_percentage') ?? byKey.get('deposit_percentage'),
       fallback.reservationPercentage,
     ),
     sidesPricePerPerson: toNumber(

@@ -37,3 +37,31 @@ export async function fetchActiveCustomers() {
     error: null,
   }
 }
+
+export async function fetchAllCustomers() {
+  const companyId = getCdlCompanyId()
+  if (!companyId?.trim()) {
+    return {
+      data: [] as CustomerListItem[],
+      error: { message: 'company_id não configurado.' },
+    }
+  }
+
+  const { data, error } = await supabase
+    .from('customers')
+    .select(buildCustomersListSelect())
+    .eq('company_id', companyId)
+    .order('updated_at', { ascending: false, nullsFirst: false })
+    .order('created_at', { ascending: false, nullsFirst: false })
+
+  if (error) {
+    return { data: null as CustomerListItem[] | null, error }
+  }
+
+  return {
+    data: dedupeCustomersList(
+      sortCustomersByRecency((data ?? []) as unknown as CustomerListItem[]),
+    ),
+    error: null,
+  }
+}

@@ -3,6 +3,7 @@ import {
   type CommercialRulesSnapshot,
 } from '@/Lib/supabaseCommercialRules'
 import type { GrillPhotoStatus } from '@/Lib/grillPhotoStatus'
+import { isUsablePhone } from '@/Lib/normalizePhone'
 
 export const WIZARD_STEP_LABELS = [
   'Cliente',
@@ -22,6 +23,7 @@ export type StepVisualStatus = 'complete' | 'pending' | 'error'
 
 export type WizardStateSnapshot = {
   customerId: string | null
+  customerDraftPhone: string
   eventName: string
   eventDate: string
   startTime: string
@@ -84,7 +86,8 @@ function isReservationPercentageValid(
 
 function hasLinkedCustomer(ctx: StepStatusContext): boolean {
   if (ctx.isEditMode) return Boolean(ctx.state.customerId)
-  return Boolean(ctx.selectedCustomer || ctx.state.customerId)
+  if (ctx.selectedCustomer || ctx.state.customerId) return true
+  return isUsablePhone(ctx.state.customerDraftPhone)
 }
 
 export const GRILL_PHOTO_PENDING_WARNING =

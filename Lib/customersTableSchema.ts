@@ -51,6 +51,29 @@ export const CUSTOMERS_INSERT_COLUMNS = [
   'active',
 ] as const satisfies ReadonlyArray<CustomersTableColumn>
 
+export const CUSTOMERS_UPDATE_COLUMNS = [
+  'ab_name',
+  'phone',
+  'phone_normalized',
+  'email',
+  'full_name',
+  'contact_name',
+  'company_name',
+  'address',
+  'city',
+  'state',
+  'address_line',
+  'postal_code',
+  'country',
+  'customer_type',
+  'preferred_language',
+  'notes',
+  'source',
+  'website',
+  'tax_id',
+  'active',
+] as const satisfies ReadonlyArray<CustomersTableColumn>
+
 export type CustomersInsertColumn = (typeof CUSTOMERS_INSERT_COLUMNS)[number]
 
 export type CustomersInsertPayload = Partial<
@@ -111,6 +134,10 @@ export function buildCustomersListSelect(): string {
   ].join(', ')
 }
 
+export type CustomersUpdatePayload = Partial<
+  Record<(typeof CUSTOMERS_UPDATE_COLUMNS)[number], string | boolean | null>
+>
+
 export function pickCustomersInsertPayload(
   row: CustomersInsertPayload,
 ): Record<string, string | boolean | null> {
@@ -121,6 +148,21 @@ export function pickCustomersInsertPayload(
     const value = row[key]
     if (value === undefined) continue
     if (typeof value === 'string' && value.trim() === '') continue
+    payload[key] = value
+  }
+
+  return payload
+}
+
+export function pickCustomersUpdatePayload(
+  row: CustomersUpdatePayload,
+): Record<string, string | boolean | null> {
+  const payload: Record<string, string | boolean | null> = {}
+
+  for (const key of CUSTOMERS_UPDATE_COLUMNS) {
+    if (!(key in row)) continue
+    const value = row[key]
+    if (value === undefined) continue
     payload[key] = value
   }
 

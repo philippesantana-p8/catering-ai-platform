@@ -22,9 +22,17 @@ export type QuoteAdditionalSaveLine = {
   totalPrice: number
 }
 
+export type QuoteCustomerDraft = {
+  phone: string
+  name?: string | null
+  email?: string | null
+}
+
 export type QuoteSaveInput = {
   language?: 'pt' | 'en' | 'es' | null
   customerId: string | null
+  /** Rascunho do wizard — cliente criado somente no save final. */
+  customerDraft?: QuoteCustomerDraft | null
   packageId: string
   eventName: string
   eventDate: string

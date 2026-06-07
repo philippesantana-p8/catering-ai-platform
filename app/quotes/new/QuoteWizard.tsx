@@ -1906,72 +1906,70 @@ export default function QuoteWizard({
     }))
   }
 
-  async function resolveCustomerByPhone(
-    phone: string,
-    name: string,
-    email: string,
-  ): Promise<string | null> {
+  async function lookupCustomerByPhone(phone: string): Promise<string | null> {
     if (!isUsablePhone(phone)) return null
 
     updateState({ customerPhoneLinking: true, customerPhoneLinkError: null })
     setCustomerLinkSuccess(null)
 
     try {
-      const response = await fetch('/api/customers/resolve-by-phone', {
+      const response = await fetch('/api/customers/lookup-by-phone', {
         method: 'POST',
         cache: 'no-store',
         headers: {
           'Content-Type': 'application/json',
           'Cache-Control': 'no-cache',
         },
-        body: JSON.stringify({
-          phone,
-          name: name || undefined,
-          email: email || undefined,
-        }),
+        body: JSON.stringify({ phone }),
       })
       const result = (await response.json()) as {
         customer?: Customer
-        created?: boolean
+        found?: boolean
         error?: string
       }
 
-      if (!response.ok || !result.customer) {
+      if (!response.ok) {
         updateState({
           customerPhoneLinking: false,
           customerPhoneLinkError:
-            result.error ?? 'Não foi possível vincular cliente pelo telefone.',
+            result.error ?? 'Não foi possível buscar cliente pelo telefone.',
         })
         return null
       }
 
-      const customer = result.customer
-      setLocalCustomers((current) => mergeCustomerIntoList(current, customer))
-      setCustomerLinkSuccess(
-        result.created
-          ? 'Cliente criado com sucesso.'
-          : 'Cliente vinculado com sucesso.',
-      )
+      if (result.customer) {
+        const customer = result.customer
+        setLocalCustomers((current) => mergeCustomerIntoList(current, customer))
+        setCustomerLinkSuccess('Cliente existente vinculado.')
 
-      const eventDefaults = getEventDefaultsFromCustomer(customer)
+        const eventDefaults = getEventDefaultsFromCustomer(customer)
+        setState((prev) => ({
+          ...prev,
+          customerId: customer.id,
+          customerDraftPhone: customer.phone ?? phone,
+          customerDraftName: getCustomerDisplayName(customer),
+          customerDraftEmail: customer.email ?? prev.customerDraftEmail,
+          customerPhoneLinking: false,
+          customerPhoneLinkError: null,
+          ...eventDefaults,
+        }))
+        return customer.id
+      }
+
       setState((prev) => ({
         ...prev,
-        customerId: customer.id,
-        customerDraftPhone: customer.phone ?? phone,
-        customerDraftName: getCustomerDisplayName(customer) || name,
-        customerDraftEmail: customer.email ?? email,
+        customerId: null,
         customerPhoneLinking: false,
         customerPhoneLinkError: null,
-        ...eventDefaults,
       }))
-      void refreshCustomersFromApi(
-        customer.phone ?? phone ?? getCustomerDisplayName(customer),
+      setCustomerLinkSuccess(
+        'Novo cliente — será cadastrado ao finalizar a cotação.',
       )
-      return customer.id
+      return null
     } catch {
       updateState({
         customerPhoneLinking: false,
-        customerPhoneLinkError: 'Erro de rede ao vincular cliente.',
+        customerPhoneLinkError: 'Erro de rede ao buscar cliente.',
       })
       return null
     }
@@ -1990,11 +1988,7 @@ export default function QuoteWizard({
     }
 
     const timer = window.setTimeout(() => {
-      void resolveCustomerByPhone(
-        state.customerDraftPhone,
-        state.customerDraftName,
-        state.customerDraftEmail,
-      )
+      void lookupCustomerByPhone(state.customerDraftPhone)
     }, 600)
 
     return () => window.clearTimeout(timer)
@@ -2085,21 +2079,12 @@ export default function QuoteWizard({
       return
     }
 
-    let customerIdToSave = isEditMode
+    const customerIdToSave = isEditMode
       ? state.customerId ??
         (existingSnapshot as { customer_id?: string | null } | undefined)
           ?.customer_id ??
         null
-      : selectedCustomer?.id ?? state.customerId ?? null
-
-    if (!isEditMode && !customerIdToSave && isUsablePhone(state.customerDraftPhone)) {
-      const resolvedId = await resolveCustomerByPhone(
-        state.customerDraftPhone,
-        state.customerDraftName,
-        state.customerDraftEmail,
-      )
-      customerIdToSave = resolvedId
-    }
+      : state.customerId ?? selectedCustomer?.id ?? null
 
     if (!state.packageId) {
       const errorInfo = buildSaveQuoteError(
@@ -2135,6 +2120,14 @@ export default function QuoteWizard({
     const payload: QuoteSaveInput = {
       language: state.language,
       customerId: customerIdToSave,
+      customerDraft:
+        !isEditMode && !customerIdToSave && isUsablePhone(state.customerDraftPhone)
+          ? {
+              phone: state.customerDraftPhone,
+              name: state.customerDraftName || null,
+              email: state.customerDraftEmail || null,
+            }
+          : null,
       packageId: packageForSave.id,
       eventName: state.eventName,
       eventDate: state.eventDate,
