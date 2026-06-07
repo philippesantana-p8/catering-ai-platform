@@ -44,7 +44,7 @@ export default async function NewQuotePage() {
     fetchErrors.push(`Adicionais: ${additionalRes.error.message}`)
   }
 
-  const customers = (customersRes.data ?? []) as Customer[]
+  const customers = (customersRes.data ?? []) as unknown as Customer[]
   const packages = (packagesRes.data ?? []) as Package[]
   const additionalItems = (additionalRes.data ?? []) as AdditionalItem[]
 

@@ -23,6 +23,20 @@ quote approved + reservation paid
   → complete service_order after event
 ```
 
+## Document numbering
+
+Numbers are allocated in PostgreSQL via `get_next_document_number(company_id, document_type)`:
+
+| Type | Prefix | Example |
+|------|--------|---------|
+| `quote` | Q | `Q-2026-000001` |
+| `order` | O | `O-2026-000001` |
+| `service_order` | SO | `SO-2026-000001` |
+
+App helpers: `getNextQuoteNumber`, `getNextOrderNumber`, `getNextServiceOrderNumber` in `Lib/getNextDocumentNumber.ts`.
+
+SQL: `scripts/sql/document-sequences.sql`
+
 ## Implementation notes (TODO)
 
 - [ ] `orders` table: `quote_id`, `customer_id`, `event_id`, status, payment refs

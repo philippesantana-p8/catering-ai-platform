@@ -115,7 +115,7 @@ export async function findOrCreateCustomerByPhone(
     }
   }
 
-  const existing = ((rows ?? []) as CustomerRecord[]).find((row) =>
+  const existing = ((rows ?? []) as unknown as CustomerRecord[]).find((row) =>
     phonesMatch(row.phone, normalized),
   )
 
@@ -145,7 +145,7 @@ export async function findOrCreateCustomerByPhone(
     }
   }
 
-  const customer = created as CustomerRecord
+  const customer = created as unknown as CustomerRecord
   if (!getCustomerDisplayName(customer) && resolveInsertName(input)) {
     // best-effort — display name resolved client-side from draft
   }

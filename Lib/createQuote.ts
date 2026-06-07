@@ -5,6 +5,7 @@ import {
   type QuoteSaveInput,
 } from './buildQuoteSavePayload'
 import { getCdlCompanyId } from './cdlCompany'
+import { getNextQuoteNumber } from './getNextDocumentNumber'
 import {
   buildSaveQuoteError,
   logSaveQuoteError,
@@ -35,6 +36,25 @@ export async function createQuote(input: QuoteSaveInput): Promise<CreateQuoteRes
     return { data: null, error: validationError }
   }
 
+  const companyId = getCdlCompanyId()
+  const { number: quoteNumber, error: numberError } =
+    await getNextQuoteNumber(companyId)
+
+  if (numberError || !quoteNumber) {
+    const errorInfo = buildSaveQuoteError(
+      'quote',
+      new Error(
+        numberError?.message ??
+          'Não foi possível gerar quote_number via get_next_document_number.',
+      ),
+    )
+    if (numberError?.details) {
+      errorInfo.details = numberError.details
+    }
+    logSaveQuoteError(errorInfo)
+    return { data: null, error: errorInfo }
+  }
+
   const eventPayload = buildEventSavePayload(input)
 
   const { data: eventData, error: eventError } = await supabase
@@ -57,10 +77,13 @@ export async function createQuote(input: QuoteSaveInput): Promise<CreateQuoteRes
   }
 
   const eventId = eventData.id as string
-  const quotePayload = buildQuoteSavePayload(input, {
-    mode: 'create',
-    eventId,
-  })
+  const quotePayload = {
+    ...buildQuoteSavePayload(input, {
+      mode: 'create',
+      eventId,
+    }),
+    quote_number: quoteNumber,
+  }
 
   const { data, error } = await supabase
     .from('quotes')
@@ -76,9 +99,9 @@ export async function createQuote(input: QuoteSaveInput): Promise<CreateQuoteRes
           'Insert em quotes não retornou id. Possível RLS, coluna inválida ou event_id ausente.',
         ),
       {
-      eventPayload,
-      quotePayload,
-    },
+        eventPayload,
+        quotePayload,
+      },
     )
     logSaveQuoteError(errorInfo, error)
     await supabase.from('events').delete().eq('id', eventId)
@@ -94,7 +117,6 @@ export async function createQuote(input: QuoteSaveInput): Promise<CreateQuoteRes
     }
   }
 
-  const companyId = getCdlCompanyId()
   let additionalItemsPayload: ReturnType<typeof buildAdditionalItemRows>
   try {
     additionalItemsPayload = buildAdditionalItemRows(
