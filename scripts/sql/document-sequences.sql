@@ -16,16 +16,22 @@ CREATE TABLE IF NOT EXISTS public.document_sequences (
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT document_sequences_company_type_year_unique
-    UNIQUE (company_id, document_type, year),
-  CONSTRAINT document_sequences_document_type_check
-    CHECK (document_type IN ('quote', 'order', 'service_order'))
+    UNIQUE (company_id, document_type, year)
 );
+
+-- Allow customer/address-book type on existing installs
+ALTER TABLE public.document_sequences
+  DROP CONSTRAINT IF EXISTS document_sequences_document_type_check;
+
+ALTER TABLE public.document_sequences
+  ADD CONSTRAINT document_sequences_document_type_check
+  CHECK (document_type IN ('quote', 'order', 'service_order', 'customer'));
 
 CREATE INDEX IF NOT EXISTS document_sequences_company_type_year_idx
   ON public.document_sequences (company_id, document_type, year);
 
 COMMENT ON TABLE public.document_sequences IS
-  'Per-company document counters. quote=Q, order=O, service_order=SO.';
+  'Per-company document counters. quote=Q, order=O, service_order=SO, customer=AB.';
 
 -- ---------------------------------------------------------------------------
 -- Prefix resolver (internal)
@@ -40,15 +46,20 @@ BEGIN
     WHEN 'quote' THEN RETURN 'Q';
     WHEN 'order' THEN RETURN 'O';
     WHEN 'service_order' THEN RETURN 'SO';
+    WHEN 'customer' THEN RETURN 'AB';
     ELSE
-      RAISE EXCEPTION 'document_type inválido: % (use quote, order ou service_order)', p_document_type;
+      RAISE EXCEPTION
+        'document_type inválido: % (use quote, order, service_order ou customer)',
+        p_document_type;
   END CASE;
 END;
 $$;
 
 -- ---------------------------------------------------------------------------
 -- RPC: get_next_document_number
--- Format: {prefix}-{year}-{padded}  e.g. Q-2026-000001
+-- Formats:
+--   quote / order / service_order → {prefix}-{year}-{padded}  e.g. Q-2026-000001
+--   customer (address book)       → AB000001  (year=0, perpetual per company)
 -- Atomic via INSERT ... ON CONFLICT DO UPDATE (row-level lock on conflict).
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.get_next_document_number(
@@ -61,13 +72,19 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-  v_year integer := EXTRACT(YEAR FROM CURRENT_DATE)::integer;
+  v_year integer;
   v_prefix text := public.resolve_document_prefix(p_document_type);
   v_padding integer := 6;
   v_next integer;
 BEGIN
   IF p_company_id IS NULL THEN
     RAISE EXCEPTION 'p_company_id é obrigatório';
+  END IF;
+
+  IF p_document_type = 'customer' THEN
+    v_year := 0;
+  ELSE
+    v_year := EXTRACT(YEAR FROM CURRENT_DATE)::integer;
   END IF;
 
   INSERT INTO public.document_sequences (
@@ -95,15 +112,30 @@ BEGIN
   RETURNING current_number, padding, prefix
   INTO v_next, v_padding, v_prefix;
 
+  IF p_document_type = 'customer' THEN
+    RETURN v_prefix || lpad(v_next::text, v_padding, '0');
+  END IF;
+
   RETURN v_prefix || '-' || v_year::text || '-' || lpad(v_next::text, v_padding, '0');
 END;
 $$;
 
 COMMENT ON FUNCTION public.get_next_document_number(uuid, text) IS
-  'Allocates next document number atomically. Types: quote, order, service_order.';
+  'Allocates next document number atomically. Types: quote, order, service_order, customer.';
 
+GRANT EXECUTE ON FUNCTION public.get_next_document_number(uuid, text) TO anon;
 GRANT EXECUTE ON FUNCTION public.get_next_document_number(uuid, text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_next_document_number(uuid, text) TO service_role;
+
+-- ---------------------------------------------------------------------------
+-- customers.ab_number (address book number)
+-- ---------------------------------------------------------------------------
+ALTER TABLE public.customers
+  ADD COLUMN IF NOT EXISTS ab_number text;
+
+CREATE UNIQUE INDEX IF NOT EXISTS customers_company_id_ab_number_unique
+  ON public.customers (company_id, ab_number)
+  WHERE ab_number IS NOT NULL AND btrim(ab_number) <> '';
 
 -- ---------------------------------------------------------------------------
 -- Unique quote numbers per company (partial — ignores null legacy rows)

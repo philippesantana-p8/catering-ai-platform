@@ -1,6 +1,7 @@
 import { supabase } from './supabase'
 
-export type DocumentType = 'quote' | 'order' | 'service_order'
+/** quote=Q-YYYY-000001 · order=O · service_order=SO · customer/address book=AB000001 */
+export type DocumentType = 'quote' | 'order' | 'service_order' | 'customer'
 
 export type GetNextDocumentNumberResult = {
   number: string | null
@@ -62,3 +63,10 @@ export function getNextOrderNumber(companyId: string) {
 export function getNextServiceOrderNumber(companyId: string) {
   return getNextDocumentNumber(companyId, 'service_order')
 }
+
+/** Address book — formato AB000001 */
+export function getNextCustomerNumber(companyId: string) {
+  return getNextDocumentNumber(companyId, 'customer')
+}
+
+export const getNextAbNumber = getNextCustomerNumber

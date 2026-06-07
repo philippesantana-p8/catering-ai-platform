@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { QuoteListItem } from '@/Lib/fetchQuoteList'
 import CdlBrandLogo from './CdlBrandLogo'
@@ -74,6 +74,7 @@ export default function QuotesDashboard({
   initialQuotes: QuoteListItem[]
 }) {
   const router = useRouter()
+  const pathname = usePathname()
   const isMobile = useIsMobile()
   const deletedIdsRef = useRef<Set<string>>(new Set())
   const [quotes, setQuotes] = useState<QuoteListItem[]>(() =>
@@ -141,6 +142,32 @@ export default function QuotesDashboard({
       setExpandedQuoteId(null)
     }
   }, [isMobile])
+
+  const skipPathnameRefreshRef = useRef(true)
+
+  useEffect(() => {
+    if (skipPathnameRefreshRef.current) {
+      skipPathnameRefreshRef.current = false
+      return
+    }
+    if (pathname !== '/quotes') return
+    void refreshQuotes({ silent: true })
+  }, [pathname, refreshQuotes])
+
+  useEffect(() => {
+    const refreshOnFocus = () => {
+      if (document.visibilityState === 'visible') {
+        void refreshQuotes({ silent: true })
+      }
+    }
+
+    document.addEventListener('visibilitychange', refreshOnFocus)
+    window.addEventListener('focus', refreshOnFocus)
+    return () => {
+      document.removeEventListener('visibilitychange', refreshOnFocus)
+      window.removeEventListener('focus', refreshOnFocus)
+    }
+  }, [refreshQuotes])
 
   const handleQuoteDeleted = useCallback(
     (quoteId: string) => {

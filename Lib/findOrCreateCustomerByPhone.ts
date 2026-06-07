@@ -1,10 +1,11 @@
 import { getCdlCompanyId } from './cdlCompany'
-import { getCustomerDisplayName } from './getCustomerDisplayName'
 import {
   buildCustomersListSelect,
   pickCustomersInsertPayload,
   type CustomersInsertPayload,
 } from './customersTableSchema'
+import { getCustomerDisplayName } from './getCustomerDisplayName'
+import { getNextAbNumber } from './getNextDocumentNumber'
 import { isUsablePhone, normalizePhone } from './normalizePhone'
 import { supabase } from './supabase'
 
@@ -18,6 +19,7 @@ export type CustomerRecord = {
   last_name?: string | null
   company_name?: string | null
   ab_name?: string | null
+  ab_number?: string | null
   name?: string | null
   active?: boolean | null
   company_id?: string | null
@@ -40,28 +42,58 @@ function resolveInsertName(input: FindOrCreateCustomerInput): string | null {
   return name || null
 }
 
-function buildInsertRow(
+function resolveAbName(
+  input: FindOrCreateCustomerInput,
+  abNumber: string,
+): string {
+  const name = resolveInsertName(input)
+  if (name) return name
+  const phone = input.phone.trim()
+  if (phone) return phone
+  return `Cliente ${abNumber}`
+}
+
+async function buildInsertRow(
   input: FindOrCreateCustomerInput,
   companyId: string,
-): CustomersInsertPayload {
+): Promise<
+  | { row: CustomersInsertPayload; error: null }
+  | { row: null; error: { message: string } }
+> {
+  const { number: abNumber, error: numberError } =
+    await getNextAbNumber(companyId)
+
+  if (numberError || !abNumber) {
+    return {
+      row: null,
+      error: {
+        message:
+          numberError?.message ??
+          'Não foi possível gerar ab_number via get_next_document_number.',
+      },
+    }
+  }
+
   const name = resolveInsertName(input)
   const email = input.email?.trim() || null
   const phone = input.phone.trim()
+  const abName = resolveAbName(input, abNumber)
 
   const row: CustomersInsertPayload = {
     phone,
     email,
     company_id: companyId,
     active: true,
+    ab_number: abNumber,
+    ab_name: abName,
   }
 
   if (name) {
     row.contact_name = name
     row.full_name = name
-    row.ab_name = name
   }
 
-  return row
+  return { row, error: null }
 }
 
 function phonesMatch(
@@ -72,7 +104,6 @@ function phonesMatch(
   const normalizedStored = normalizePhone(stored)
   if (!normalizedStored) return false
   if (normalizedStored === normalizedTarget) return true
-  // US: match last 10 digits when country code differs
   if (normalizedStored.length >= 10 && normalizedTarget.length >= 10) {
     return (
       normalizedStored.slice(-10) === normalizedTarget.slice(-10)
@@ -123,9 +154,16 @@ export async function findOrCreateCustomerByPhone(
     return { customer: existing, created: false, error: null }
   }
 
-  const insertRow = pickCustomersInsertPayload(
-    buildInsertRow(input, companyId),
-  )
+  const built = await buildInsertRow(input, companyId)
+  if (built.error || !built.row) {
+    return {
+      customer: null,
+      created: false,
+      error: { message: built.error?.message ?? 'Falha ao montar cliente.' },
+    }
+  }
+
+  const insertRow = pickCustomersInsertPayload(built.row)
 
   const { data: created, error: insertError } = await supabase
     .from('customers')
@@ -146,8 +184,8 @@ export async function findOrCreateCustomerByPhone(
   }
 
   const customer = created as unknown as CustomerRecord
-  if (!getCustomerDisplayName(customer) && resolveInsertName(input)) {
-    // best-effort — display name resolved client-side from draft
+  if (!getCustomerDisplayName(customer) && built.row.ab_name) {
+    customer.ab_name = built.row.ab_name as string
   }
 
   return { customer, created: true, error: null }

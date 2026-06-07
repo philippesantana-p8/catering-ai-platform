@@ -11,6 +11,7 @@ export const CUSTOMERS_TABLE_COLUMNS = [
   'last_name',
   'company_name',
   'ab_name',
+  'ab_number',
   'company_id',
   'active',
 ] as const
@@ -28,12 +29,12 @@ export type CustomersInsertPayload = Partial<
 
 /** Colunas reais usadas por `getCustomerDisplayName` em queries Supabase. */
 export const CUSTOMERS_NAME_SOURCE_COLUMNS = [
+  'ab_name',
   'full_name',
   'contact_name',
   'first_name',
   'last_name',
   'company_name',
-  'ab_name',
   'email',
 ] as const
 
@@ -68,7 +69,12 @@ export function buildCustomersSelect(
 
 /** Wizard, autocomplete e vínculo por telefone — id, phone e campos de nome. */
 export function buildCustomersListSelect(): string {
-  return buildCustomersSelect(['id', 'phone', ...CUSTOMERS_NAME_SOURCE_COLUMNS])
+  return buildCustomersSelect([
+    'id',
+    'phone',
+    'ab_number',
+    ...CUSTOMERS_NAME_SOURCE_COLUMNS,
+  ])
 }
 
 export function pickCustomersInsertPayload(

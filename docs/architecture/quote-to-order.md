@@ -32,8 +32,9 @@ Numbers are allocated in PostgreSQL via `get_next_document_number(company_id, do
 | `quote` | Q | `Q-2026-000001` |
 | `order` | O | `O-2026-000001` |
 | `service_order` | SO | `SO-2026-000001` |
+| `customer` (address book) | AB | `AB000001` → `customers.ab_number` |
 
-App helpers: `getNextQuoteNumber`, `getNextOrderNumber`, `getNextServiceOrderNumber` in `Lib/getNextDocumentNumber.ts`.
+App helpers: `getNextQuoteNumber`, `getNextOrderNumber`, `getNextServiceOrderNumber`, `getNextAbNumber` in `Lib/getNextDocumentNumber.ts`.
 
 SQL: `scripts/sql/document-sequences.sql`
 
