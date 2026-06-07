@@ -30,7 +30,24 @@ export function getGrillPhotoStatusLabel(status: GrillPhotoStatus): string {
     case 'received':
       return 'Sim'
     case 'pending':
-      return 'Não'
+      return 'Pendente'
+    case 'not_applicable':
+      return 'Não se aplica'
+    default:
+      return '—'
+  }
+}
+
+/** Rótulo para detalhe/PDF da cotação */
+export function getGrillPhotoDetailLabel(
+  input: GrillPhotoStatusInput,
+): string {
+  const status = deriveGrillPhotoStatus(input)
+  switch (status) {
+    case 'received':
+      return 'Confirmada'
+    case 'pending':
+      return 'Pendente'
     case 'not_applicable':
       return 'Não se aplica'
     default:

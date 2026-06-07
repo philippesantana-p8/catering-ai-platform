@@ -2,6 +2,7 @@ import {
   getFallbackCommercialRules,
   type CommercialRulesSnapshot,
 } from '@/Lib/supabaseCommercialRules'
+import type { GrillPhotoStatus } from '@/Lib/grillPhotoStatus'
 
 export const WIZARD_STEP_LABELS = [
   'Cliente',
@@ -35,6 +36,7 @@ export type WizardStateSnapshot = {
   hasGrill: boolean
   grillSetupAnswered: boolean
   grillPhotoRequired: boolean
+  grillPhotoStatus: GrillPhotoStatus
   grillPhotoAnswered: boolean
   grillRentalRequired: boolean
   grillRentalQty: number
@@ -85,20 +87,49 @@ function hasLinkedCustomer(ctx: StepStatusContext): boolean {
   return Boolean(ctx.selectedCustomer || ctx.state.customerId)
 }
 
+export const GRILL_PHOTO_PENDING_WARNING =
+  'Foto da churrasqueira pendente. Pode ser confirmada posteriormente.'
+
+export function isGrillPhotoOperationallyPending(
+  state: WizardStateSnapshot,
+): boolean {
+  if (!state.hasGrill) return false
+  if (state.grillPhotoStatus === 'received') return false
+  return state.grillPhotoStatus === 'pending' || state.grillPhotoRequired
+}
+
+export function getOperationalStepWarnings(
+  ctx: StepStatusContext,
+): PendingStepIssue[] {
+  const warnings: PendingStepIssue[] = []
+
+  if (isGrillPhotoOperationallyPending(ctx.state)) {
+    warnings.push({
+      stepIndex: 4,
+      label: 'Churrasqueira',
+      issues: [GRILL_PHOTO_PENDING_WARNING],
+    })
+  }
+
+  return warnings
+}
+
 export function getOptionalStepWarnings(
   ctx: StepStatusContext,
 ): PendingStepIssue[] {
-  if (ctx.isEditMode || hasLinkedCustomer(ctx)) return []
+  const warnings = getOperationalStepWarnings(ctx)
 
-  return [
-    {
+  if (!ctx.isEditMode && !hasLinkedCustomer(ctx)) {
+    warnings.push({
       stepIndex: 0,
       label: 'Cliente',
       issues: [
         'Cliente ainda não vinculado. A cotação pode ser criada, mas deverá ser revisada antes do envio final.',
       ],
-    },
-  ]
+    })
+  }
+
+  return warnings
 }
 
 function hasValidPackage(ctx: StepStatusContext): boolean {
@@ -141,9 +172,6 @@ export function getStepIssues(
     case 4:
       if (!state.grillSetupAnswered) {
         issues.push('Informe se o cliente possui churrasqueira.')
-      }
-      if (state.hasGrill && !state.grillPhotoAnswered) {
-        issues.push('Confirme se a foto da churrasqueira foi recebida.')
       }
       if (state.grillRentalRequired && state.grillRentalQty <= 0) {
         issues.push('Informe a quantidade de churrasqueiras para aluguel.')
@@ -225,6 +253,12 @@ export function getStepVisualStatus(
 
   if (stepIndex === 3) {
     return ctx.additionalsCount > 0 ? 'complete' : 'pending'
+  }
+
+  if (stepIndex === 4) {
+    if (!isMandatoryStepComplete(stepIndex, ctx)) return 'pending'
+    if (isGrillPhotoOperationallyPending(ctx.state)) return 'pending'
+    return 'complete'
   }
 
   return isMandatoryStepComplete(stepIndex, ctx) ? 'complete' : 'pending'

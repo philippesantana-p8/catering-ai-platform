@@ -1,6 +1,5 @@
 import {
-  deriveGrillPhotoStatus,
-  getGrillPhotoStatusLabel,
+  getGrillPhotoDetailLabel,
 } from '@/Lib/grillPhotoStatus'
 import { getCustomerDisplayNameFromQuote } from '@/Lib/getCustomerDisplayName'
 import {
@@ -407,18 +406,14 @@ export default function QuoteDetailView({ quote }: { quote: QuoteDetail }) {
                 <p className="quote-proposal-value">{formatBool(quote.has_grill)}</p>
               </div>
               <div className="quote-proposal-info-cell">
-                <span className="quote-proposal-label">
-                  Foto da churrasqueira recebida?
-                </span>
+                <span className="quote-proposal-label">Foto da churrasqueira</span>
                 <p className="quote-proposal-value">
-                  {getGrillPhotoStatusLabel(
-                    deriveGrillPhotoStatus({
-                      hasGrill: quote.has_grill,
-                      grillPhotoRequired: quote.grill_photo_required,
-                      grillPhotoUrl: quote.grill_photo_url,
-                      grillPhotoMediaId: quote.grill_photo_media_id,
-                    }),
-                  )}
+                  {getGrillPhotoDetailLabel({
+                    hasGrill: quote.has_grill,
+                    grillPhotoRequired: quote.grill_photo_required,
+                    grillPhotoUrl: quote.grill_photo_url,
+                    grillPhotoMediaId: quote.grill_photo_media_id,
+                  })}
                 </p>
               </div>
               <div className="quote-proposal-info-cell">

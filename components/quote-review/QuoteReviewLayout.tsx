@@ -301,12 +301,10 @@ export default function QuoteReviewLayout({
                 <p className="quote-proposal-value">{formatBool(data.hasGrill)}</p>
               </div>
               <div className="quote-proposal-info-cell">
-                <span className="quote-proposal-label">
-                  Foto da churrasqueira recebida?
-                </span>
+                <span className="quote-proposal-label">Foto da churrasqueira</span>
                 <p className="quote-proposal-value">
                   {data.grillPhotoStatusLabel ??
-                    (data.hasGrill === false ? 'Não se aplica' : '—')}
+                    (data.hasGrill === false ? 'Não se aplica' : 'Pendente')}
                 </p>
               </div>
               <div className="quote-proposal-info-cell">

@@ -86,8 +86,8 @@ export default function QuoteWizardSummaryStep({
 
   const hasMandatoryPending = mandatoryPendingSteps.length > 0
   const optionalWarnings = useMemo(
-    () => (isEditMode ? [] : getOptionalStepWarnings(stepStatusCtx)),
-    [isEditMode, stepStatusCtx],
+    () => getOptionalStepWarnings(stepStatusCtx),
+    [stepStatusCtx],
   )
   const saveDisabled = saving || hasMandatoryPending
   const savingLabel = isEditMode ? 'Salvando…' : 'Criando cotação...'

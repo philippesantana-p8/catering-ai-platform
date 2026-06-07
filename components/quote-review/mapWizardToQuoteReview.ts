@@ -68,9 +68,9 @@ export function mapWizardToQuoteReview(
     physicalGuestCount: quoteTotals.physicalGuestCount,
     hasGrill: state.grillSetupAnswered ? state.hasGrill : null,
     grillPhotoRequired: state.grillPhotoRequired,
-    grillPhotoStatusLabel: state.grillPhotoAnswered
+    grillPhotoStatusLabel: state.hasGrill
       ? getGrillPhotoStatusLabel(state.grillPhotoStatus)
-      : null,
+      : 'Não se aplica',
     grillRentalRequired: state.grillRentalRequired,
     grillRentalQty: state.grillRentalRequired ? state.grillRentalQty : null,
     grillNotes: state.grillNotes.trim() || null,

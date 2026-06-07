@@ -28,8 +28,7 @@ import {
   readQuoteSnapshot,
 } from '@/Lib/readQuoteSnapshot'
 import {
-  deriveGrillPhotoStatus,
-  getGrillPhotoStatusLabel,
+  getGrillPhotoDetailLabel,
 } from '@/Lib/grillPhotoStatus'
 import { getCustomerDisplayNameFromQuote } from '@/Lib/getCustomerDisplayName'
 import {
@@ -711,15 +710,13 @@ export function QuotePdfDocument({
               value={formatBool(quote.has_grill)}
             />
             <InfoCell
-              label="Foto da churrasqueira recebida?"
-              value={getGrillPhotoStatusLabel(
-                deriveGrillPhotoStatus({
-                  hasGrill: quote.has_grill,
-                  grillPhotoRequired: quote.grill_photo_required,
-                  grillPhotoUrl: quote.grill_photo_url,
-                  grillPhotoMediaId: quote.grill_photo_media_id,
-                }),
-              )}
+              label="Foto da churrasqueira"
+              value={getGrillPhotoDetailLabel({
+                hasGrill: quote.has_grill,
+                grillPhotoRequired: quote.grill_photo_required,
+                grillPhotoUrl: quote.grill_photo_url,
+                grillPhotoMediaId: quote.grill_photo_media_id,
+              })}
             />
             <InfoCell
               label="Necessário alugar churrasqueira?"
