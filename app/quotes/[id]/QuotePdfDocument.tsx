@@ -31,6 +31,7 @@ import {
   deriveGrillPhotoStatus,
   getGrillPhotoStatusLabel,
 } from '@/Lib/grillPhotoStatus'
+import { getCustomerDisplayNameFromQuote } from '@/Lib/getCustomerDisplayName'
 import {
   type QuoteDetail,
   displayValue,
@@ -557,7 +558,7 @@ export function QuotePdfDocument({
   )
   const discount = getDiscount(quote)
   const quoteNumber = quote.quote_number ?? 'CDL-Q-0000'
-  const customerName = displayValue(quote.customer_name)
+  const customerName = displayValue(getCustomerDisplayNameFromQuote(quote))
   const eventDateLabel = formatDate(quote.event_date)
   const cityState = [quote.city, quote.state].filter(Boolean).join(', ')
   const eventLocation = [quote.address_line, cityState, getZipCode(quote)]
@@ -690,7 +691,7 @@ export function QuotePdfDocument({
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Evento</Text>
           <Text style={styles.packageName}>
-            {displayValue(quote.event_name ?? quote.customer_name)}
+            {displayValue(quote.event_name ?? getCustomerDisplayNameFromQuote(quote))}
           </Text>
           <View style={styles.grid2}>
             <InfoCell label="Data" value={eventDateLabel} />

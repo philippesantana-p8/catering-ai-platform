@@ -1,4 +1,8 @@
-/** Shape mínima para exibir nome de cliente (várias colunas possíveis no schema). */
+/**
+ * Shape mínima para exibir nome de cliente (colunas reais de `customers`).
+ * Mesma ordem de `public.vw_customer_display.customer_display_name` (SQL).
+ * @see scripts/sql/vw-customer-display.sql
+ */
 export type CustomerNameSource = {
   ab_name?: string | null
   full_name?: string | null
@@ -6,19 +10,15 @@ export type CustomerNameSource = {
   company_name?: string | null
   email?: string | null
   phone?: string | null
-  /** Legado — não é coluna de `customers`. */
-  first_name?: string | null
-  last_name?: string | null
-  name?: string | null
 }
 
-const DEFAULT_EMPTY_LABEL = 'Cliente não informado'
+export const CUSTOMER_DISPLAY_NAME_EMPTY = 'Cliente sem nome'
 
 export function getCustomerDisplayName(
   customer: CustomerNameSource | null | undefined,
   options?: { emptyLabel?: string },
 ): string {
-  const emptyLabel = options?.emptyLabel ?? DEFAULT_EMPTY_LABEL
+  const emptyLabel = options?.emptyLabel ?? CUSTOMER_DISPLAY_NAME_EMPTY
   if (!customer) return emptyLabel
 
   const candidates = [
@@ -36,4 +36,12 @@ export function getCustomerDisplayName(
   }
 
   return emptyLabel
+}
+
+/** Resolve nome a partir de payload de cotação/view (sem referenciar colunas inexistentes). */
+export function getCustomerDisplayNameFromQuote(
+  quote: CustomerNameSource | null | undefined,
+  options?: { emptyLabel?: string },
+): string {
+  return getCustomerDisplayName(quote, options)
 }

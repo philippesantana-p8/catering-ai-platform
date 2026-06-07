@@ -1,4 +1,5 @@
 import type { QuoteDetail } from '@/app/quotes/[id]/quoteDetailTypes'
+import { getCustomerDisplayNameFromQuote } from '@/Lib/getCustomerDisplayName'
 import {
   deriveGrillPhotoStatus,
   grillPhotoStatusToRequired,
@@ -49,7 +50,9 @@ export function mapQuoteDetailToWizardState(
   const state: WizardState = {
     ...createInitialWizardState(rules),
     customerId: quote.customer_id ?? null,
-    eventName: quote.event_name ?? quote.customer_name ?? '',
+    eventName:
+      quote.event_name ??
+      getCustomerDisplayNameFromQuote(quote, { emptyLabel: '' }),
     eventDate: normalizeDate(quote.event_date),
     startTime: normalizeTime(quote.start_time),
     endTime: normalizeTime(quote.end_time),

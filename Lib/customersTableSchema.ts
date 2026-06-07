@@ -1,42 +1,67 @@
 /**
- * Colunas reais de `public.customers` (schema de produção).
- * Não inclui `customer_name` — coluna inexistente na tabela.
+ * Colunas reais de `public.customers` (schema de produção / Address Book).
+ * Não inclui `customer_name`, `first_name` ou `last_name`.
+ * Para exibição use `vw_customer_display.customer_display_name` ou getCustomerDisplayName().
+ * @see scripts/sql/vw-customer-display.sql
  */
 export const CUSTOMERS_TABLE_COLUMNS = [
+  'company_id',
+  'ab_name',
   'phone',
   'email',
+  'address',
+  'city',
+  'state',
+  'customer_type',
   'full_name',
-  'contact_name',
-  'first_name',
-  'last_name',
   'company_name',
-  'ab_name',
-  'ab_number',
-  'company_id',
+  'address_line',
+  'postal_code',
+  'country',
+  'preferred_language',
+  'notes',
   'active',
+  'ab_number',
+  'ab_type',
+  'legacy_id',
+  'address_book_role',
+  'contact_name',
+  'tax_id',
+  'website',
+  'source',
+  'tags',
 ] as const
 
 export type CustomersTableColumn = (typeof CUSTOMERS_TABLE_COLUMNS)[number]
 
 /** Subconjunto seguro para insert/update em `customers`. */
-export const CUSTOMERS_INSERT_COLUMNS = CUSTOMERS_TABLE_COLUMNS
+export const CUSTOMERS_INSERT_COLUMNS = [
+  'company_id',
+  'ab_name',
+  'phone',
+  'email',
+  'full_name',
+  'contact_name',
+  'company_name',
+  'ab_number',
+  'active',
+] as const satisfies ReadonlyArray<CustomersTableColumn>
 
-export type CustomersInsertColumn = CustomersTableColumn
+export type CustomersInsertColumn = (typeof CUSTOMERS_INSERT_COLUMNS)[number]
 
 export type CustomersInsertPayload = Partial<
   Record<CustomersInsertColumn, string | boolean | null>
 >
 
-/** Colunas reais usadas por `getCustomerDisplayName` em queries Supabase. */
+/** Colunas usadas por `getCustomerDisplayName` em queries Supabase. */
 export const CUSTOMERS_NAME_SOURCE_COLUMNS = [
   'ab_name',
   'full_name',
   'contact_name',
-  'first_name',
-  'last_name',
   'company_name',
   'email',
-] as const
+  'phone',
+] as const satisfies ReadonlyArray<CustomersTableColumn>
 
 export type CustomersNameSourceColumn =
   (typeof CUSTOMERS_NAME_SOURCE_COLUMNS)[number]
@@ -49,12 +74,9 @@ export function isCustomersTableColumn(
   return CUSTOMERS_TABLE_COLUMN_SET.has(key)
 }
 
-type CustomersSelectColumn =
-  | 'id'
-  | CustomersTableColumn
-  | CustomersNameSourceColumn
+type CustomersSelectColumn = 'id' | CustomersTableColumn
 
-/** Monta cláusula `.select()` sem colunas inexistentes (ex.: `customer_name`). */
+/** Monta cláusula `.select()` apenas com colunas reais de `customers`. */
 export function buildCustomersSelect(
   include: ReadonlyArray<CustomersSelectColumn> = [
     'id',
@@ -67,7 +89,7 @@ export function buildCustomersSelect(
   return [...new Set(columns)].join(', ')
 }
 
-/** Wizard, autocomplete e vínculo por telefone — id, phone e campos de nome. */
+/** Wizard, autocomplete e vínculo por telefone. */
 export function buildCustomersListSelect(): string {
   return buildCustomersSelect([
     'id',

@@ -24,7 +24,12 @@ export type QuoteDetail = {
   customer_id?: string | null
   package_id?: string | null
   package_key?: string | null
-  customer_name?: string | null
+  ab_name?: string | null
+  full_name?: string | null
+  contact_name?: string | null
+  company_name?: string | null
+  email?: string | null
+  phone?: string | null
   adult_count?: number | null
   children_under_3_count?: number | null
   children_4_to_12_count?: number | null

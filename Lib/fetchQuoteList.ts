@@ -4,6 +4,7 @@ import {
   type CustomersNameSourceColumn,
 } from './customersTableSchema'
 import {
+  CUSTOMER_DISPLAY_NAME_EMPTY,
   getCustomerDisplayName,
   type CustomerNameSource,
 } from './getCustomerDisplayName'
@@ -66,6 +67,9 @@ type QuoteRow = {
 type ListViewRow = {
   id: string
   event_date?: string | null
+  /** De `vw_customer_display` via quote_list_view */
+  customer_display_name?: string | null
+  /** Legado — views antigas com `ab_name AS customer_name` */
   customer_name?: string | null
   city?: string | null
   state?: string | null
@@ -101,17 +105,20 @@ type GrillViewRow = {
 const QUOTE_LIST_SELECT =
   'id, quote_number, quote_total, quote_status, created_at, customer_id, event_id, package_id, active, reservation_amount, balance_due, physical_guest_count, billable_guest_count, additional_total, mileage_fee, mileage_distance'
 
-function resolveCustomerName(
+function resolveCustomerDisplayName(
   customer: CustomerRow | undefined,
-  viewName: string | null | undefined,
+  view: ListViewRow | undefined,
 ): string {
-  const fromCustomer = customer
-    ? getCustomerDisplayName(customer)
-    : ''
-  if (fromCustomer !== 'Cliente não informado') return fromCustomer
-  const fromView = viewName?.trim()
-  if (fromView) return fromView
-  return 'Cliente não informado'
+  const fromViewColumn =
+    view?.customer_display_name?.trim() ||
+    view?.customer_name?.trim() ||
+    ''
+  if (fromViewColumn) return fromViewColumn
+
+  const fromCustomer = getCustomerDisplayName(customer)
+  if (fromCustomer !== CUSTOMER_DISPLAY_NAME_EMPTY) return fromCustomer
+
+  return CUSTOMER_DISPLAY_NAME_EMPTY
 }
 
 function resolvePackageName(
@@ -215,7 +222,9 @@ export async function fetchQuoteList() {
         : Promise.resolve({ data: [] as CustomerRow[], error: null }),
       supabase
         .from('quote_list_view')
-        .select('id, event_date, customer_name, city, state, package_name')
+        .select(
+          'id, event_date, customer_display_name, customer_name, city, state, package_name',
+        )
         .in('id', quoteIds),
       eventIds.length > 0
         ? supabase
@@ -299,7 +308,7 @@ export async function fetchQuoteList() {
     return {
       id: row.id,
       quote_number: row.quote_number ?? '—',
-      customer_name: resolveCustomerName(customer, view?.customer_name),
+      customer_name: resolveCustomerDisplayName(customer, view),
       quote_status: row.quote_status,
       event_date: view?.event_date ?? event?.event_date ?? null,
       created_at: row.created_at,

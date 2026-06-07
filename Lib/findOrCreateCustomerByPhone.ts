@@ -4,7 +4,10 @@ import {
   pickCustomersInsertPayload,
   type CustomersInsertPayload,
 } from './customersTableSchema'
-import { getCustomerDisplayName } from './getCustomerDisplayName'
+import {
+  CUSTOMER_DISPLAY_NAME_EMPTY,
+  getCustomerDisplayName,
+} from './getCustomerDisplayName'
 import { getNextAbNumber } from './getNextDocumentNumber'
 import { isUsablePhone, normalizePhone } from './normalizePhone'
 import { supabase } from './supabase'
@@ -15,12 +18,9 @@ export type CustomerRecord = {
   email?: string | null
   full_name?: string | null
   contact_name?: string | null
-  first_name?: string | null
-  last_name?: string | null
   company_name?: string | null
   ab_name?: string | null
   ab_number?: string | null
-  name?: string | null
   active?: boolean | null
   company_id?: string | null
 }
@@ -37,20 +37,10 @@ export type FindOrCreateCustomerResult = {
   error: { message: string } | null
 }
 
-function resolveInsertName(input: FindOrCreateCustomerInput): string | null {
+function resolveAbName(input: FindOrCreateCustomerInput): string {
   const name = input.name?.trim()
-  return name || null
-}
-
-function resolveAbName(
-  input: FindOrCreateCustomerInput,
-  abNumber: string,
-): string {
-  const name = resolveInsertName(input)
   if (name) return name
-  const phone = input.phone.trim()
-  if (phone) return phone
-  return `Cliente ${abNumber}`
+  return input.phone.trim()
 }
 
 async function buildInsertRow(
@@ -74,10 +64,10 @@ async function buildInsertRow(
     }
   }
 
-  const name = resolveInsertName(input)
+  const name = input.name?.trim() || null
   const email = input.email?.trim() || null
   const phone = input.phone.trim()
-  const abName = resolveAbName(input, abNumber)
+  const abName = resolveAbName(input)
 
   const row: CustomersInsertPayload = {
     phone,
@@ -184,7 +174,10 @@ export async function findOrCreateCustomerByPhone(
   }
 
   const customer = created as unknown as CustomerRecord
-  if (!getCustomerDisplayName(customer) && built.row.ab_name) {
+  if (
+    getCustomerDisplayName(customer) === CUSTOMER_DISPLAY_NAME_EMPTY &&
+    built.row.ab_name
+  ) {
     customer.ab_name = built.row.ab_name as string
   }
 

@@ -18,7 +18,10 @@ import {
   normalizeSaveQuoteError,
   type SaveQuoteErrorInfo,
 } from '../../../Lib/supabaseSaveError'
-import { getCustomerDisplayName } from '../../../Lib/getCustomerDisplayName'
+import {
+  CUSTOMER_DISPLAY_NAME_EMPTY,
+  getCustomerDisplayName,
+} from '../../../Lib/getCustomerDisplayName'
 import { isUsablePhone, normalizePhone } from '../../../Lib/normalizePhone'
 import {
   grillPhotoStatusToRequired,
@@ -41,13 +44,11 @@ import {
 
 export type Customer = {
   id: string
-  full_name?: string | null
-  name?: string | null
-  contact_name?: string | null
-  first_name?: string | null
-  last_name?: string | null
-  company_name?: string | null
   ab_name?: string | null
+  ab_number?: string | null
+  full_name?: string | null
+  contact_name?: string | null
+  company_name?: string | null
   email?: string | null
   phone?: string | null
   address_line?: string | null
@@ -1546,7 +1547,7 @@ export default function QuoteWizard({
     ? getCustomerDisplayName(linkedCustomer)
     : state.customerId
       ? 'Cliente vinculado não encontrado'
-      : 'Cliente não informado'
+      : CUSTOMER_DISPLAY_NAME_EMPTY
   const selectedPackage = packages.find((p) => p.id === state.packageId) ?? null
 
   const filteredCustomers = useMemo(() => {

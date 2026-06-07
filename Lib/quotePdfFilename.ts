@@ -1,4 +1,8 @@
 import type { QuoteDetail } from '@/app/quotes/[id]/quoteDetailTypes'
+import {
+  getCustomerDisplayNameFromQuote,
+  type CustomerNameSource,
+} from '@/Lib/getCustomerDisplayName'
 
 function sanitizeFilenamePart(value: string) {
   return (
@@ -23,13 +27,15 @@ export function getEventDateForFilename(
 }
 
 export function getQuotePdfFilename(
-  quote: Pick<QuoteDetail, 'quote_number' | 'event_date' | 'customer_name'>,
+  quote: Pick<QuoteDetail, 'quote_number' | 'event_date'> & CustomerNameSource,
 ) {
   const datePart = getEventDateForFilename(quote.event_date)
   const quoteNumber = (quote.quote_number ?? 'CDL-Q-0000')
     .trim()
     .replace(/\s+/g, '-')
-  const clientName = sanitizeFilenamePart(quote.customer_name ?? 'CLIENT')
+  const clientName = sanitizeFilenamePart(
+    getCustomerDisplayNameFromQuote(quote, { emptyLabel: 'CLIENT' }),
+  )
   return `${datePart}_${quoteNumber}_${clientName}_BBQ-At-Home.pdf`
 }
 

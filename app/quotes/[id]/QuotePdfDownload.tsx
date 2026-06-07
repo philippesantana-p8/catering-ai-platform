@@ -92,7 +92,7 @@ export default function QuotePdfDownload({
         headerFilename ??
         getQuotePdfFilename({
           quote_number: quoteNumber,
-          customer_name: customerName,
+          ab_name: customerName,
           event_date: eventDate,
         })
 

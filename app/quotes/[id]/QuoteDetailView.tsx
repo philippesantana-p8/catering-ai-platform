@@ -2,6 +2,7 @@ import {
   deriveGrillPhotoStatus,
   getGrillPhotoStatusLabel,
 } from '@/Lib/grillPhotoStatus'
+import { getCustomerDisplayNameFromQuote } from '@/Lib/getCustomerDisplayName'
 import {
   type QuoteDetail,
   displayValue,
@@ -192,6 +193,7 @@ export default function QuoteDetailView({ quote }: { quote: QuoteDetail }) {
   const groupedAdditionals = groupAdditionalsByCategory(additionalItems, lang)
   const discount = getDiscount(quote)
   const quoteNumber = quote.quote_number ?? 'CDL-Q-0000'
+  const customerDisplayName = getCustomerDisplayNameFromQuote(quote)
   const cityState = [quote.city, quote.state].filter(Boolean).join(', ')
   const eventLocation = [quote.address_line, cityState, getZipCode(quote)]
     .filter(Boolean)
@@ -235,7 +237,7 @@ export default function QuoteDetailView({ quote }: { quote: QuoteDetail }) {
           <QuoteDetailToolbar
             quoteId={quote.id}
             quoteNumber={quoteNumber}
-            customerName={quote.customer_name}
+            customerName={customerDisplayName}
             eventDate={quote.event_date}
             editHref={`/quotes/${quote.id}/edit?step=churrasqueira`}
           />
@@ -303,7 +305,7 @@ export default function QuoteDetailView({ quote }: { quote: QuoteDetail }) {
         <div className="quote-proposal-overview">
           <div className="quote-proposal-overview-item">
             <span className="quote-proposal-label">Cliente</span>
-            <p className="quote-proposal-value">{displayValue(quote.customer_name)}</p>
+            <p className="quote-proposal-value">{displayValue(customerDisplayName)}</p>
           </div>
           <div className="quote-proposal-overview-item">
             <span className="quote-proposal-label">Evento</span>
@@ -375,7 +377,7 @@ export default function QuoteDetailView({ quote }: { quote: QuoteDetail }) {
 
           <ProposalSection title="Evento">
             <p className="quote-proposal-event-name">
-              {displayValue(quote.event_name ?? quote.customer_name)}
+              {displayValue(quote.event_name ?? customerDisplayName)}
             </p>
             <div className="quote-proposal-event-list">
               <EventRow

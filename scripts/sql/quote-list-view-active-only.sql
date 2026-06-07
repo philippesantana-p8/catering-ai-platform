@@ -1,11 +1,6 @@
 -- Garante que quote_list_view exponha apenas cotações ativas.
+-- Requer vw_customer_display (scripts/sql/vw-customer-display.sql).
 -- Execute no Supabase SQL Editor se a view ainda listar inativas.
---
--- Adicione `AND q.active IS TRUE` (ou `WHERE q.active IS TRUE`) na definição
--- da view, usando o alias da tabela quotes (ex.: q).
-
--- Exemplo mínimo: recrie a view incluindo o filtro no final do SELECT base.
--- Ajuste joins/colunas conforme a definição atual em produção.
 
 CREATE OR REPLACE VIEW public.quote_list_view AS
 SELECT
@@ -21,7 +16,7 @@ SELECT
   q.reservation_amount,
   q.balance_due,
   q.created_at,
-  c.ab_name AS customer_name,
+  cd.customer_display_name,
   e.event_name,
   e.event_date,
   e.start_time,
@@ -31,7 +26,7 @@ SELECT
   p.package_name,
   p.package_key
 FROM public.quotes q
-LEFT JOIN public.customers c ON c.id = q.customer_id
+LEFT JOIN public.vw_customer_display cd ON cd.id = q.customer_id
 LEFT JOIN public.packages p ON p.id = q.package_id
 LEFT JOIN public.events e ON e.id = q.event_id
 WHERE q.active IS TRUE;
