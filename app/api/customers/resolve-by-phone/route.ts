@@ -3,6 +3,9 @@ import {
   type CustomerRecord,
 } from '@/Lib/findOrCreateCustomerByPhone'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export async function POST(request: Request) {
   let body: { phone?: string; name?: string; email?: string }
 
@@ -34,8 +37,15 @@ export async function POST(request: Request) {
     )
   }
 
-  return Response.json({
-    customer: customer as CustomerRecord,
-    created,
-  })
+  return Response.json(
+    {
+      customer: customer as CustomerRecord,
+      created,
+    },
+    {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+      },
+    },
+  )
 }

@@ -24,6 +24,11 @@ import {
 } from '../../../Lib/getCustomerDisplayName'
 import { isUsablePhone, normalizePhone } from '../../../Lib/normalizePhone'
 import {
+  filterCustomersBySearch,
+  mergeCustomerIntoList,
+  sortCustomersByRecency,
+} from '../../../Lib/searchCustomers'
+import {
   grillPhotoStatusToRequired,
   type GrillPhotoStatus,
 } from '../../../Lib/grillPhotoStatus'
@@ -59,6 +64,8 @@ export type Customer = {
   zip_code?: string | null
   postal_code?: string | null
   venue_name?: string | null
+  updated_at?: string | null
+  created_at?: string | null
 }
 
 export type Package = {
@@ -1303,6 +1310,7 @@ function InputField({
   max,
   completion,
   inputRef,
+  onFocus,
 }: {
   label: string
   type?: string
@@ -1315,6 +1323,7 @@ function InputField({
   max?: string | number
   completion?: FieldCompletion
   inputRef?: React.RefObject<HTMLInputElement | null>
+  onFocus?: () => void
 }) {
   return (
     <label className={`flex flex-col gap-2 ${className}`}>
@@ -1328,6 +1337,7 @@ function InputField({
           step={step}
           min={min}
           max={max}
+          onFocus={onFocus}
           onChange={(e) => onChange(e.target.value)}
           className={`w-full rounded-xl border px-4 py-3.5 pr-10 text-base text-cdl-fg shadow-cdl outline-none transition-colors placeholder:text-cdl-faint focus:border-cdl-accent-border ${fieldCompletionClass(completion)}`}
         />
@@ -1530,13 +1540,64 @@ export default function QuoteWizard({
   const [saveErrorInfo, setSaveErrorInfo] = useState<SaveQuoteErrorInfo | null>(
     null,
   )
-  const [localCustomers, setLocalCustomers] = useState(customers)
+  const [localCustomers, setLocalCustomers] = useState(() =>
+    sortCustomersByRecency(customers),
+  )
+  const [customersRefreshing, setCustomersRefreshing] = useState(false)
+  const [customerLinkSuccess, setCustomerLinkSuccess] = useState<string | null>(
+    null,
+  )
   const router = useRouter()
   const distanceInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    setLocalCustomers(customers)
+    setLocalCustomers((current) => {
+      const merged = sortCustomersByRecency([...customers])
+      for (const row of current) {
+        if (!merged.some((customer) => customer.id === row.id)) {
+          merged.unshift(row)
+        }
+      }
+      return sortCustomersByRecency(merged)
+    })
   }, [customers])
+
+  const refreshCustomersFromApi = async (query = customerSearch) => {
+    setCustomersRefreshing(true)
+    try {
+      const params = new URLSearchParams({ _: String(Date.now()) })
+      if (query.trim()) params.set('q', query.trim())
+      const response = await fetch(`/api/customers?${params.toString()}`, {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache' },
+      })
+      const result = (await response.json()) as {
+        data?: Customer[]
+        error?: string
+      }
+      if (!response.ok || !result.data) {
+        throw new Error(result.error ?? 'Não foi possível atualizar clientes.')
+      }
+      setLocalCustomers((current) => {
+        const merged = sortCustomersByRecency(result.data ?? [])
+        for (const row of current) {
+          if (!merged.some((customer) => customer.id === row.id)) {
+            merged.unshift(row)
+          }
+        }
+        return sortCustomersByRecency(merged)
+      })
+    } catch (refreshError) {
+      updateState({
+        customerPhoneLinkError:
+          refreshError instanceof Error
+            ? refreshError.message
+            : 'Erro ao atualizar lista de clientes.',
+      })
+    } finally {
+      setCustomersRefreshing(false)
+    }
+  }
 
   const selectedCustomer = isEditMode
     ? linkedCustomer ??
@@ -1550,21 +1611,10 @@ export default function QuoteWizard({
       : CUSTOMER_DISPLAY_NAME_EMPTY
   const selectedPackage = packages.find((p) => p.id === state.packageId) ?? null
 
-  const filteredCustomers = useMemo(() => {
-    const query = customerSearch.trim().toLowerCase()
-    if (!query) return localCustomers
-    return localCustomers.filter((customer) => {
-      const haystack = [
-        getCustomerName(customer),
-        customer.email,
-        customer.phone,
-      ]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase()
-      return haystack.includes(query)
-    })
-  }, [localCustomers, customerSearch])
+  const filteredCustomers = useMemo(
+    () => filterCustomersBySearch(localCustomers, customerSearch),
+    [localCustomers, customerSearch],
+  )
 
   const packagesWithoutSides = useMemo(
     () =>
@@ -1861,11 +1911,16 @@ export default function QuoteWizard({
     if (!isUsablePhone(phone)) return null
 
     updateState({ customerPhoneLinking: true, customerPhoneLinkError: null })
+    setCustomerLinkSuccess(null)
 
     try {
       const response = await fetch('/api/customers/resolve-by-phone', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        cache: 'no-store',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache',
+        },
         body: JSON.stringify({
           phone,
           name: name || undefined,
@@ -1888,10 +1943,12 @@ export default function QuoteWizard({
       }
 
       const customer = result.customer
-      setLocalCustomers((current) => {
-        if (current.some((row) => row.id === customer.id)) return current
-        return [customer, ...current]
-      })
+      setLocalCustomers((current) => mergeCustomerIntoList(current, customer))
+      setCustomerLinkSuccess(
+        result.created
+          ? 'Cliente criado com sucesso.'
+          : 'Cliente vinculado com sucesso.',
+      )
 
       const eventDefaults = getEventDefaultsFromCustomer(customer)
       setState((prev) => ({
@@ -1904,6 +1961,9 @@ export default function QuoteWizard({
         customerPhoneLinkError: null,
         ...eventDefaults,
       }))
+      void refreshCustomersFromApi(
+        customer.phone ?? phone ?? getCustomerDisplayName(customer),
+      )
       return customer.id
     } catch {
       updateState({
@@ -2326,6 +2386,11 @@ export default function QuoteWizard({
                 {state.customerPhoneLinkError}
               </p>
             ) : null}
+            {customerLinkSuccess ? (
+              <p className="sm:col-span-2 text-sm font-semibold text-cdl-success">
+                {customerLinkSuccess}
+              </p>
+            ) : null}
             {selectedCustomer ? (
               <div className="sm:col-span-2 rounded-xl border border-cdl-success-border bg-cdl-success-soft px-4 py-3">
                 <p className="text-xs font-bold uppercase tracking-wider text-cdl-success">
@@ -2334,17 +2399,37 @@ export default function QuoteWizard({
                 <p className="mt-1 font-bold text-cdl-fg">
                   {getCustomerName(selectedCustomer)}
                 </p>
+                {selectedCustomer.ab_number ? (
+                  <p className="mt-1 text-xs text-cdl-muted">
+                    {selectedCustomer.ab_number}
+                  </p>
+                ) : null}
               </div>
             ) : null}
 
             <div className="sm:col-span-2">
-              <InputField
-                label="Pesquisar cliente existente"
-                value={customerSearch}
-                onChange={setCustomerSearch}
-                placeholder="Nome, e-mail ou telefone..."
-                className="mb-4"
-              />
+              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end">
+                <div className="min-w-0 flex-1">
+                  <InputField
+                    label="Pesquisar cliente existente"
+                    value={customerSearch}
+                    onChange={(value) => {
+                      setCustomerSearch(value)
+                      setCustomerLinkSuccess(null)
+                    }}
+                    onFocus={() => void refreshCustomersFromApi(customerSearch)}
+                    placeholder="Nome, telefone, e-mail ou AB number"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void refreshCustomersFromApi(customerSearch)}
+                  disabled={customersRefreshing}
+                  className="inline-flex min-h-[44px] shrink-0 items-center justify-center rounded-xl border border-cdl-border bg-cdl-surface px-4 py-3 text-xs font-bold uppercase tracking-wider text-cdl-fg disabled:opacity-50"
+                >
+                  {customersRefreshing ? 'Atualizando…' : 'Atualizar'}
+                </button>
+              </div>
             </div>
             <div className="grid grid-cols-1 gap-3 sm:col-span-2 sm:grid-cols-2">
               {filteredCustomers.length === 0 ? (
@@ -2386,6 +2471,11 @@ export default function QuoteWizard({
                       )}
                       {customer.phone && (
                         <p className="text-sm text-cdl-muted">{customer.phone}</p>
+                      )}
+                      {customer.ab_number && (
+                        <p className="text-xs font-semibold uppercase tracking-wider text-cdl-muted">
+                          {customer.ab_number}
+                        </p>
                       )}
                     </button>
                   )

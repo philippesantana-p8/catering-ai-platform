@@ -30,6 +30,8 @@ export const CUSTOMERS_TABLE_COLUMNS = [
   'website',
   'source',
   'tags',
+  'created_at',
+  'updated_at',
 ] as const
 
 export type CustomersTableColumn = (typeof CUSTOMERS_TABLE_COLUMNS)[number]
@@ -91,12 +93,16 @@ export function buildCustomersSelect(
 
 /** Wizard, autocomplete e vínculo por telefone. */
 export function buildCustomersListSelect(): string {
-  return buildCustomersSelect([
-    'id',
-    'phone',
-    'ab_number',
-    ...CUSTOMERS_NAME_SOURCE_COLUMNS,
-  ])
+  return [
+    buildCustomersSelect([
+      'id',
+      'phone',
+      'ab_number',
+      ...CUSTOMERS_NAME_SOURCE_COLUMNS,
+    ]),
+    'updated_at',
+    'created_at',
+  ].join(', ')
 }
 
 export function pickCustomersInsertPayload(

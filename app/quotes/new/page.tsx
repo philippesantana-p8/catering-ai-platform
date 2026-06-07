@@ -1,25 +1,21 @@
-import { buildCustomersListSelect } from '../../../Lib/customersTableSchema'
-import { getCdlCompanyId } from '../../../Lib/cdlCompany'
-import { supabase } from '../../../Lib/supabase'
+import { fetchActiveCustomers } from '../../../Lib/fetchCustomers'
 import { fetchSupabaseCommercialRules } from '../../../Lib/supabaseCommercialRules'
 import QuoteWizard, {
   type AdditionalItem,
   type Customer,
   type Package,
 } from './QuoteWizard'
+import { supabase } from '../../../Lib/supabase'
+
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
 export default async function NewQuotePage() {
   const fetchErrors: string[] = []
 
-  const companyId = getCdlCompanyId()
-
   const [customersRes, packagesRes, additionalRes, commercialRules] =
     await Promise.all([
-      supabase
-        .from('customers')
-        .select(buildCustomersListSelect())
-        .eq('company_id', companyId)
-        .eq('active', true),
+      fetchActiveCustomers(),
       supabase
         .from('packages')
         .select('*')
@@ -44,7 +40,7 @@ export default async function NewQuotePage() {
     fetchErrors.push(`Adicionais: ${additionalRes.error.message}`)
   }
 
-  const customers = (customersRes.data ?? []) as unknown as Customer[]
+  const customers = (customersRes.data ?? []) as Customer[]
   const packages = (packagesRes.data ?? []) as Package[]
   const additionalItems = (additionalRes.data ?? []) as AdditionalItem[]
 
