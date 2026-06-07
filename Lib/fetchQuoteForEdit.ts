@@ -1,4 +1,6 @@
+import { buildAdditionalItemsListSelect } from '@/Lib/additionalItemsTableSchema'
 import { buildCustomersListSelect } from '@/Lib/customersTableSchema'
+import { buildPackagesListSelect } from '@/Lib/packagesTableSchema'
 import type { QuoteAdditionalItem, QuoteDetail } from '@/app/quotes/[id]/quoteDetailTypes'
 import type { AdditionalItem, Customer, Package } from '@/app/quotes/new/QuoteWizard'
 import { fetchQuoteDetail } from './fetchQuoteDetail'
@@ -158,7 +160,11 @@ export async function fetchQuoteForEdit(
           .maybeSingle()
       : Promise.resolve({ data: null, error: null }),
     packageId
-      ? supabase.from('packages').select('*').eq('id', packageId).maybeSingle()
+      ? supabase
+          .from('packages')
+          .select(buildPackagesListSelect())
+          .eq('id', packageId)
+          .maybeSingle()
       : Promise.resolve({ data: null, error: null }),
     supabase
       .from('quote_additional_items')
@@ -166,12 +172,12 @@ export async function fetchQuoteForEdit(
       .eq('quote_id', quoteId),
     supabase
       .from('packages')
-      .select('*')
+      .select(buildPackagesListSelect())
       .eq('active', true)
       .order('display_order', { ascending: true }),
     supabase
       .from('additional_items')
-      .select('*')
+      .select(buildAdditionalItemsListSelect())
       .eq('active', true)
       .order('category_pt', { ascending: true })
       .order('display_order', { ascending: true }),
@@ -212,9 +218,9 @@ export async function fetchQuoteForEdit(
   }
 
   const linkedCustomer = (customerRes.data as Customer | null) ?? null
-  const linkedPackage = (linkedPackageRes.data as Package | null) ?? null
+  const linkedPackage = (linkedPackageRes.data as unknown as Package | null) ?? null
   const packages = mergePackages(
-    (packagesRes.data ?? []) as Package[],
+    (packagesRes.data ?? []) as unknown as Package[],
     linkedPackage,
   )
 
@@ -222,7 +228,7 @@ export async function fetchQuoteForEdit(
     quote,
     linkedCustomer,
     packages,
-    additionalItems: (additionalRes.data ?? []) as AdditionalItem[],
+    additionalItems: (additionalRes.data ?? []) as unknown as AdditionalItem[],
     commercialRules,
     fetchErrors,
     error: null,

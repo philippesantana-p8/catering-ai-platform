@@ -1,4 +1,6 @@
+import { buildAdditionalItemsListSelect } from '../../../Lib/additionalItemsTableSchema'
 import { fetchActiveCustomers } from '../../../Lib/fetchCustomers'
+import { buildPackagesListSelect } from '../../../Lib/packagesTableSchema'
 import { fetchSupabaseCommercialRules } from '../../../Lib/supabaseCommercialRules'
 import QuoteWizard, {
   type AdditionalItem,
@@ -18,12 +20,12 @@ export default async function NewQuotePage() {
       fetchActiveCustomers(),
       supabase
         .from('packages')
-        .select('*')
+        .select(buildPackagesListSelect())
         .eq('active', true)
         .order('display_order', { ascending: true }),
       supabase
         .from('additional_items')
-        .select('*')
+        .select(buildAdditionalItemsListSelect())
         .eq('active', true)
         .order('category_pt', { ascending: true })
         .order('display_order', { ascending: true }),
@@ -41,8 +43,8 @@ export default async function NewQuotePage() {
   }
 
   const customers = (customersRes.data ?? []) as Customer[]
-  const packages = (packagesRes.data ?? []) as Package[]
-  const additionalItems = (additionalRes.data ?? []) as AdditionalItem[]
+  const packages = (packagesRes.data ?? []) as unknown as Package[]
+  const additionalItems = (additionalRes.data ?? []) as unknown as AdditionalItem[]
 
   return (
     <QuoteWizard

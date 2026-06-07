@@ -1,4 +1,5 @@
 import CommercialRulesDashboard from '@/components/CommercialRulesDashboard'
+import type { CommercialRuleRow } from '@/Lib/commercialRulesTableSchema'
 import { getFallbackCommercialRules } from '@/Lib/supabaseCommercialRules'
 import { fetchSupabaseCommercialRules } from '@/Lib/supabaseCommercialRules'
 import { supabase } from '@/Lib/supabase'
@@ -13,7 +14,7 @@ async function fetchRuleRows() {
     .order('rule_key', { ascending: true })
 
   if (error) return []
-  return data ?? []
+  return (data ?? []) as CommercialRuleRow[]
 }
 
 async function tableExists() {

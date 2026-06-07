@@ -1,9 +1,9 @@
 /** Campos de preço possíveis no catálogo `additional_items` (somente os que existem no row). */
 export type AdditionalItemPriceSource = {
-  price?: number | string | null
-  price_per_person?: number | string | null
-  price_per_unit?: number | string | null
-  amount?: number | string | null
+  price?: unknown
+  price_per_person?: unknown
+  price_per_unit?: unknown
+  amount?: unknown
 }
 
 function toNumber(value: unknown): number | null {
