@@ -4,6 +4,7 @@ import {
   pickCustomersUpdatePayload,
   type CustomersUpdatePayload,
 } from '@/Lib/customersTableSchema'
+import { assertCustomerCanBeDeactivated } from '@/Lib/customerOpenQuotes'
 import { normalizePhone } from '@/Lib/normalizePhone'
 import { supabase } from '@/Lib/supabase'
 
@@ -30,6 +31,19 @@ export async function PATCH(
 
   const isDeactivateOnly =
     Object.keys(body).length === 1 && body.active === false
+
+  if (isDeactivateOnly) {
+    const guard = await assertCustomerCanBeDeactivated(id)
+    if (!guard.allowed) {
+      return Response.json(
+        {
+          error: guard.message ?? 'Cliente possui cotações em aberto.',
+          openQuoteCount: guard.count,
+        },
+        { status: 409 },
+      )
+    }
+  }
 
   const updatePayload: Record<string, string | boolean | null> = isDeactivateOnly
     ? { active: false, updated_at: new Date().toISOString() }

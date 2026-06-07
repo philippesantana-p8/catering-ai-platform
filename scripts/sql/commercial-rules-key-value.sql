@@ -27,7 +27,7 @@ VALUES
   ('children_4_to_12_factor', '0.5', 'number', 'Fator de cobrança crianças 4–12 anos', true),
   ('child_free_age_max', '3', 'number', 'Idade máxima criança grátis', true),
   ('child_half_age_max', '12', 'number', 'Idade máxima meia criança', true),
-  ('quote_validity_days', '30', 'number', 'Validade padrão da cotação (dias)', true),
+  ('quote_validity_days', '7', 'number', 'Validade padrão da cotação (dias)', true),
   ('minimum_order_amount', '0', 'number', 'Valor mínimo de pedido se aplicável', true),
   ('grill_photo_required_default', 'false', 'boolean', 'Exigir foto da churrasqueira por padrão', true),
   ('cancellation_policy_pt', '', 'text', 'Texto de política de cancelamento (PT)', true),

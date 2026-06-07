@@ -36,6 +36,7 @@ export default function CommercialRulesDashboard({
   const [editingId, setEditingId] = useState<string | 'new' | null>(null)
   const [draft, setDraft] = useState(EMPTY_RULE)
   const [saving, setSaving] = useState(false)
+  const [seeding, setSeeding] = useState(false)
 
   const filteredRows = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -126,6 +127,29 @@ export default function CommercialRulesDashboard({
     }
   }
 
+  async function seedDefaults() {
+    setSeeding(true)
+    setError(null)
+    try {
+      const response = await fetch('/api/commercial-rules/seed', {
+        method: 'POST',
+      })
+      const result = (await response.json()) as { error?: string }
+      if (!response.ok) {
+        throw new Error(result.error ?? 'Não foi possível criar regras padrão.')
+      }
+      await refresh()
+    } catch (seedError) {
+      setError(
+        seedError instanceof Error
+          ? seedError.message
+          : 'Erro ao criar regras padrão.',
+      )
+    } finally {
+      setSeeding(false)
+    }
+  }
+
   async function deactivate(row: CommercialRuleRow) {
     if (!window.confirm(`Inativar regra "${row.rule_key}"?`)) return
     const response = await fetch('/api/commercial-rules', {
@@ -181,14 +205,26 @@ export default function CommercialRulesDashboard({
       loading={loading}
       error={error}
       actions={
-        <button
-          type="button"
-          onClick={startNew}
-          disabled={!data.editable}
-          className="cdl-btn-primary inline-flex min-h-[44px] items-center justify-center rounded-xl px-5 py-3 text-sm font-bold disabled:opacity-50"
-        >
-          Nova regra
-        </button>
+        <>
+          {data.editable && data.rows.length === 0 ? (
+            <button
+              type="button"
+              onClick={() => void seedDefaults()}
+              disabled={seeding}
+              className="cdl-btn-primary inline-flex min-h-[44px] items-center justify-center rounded-xl px-5 py-3 text-sm font-bold disabled:opacity-50"
+            >
+              {seeding ? 'Criando…' : 'Criar regras padrão'}
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={startNew}
+            disabled={!data.editable}
+            className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-cdl-border bg-cdl-surface px-5 py-3 text-sm font-bold disabled:opacity-50"
+          >
+            Nova regra
+          </button>
+        </>
       }
     >
       {!data.editable ? (

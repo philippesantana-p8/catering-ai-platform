@@ -6,7 +6,7 @@ import { supabase } from '@/Lib/supabase'
 export default async function PackageImagesPage() {
   const { data, error } = await supabase
     .from('packages')
-    .select('id, package_key, package_name, label_pt, image_url, photo_url')
+    .select('id, package_key, package_name, label_pt, image_url')
     .eq('active', true)
     .order('display_order', { ascending: true })
 

@@ -49,7 +49,7 @@ const COLUMNS: Array<{ key: keyof CustomerForm; label: string }> = [
 async function fetchCustomersFromApi(
   query: string,
   activeFilter: ActiveFilter,
-): Promise<CustomerRow[]> {
+): Promise<{ customers: CustomerRow[]; openQuoteCounts: Record<string, number> }> {
   const params = new URLSearchParams({ _: String(Date.now()) })
   if (query.trim()) params.set('q', query.trim())
   if (activeFilter === 'all') params.set('active', 'all')
@@ -60,12 +60,16 @@ async function fetchCustomersFromApi(
   })
   const result = (await response.json()) as {
     data?: CustomerRow[]
+    openQuoteCounts?: Record<string, number>
     error?: string
   }
   if (!response.ok) {
     throw new Error(result.error ?? 'Não foi possível buscar clientes.')
   }
-  return result.data ?? []
+  return {
+    customers: result.data ?? [],
+    openQuoteCounts: result.openQuoteCounts ?? {},
+  }
 }
 
 export default function CustomersDashboard({
@@ -83,6 +87,9 @@ export default function CustomersDashboard({
   const [editingId, setEditingId] = useState<string | 'new' | null>(null)
   const [draft, setDraft] = useState<CustomerForm>(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
+  const [openQuoteCounts, setOpenQuoteCounts] = useState<Record<string, number>>(
+    {},
+  )
 
   const filteredCustomers = useMemo(
     () => filterCustomersBySearch(customers, search),
@@ -93,8 +100,10 @@ export default function CustomersDashboard({
     setLoading(true)
     setError(null)
     try {
-      const next = await fetchCustomersFromApi(search, activeFilter)
+      const { customers: next, openQuoteCounts: counts } =
+        await fetchCustomersFromApi(search, activeFilter)
       setCustomers(dedupeCustomersList(sortCustomersByRecency(next)))
+      setOpenQuoteCounts(counts)
     } catch (refreshError) {
       setError(
         refreshError instanceof Error
@@ -168,6 +177,14 @@ export default function CustomersDashboard({
   }
 
   async function handleDeactivate(customer: CustomerRow) {
+    const openCount = openQuoteCounts[customer.id] ?? 0
+    if (openCount > 0) {
+      setError(
+        `Não é possível excluir este cadastro porque existem ${openCount} cotação(ões) em aberto vinculadas a ele.`,
+      )
+      return
+    }
+
     const label = getCustomerDisplayName(customer)
     if (
       !window.confirm(
@@ -176,17 +193,30 @@ export default function CustomersDashboard({
     ) {
       return
     }
+
+    setError(null)
     const response = await fetch(`/api/customers/${customer.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ active: false }),
     })
-    const result = (await response.json()) as { error?: string }
+    const result = (await response.json()) as {
+      error?: string
+      openQuoteCount?: number
+    }
     if (!response.ok) {
-      setError(result.error ?? 'Não foi possível excluir cadastro.')
+      setError(
+        result.error ??
+          'Não é possível excluir este cadastro porque existem cotações em aberto vinculadas a ele.',
+      )
       return
     }
     setCustomers((current) => current.filter((row) => row.id !== customer.id))
+    setOpenQuoteCounts((current) => {
+      const next = { ...current }
+      delete next[customer.id]
+      return next
+    })
   }
 
   function renderDisplay(customer: CustomerRow, key: string) {
@@ -322,7 +352,17 @@ export default function CustomersDashboard({
                     </td>
                   ))}
                   <td className="px-3 py-2 align-top text-sm font-semibold text-cdl-fg">
-                    {getCustomerDisplayName(customer)}
+                    <div className="flex flex-col gap-1">
+                      <span>{getCustomerDisplayName(customer)}</span>
+                      {(openQuoteCounts[customer.id] ?? 0) > 0 ? (
+                        <span className="inline-flex w-fit rounded-full border border-[var(--brand-accent)] bg-[color-mix(in_srgb,var(--brand-accent)_12%,transparent)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[var(--brand-accent)]">
+                          Cotação em aberto
+                          {(openQuoteCounts[customer.id] ?? 0) > 1
+                            ? ` (${openQuoteCounts[customer.id]})`
+                            : ''}
+                        </span>
+                      ) : null}
+                    </div>
                   </td>
                   <td className="px-3 py-2 align-top">
                     <div className="flex flex-wrap gap-1">
@@ -356,9 +396,9 @@ export default function CustomersDashboard({
                           <button
                             type="button"
                             onClick={() => void handleDeactivate(customer)}
-                            className="rounded-lg border border-cdl-action px-2 py-1 text-xs font-bold text-cdl-action"
+                            className="rounded-lg border border-red-600 bg-red-600/10 px-2 py-1 text-xs font-bold text-red-600 hover:bg-red-600/20"
                           >
-                            Inativar
+                            Excluir
                           </button>
                         </>
                       )}

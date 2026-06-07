@@ -16,7 +16,6 @@ export type PackageListItem = {
   currency_code?: string | null
   display_order?: number | null
   image_url?: string | null
-  photo_url?: string | null
   active?: boolean | null
   updated_at?: string | null
 }

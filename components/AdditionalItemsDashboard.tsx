@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import BackofficeTableShell from '@/components/BackofficeTableShell'
 import type { AdditionalItemListItem } from '@/Lib/fetchAdditionalItems'
+import { getAdditionalItemUnitPrice } from '@/Lib/getAdditionalItemUnitPrice'
 import type { AdditionalItemsInsertPayload } from '@/Lib/additionalItemsTableSchema'
 
 type ActiveFilter = 'active' | 'all'
@@ -13,7 +14,7 @@ const EMPTY_ROW: AdditionalItemsInsertPayload = {
   label_en: '',
   label_es: '',
   category_pt: '',
-  unit_price: 0,
+  price: 0,
   pricing_type: 'PER_UNIT',
   charge_type: 'UNIT',
   display_order: 0,
@@ -31,7 +32,7 @@ const COLUMNS: Array<{
   { key: 'label_en', label: 'EN', type: 'text' },
   { key: 'label_es', label: 'ES', type: 'text' },
   { key: 'category_pt', label: 'Categoria', type: 'text' },
-  { key: 'unit_price', label: 'Preço', type: 'number' },
+  { key: 'price', label: 'Preço', type: 'number' },
   { key: 'pricing_type', label: 'Tipo', type: 'text' },
   { key: 'display_order', label: 'Ordem', type: 'number' },
   { key: 'image_url', label: 'image_url', type: 'text' },
@@ -118,7 +119,7 @@ export default function AdditionalItemsDashboard({
       label_en: item.label_en ?? '',
       label_es: item.label_es ?? '',
       category_pt: item.category_pt ?? '',
-      unit_price: item.unit_price ?? item.price ?? 0,
+      price: getAdditionalItemUnitPrice(item),
       pricing_type: item.pricing_type ?? 'PER_UNIT',
       charge_type: item.charge_type ?? 'UNIT',
       display_order: item.display_order ?? 0,
@@ -139,7 +140,7 @@ export default function AdditionalItemsDashboard({
       ...draft,
       charge_type:
         draft.pricing_type === 'PER_PERSON' ? 'PERSON' : 'UNIT',
-      price: draft.unit_price,
+      price: getAdditionalItemUnitPrice(draft),
     }
     try {
       const url =
@@ -217,8 +218,8 @@ export default function AdditionalItemsDashboard({
         />
       )
     }
-    if (key === 'unit_price') {
-      return String(item.unit_price ?? item.price ?? '—')
+    if (key === 'price') {
+      return String(getAdditionalItemUnitPrice(item))
     }
     return String(item[key as keyof AdditionalItemListItem] ?? '—')
   }

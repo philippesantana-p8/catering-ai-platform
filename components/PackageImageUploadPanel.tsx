@@ -9,7 +9,6 @@ type PackageRow = {
   package_name?: string | null
   label_pt?: string | null
   image_url?: string | null
-  photo_url?: string | null
 }
 
 function getPackageLabel(pkg: PackageRow) {
@@ -22,7 +21,7 @@ function getPackageLabel(pkg: PackageRow) {
 }
 
 function getPackageImage(pkg: PackageRow) {
-  return pkg.image_url ?? pkg.photo_url ?? null
+  return pkg.image_url ?? null
 }
 
 export default function PackageImageUploadPanel({

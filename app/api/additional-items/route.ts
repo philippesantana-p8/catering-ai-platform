@@ -1,5 +1,6 @@
 import { getCdlCompanyId } from '@/Lib/cdlCompany'
 import { fetchAdditionalItems } from '@/Lib/fetchAdditionalItems'
+import { getAdditionalItemUnitPrice } from '@/Lib/getAdditionalItemUnitPrice'
 import {
   pickAdditionalItemsInsertPayload,
   type AdditionalItemsInsertPayload,
@@ -72,9 +73,11 @@ export async function POST(request: Request) {
     return Response.json({ error: 'company_id não configurado.' }, { status: 500 })
   }
 
-  let body: AdditionalItemsInsertPayload
+  let body: AdditionalItemsInsertPayload & { price?: number | null }
   try {
-    body = (await request.json()) as AdditionalItemsInsertPayload
+    body = (await request.json()) as AdditionalItemsInsertPayload & {
+      price?: number | null
+    }
   } catch {
     return Response.json({ error: 'Payload inválido.' }, { status: 400 })
   }
@@ -87,12 +90,11 @@ export async function POST(request: Request) {
   }
 
   const now = new Date().toISOString()
-  const unitPrice = Number(body.unit_price ?? body.price) || 0
+  const price = getAdditionalItemUnitPrice(body)
   const payload = {
     ...pickAdditionalItemsInsertPayload(body),
     company_id: companyId,
-    unit_price: unitPrice,
-    price: unitPrice,
+    price,
     active: body.active !== false,
     display_order: Number(body.display_order) || 0,
     created_at: now,

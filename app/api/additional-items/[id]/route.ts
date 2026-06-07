@@ -1,4 +1,5 @@
 import { getCdlCompanyId } from '@/Lib/cdlCompany'
+import { getAdditionalItemUnitPrice } from '@/Lib/getAdditionalItemUnitPrice'
 import {
   buildAdditionalItemsListSelect,
   pickAdditionalItemsUpdatePayload,
@@ -15,10 +16,11 @@ export async function PATCH(
 ) {
   const { id } = await context.params
 
-  let body: AdditionalItemsInsertPayload & { active?: boolean }
+  let body: AdditionalItemsInsertPayload & { active?: boolean; price?: number | null }
   try {
     body = (await request.json()) as AdditionalItemsInsertPayload & {
       active?: boolean
+      price?: number | null
     }
   } catch {
     return Response.json({ error: 'Payload inválido.' }, { status: 400 })
@@ -28,14 +30,14 @@ export async function PATCH(
     Object.keys(body).length === 1 && body.active === false
 
   const updatePayload: Record<string, unknown> = isDeactivateOnly
-    ? { active: false }
+    ? { active: false, updated_at: new Date().toISOString() }
     : {
         ...pickAdditionalItemsUpdatePayload(body),
-        ...(body.unit_price != null || body.price != null
-          ? {
-              unit_price: Number(body.unit_price ?? body.price) || 0,
-              price: Number(body.unit_price ?? body.price) || 0,
-            }
+        ...(body.price != null ||
+        body.price_per_person != null ||
+        body.price_per_unit != null ||
+        body.amount != null
+          ? { price: getAdditionalItemUnitPrice(body) }
           : {}),
         ...(body.active !== undefined ? { active: body.active } : {}),
         updated_at: new Date().toISOString(),

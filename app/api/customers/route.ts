@@ -10,6 +10,7 @@ import {
   type CustomerListItem,
 } from '@/Lib/fetchCustomers'
 import { getNextAbNumber } from '@/Lib/getNextDocumentNumber'
+import { countOpenQuotesForCustomers } from '@/Lib/customerOpenQuotes'
 import { normalizePhone } from '@/Lib/normalizePhone'
 import {
   customerMatchesSearch,
@@ -50,8 +51,11 @@ export async function GET(request: Request) {
     )
   }
 
+  const customerIds = result.map((row) => row.id)
+  const { counts: openQuoteCounts } = await countOpenQuotesForCustomers(customerIds)
+
   return Response.json(
-    { data: result },
+    { data: result, openQuoteCounts },
     {
       headers: {
         'Cache-Control': 'no-store, no-cache, must-revalidate',

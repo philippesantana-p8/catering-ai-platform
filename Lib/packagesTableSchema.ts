@@ -17,7 +17,6 @@ export const PACKAGES_TABLE_COLUMNS = [
   'currency_code',
   'display_order',
   'image_url',
-  'photo_url',
   'active',
   'created_at',
   'updated_at',
@@ -65,7 +64,6 @@ export const PACKAGES_LIST_COLUMNS = [
   'currency_code',
   'display_order',
   'image_url',
-  'photo_url',
   'active',
   'updated_at',
 ] as const

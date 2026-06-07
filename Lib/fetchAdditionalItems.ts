@@ -11,8 +11,10 @@ export type AdditionalItemListItem = {
   category_pt?: string | null
   category_en?: string | null
   category_es?: string | null
-  unit_price?: number | null
   price?: number | null
+  price_per_person?: number | null
+  price_per_unit?: number | null
+  amount?: number | null
   pricing_type?: string | null
   charge_type?: string | null
   quantity?: number | null
@@ -22,7 +24,6 @@ export type AdditionalItemListItem = {
   unit_label?: string | null
   display_order?: number | null
   image_url?: string | null
-  photo_url?: string | null
   active?: boolean | null
   updated_at?: string | null
 }

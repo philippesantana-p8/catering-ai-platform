@@ -11,7 +11,6 @@ export type QuoteAdditionalItem = {
   unit_price?: number | null
   total_price?: number | null
   image_url?: string | null
-  photo_url?: string | null
   image_status?: string | null
 }
 
@@ -161,7 +160,7 @@ export function getZipCode(quote: QuoteDetail) {
 
 export function getAdditionalImage(item: QuoteAdditionalItem) {
   if (item.image_status === 'missing') return null
-  return item.image_url ?? item.photo_url ?? null
+  return item.image_url ?? null
 }
 
 export function groupAdditionalsByCategory(
