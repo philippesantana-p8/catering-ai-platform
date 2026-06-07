@@ -46,22 +46,15 @@ function resolveAbName(input: FindOrCreateCustomerInput): string {
 async function buildInsertRow(
   input: FindOrCreateCustomerInput,
   companyId: string,
-): Promise<
-  | { row: CustomersInsertPayload; error: null }
-  | { row: null; error: { message: string } }
-> {
+): Promise<CustomersInsertPayload> {
   const { number: abNumber, error: numberError } =
     await getNextAbNumber(companyId)
 
   if (numberError || !abNumber) {
-    return {
-      row: null,
-      error: {
-        message:
-          numberError?.message ??
-          'Não foi possível gerar ab_number via get_next_document_number.',
-      },
-    }
+    console.warn(
+      '[CDL Customer] ab_number indisponível; criando cliente sem AB Number:',
+      numberError?.message ?? 'RPC retornou vazio',
+    )
   }
 
   const name = input.name?.trim() || null
@@ -74,8 +67,8 @@ async function buildInsertRow(
     email,
     company_id: companyId,
     active: true,
-    ab_number: abNumber,
     ab_name: abName,
+    ...(abNumber ? { ab_number: abNumber } : {}),
   }
 
   if (name) {
@@ -83,7 +76,7 @@ async function buildInsertRow(
     row.full_name = name
   }
 
-  return { row, error: null }
+  return row
 }
 
 function phonesMatch(
@@ -144,16 +137,9 @@ export async function findOrCreateCustomerByPhone(
     return { customer: existing, created: false, error: null }
   }
 
-  const built = await buildInsertRow(input, companyId)
-  if (built.error || !built.row) {
-    return {
-      customer: null,
-      created: false,
-      error: { message: built.error?.message ?? 'Falha ao montar cliente.' },
-    }
-  }
-
-  const insertRow = pickCustomersInsertPayload(built.row)
+  const insertRow = pickCustomersInsertPayload(
+    await buildInsertRow(input, companyId),
+  )
 
   const { data: created, error: insertError } = await supabase
     .from('customers')
@@ -176,9 +162,9 @@ export async function findOrCreateCustomerByPhone(
   const customer = created as unknown as CustomerRecord
   if (
     getCustomerDisplayName(customer) === CUSTOMER_DISPLAY_NAME_EMPTY &&
-    built.row.ab_name
+    insertRow.ab_name
   ) {
-    customer.ab_name = built.row.ab_name as string
+    customer.ab_name = insertRow.ab_name as string
   }
 
   return { customer, created: true, error: null }
