@@ -55,15 +55,19 @@ export default function DeleteQuoteButton({
   }
 
   return (
-    <div className={className}>
+    <div className={className.includes('pscs-btn-danger') ? '' : className}>
       <button
         type="button"
         onClick={() => void handleDelete()}
         disabled={deleting}
-        className={`inline-flex items-center justify-center rounded-lg border border-cdl-action/50 bg-cdl-red-soft font-bold uppercase tracking-wider text-cdl-action transition-colors hover:border-cdl-action disabled:cursor-not-allowed disabled:opacity-40 ${
-          compact
-            ? 'min-w-0 flex-1 px-3 py-2 text-xs sm:flex-none'
-            : 'px-5 py-3 text-sm'
+        className={`inline-flex items-center justify-center rounded-lg font-bold uppercase tracking-wider transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+          className.includes('pscs-btn-danger')
+            ? `pscs-btn-danger ${compact ? 'min-w-0 flex-1 px-3 py-2 text-xs sm:flex-none' : 'px-5 py-3 text-sm'}`
+            : `border border-cdl-action/50 bg-cdl-red-soft text-cdl-action hover:border-cdl-action ${
+                compact
+                  ? 'min-w-0 flex-1 px-3 py-2 text-xs sm:flex-none'
+                  : 'px-5 py-3 text-sm'
+              }`
         }`}
       >
         {deleting ? 'Excluindo…' : compact ? 'Excluir' : 'Excluir Cotação'}

@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import DeleteQuoteButton from '@/components/DeleteQuoteButton'
+import PackageBadge from '@/components/PackageBadge'
 import {
   deriveGrillPhotoStatus,
   getGrillPhotoBadgeLabel,
@@ -56,14 +57,14 @@ function Metric({
   highlight?: boolean
 }) {
   return (
-    <div className="quote-card-metric rounded-xl border border-cdl-border/80 bg-cdl-inset/80 px-3 py-2.5">
-      <p className="text-[0.6rem] font-bold uppercase tracking-wider text-cdl-muted">
+    <div className="quote-card-metric rounded-xl border border-[var(--brand-border)]/80 bg-[#f6f7f9] px-3 py-2.5">
+      <p className="text-[0.6rem] font-bold uppercase tracking-wider text-[var(--brand-text-muted)]">
         {label}
       </p>
       <p
         className={`quote-card-metric-value mt-1 text-sm font-bold leading-tight ${
           money ? 'quote-card-metric-value--money' : ''
-        } ${highlight ? 'quote-card-metric-value--highlight text-cdl-price' : 'text-cdl-fg'}`}
+        } ${highlight ? 'quote-pscs-total font-black' : 'text-[var(--brand-text)]'}`}
         title={value}
       >
         {value}
@@ -72,20 +73,6 @@ function Metric({
   )
 }
 
-function PackageBadge({ name, compact = false }: { name: string | null; compact?: boolean }) {
-  const label = name?.trim() || 'Não informado'
-  return (
-    <span
-      className={`inline-flex max-w-full items-center rounded-full border border-[#f6d000]/45 bg-[#f6d000]/12 font-bold uppercase tracking-wider text-[#9a7200] dark:text-[#f6d000] ${
-        compact
-          ? 'px-2.5 py-1 text-[0.58rem]'
-          : 'mt-3 px-3 py-1.5 text-[0.65rem]'
-      }`}
-    >
-      <span className="truncate">Pacote: {label}</span>
-    </span>
-  )
-}
 
 function CompactIndicator({
   label,
@@ -144,13 +131,13 @@ function QuoteCardActions({
     >
       <Link
         href={`/quotes/${quote.id}`}
-        className="cdl-btn-primary inline-flex min-h-[44px] items-center justify-center px-3 py-2.5 text-xs sm:min-w-[4.5rem]"
+        className="pscs-btn-primary inline-flex min-h-[44px] items-center justify-center rounded-xl px-3 py-2.5 text-xs font-bold uppercase tracking-wider sm:min-w-[4.5rem]"
       >
         Ver
       </Link>
       <Link
         href={`/quotes/${quote.id}/edit?step=churrasqueira`}
-        className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-cdl-border bg-cdl-surface px-3 py-2.5 text-xs font-bold uppercase tracking-wider text-cdl-fg transition-colors hover:border-cdl-accent-border"
+        className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-[var(--brand-border)] bg-white px-3 py-2.5 text-xs font-bold uppercase tracking-wider text-[var(--brand-primary)] transition-colors hover:border-[var(--brand-primary-2)]"
       >
         Editar
       </Link>
@@ -159,10 +146,11 @@ function QuoteCardActions({
         compact
         redirectToList={false}
         onDeleted={onDeleted}
+        className="pscs-btn-danger"
       />
       <Link
         href={`/quotes/${quote.id}?pdf=1`}
-        className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-cdl-border bg-cdl-inset px-3 py-2.5 text-xs font-bold uppercase tracking-wider text-cdl-fg transition-colors hover:border-cdl-accent-border"
+        className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-[var(--brand-border)] bg-[#f6f7f9] px-3 py-2.5 text-xs font-bold uppercase tracking-wider text-[var(--brand-text)] transition-colors hover:border-[var(--brand-primary-2)]"
       >
         PDF
       </Link>
@@ -202,7 +190,7 @@ function QuoteCardCompactSummary({
 
       <div className="mt-2.5 flex flex-wrap items-center gap-2">
         <PackageBadge name={quote.package_name} compact />
-        <span className="text-sm font-black text-cdl-price">
+        <span className="quote-pscs-total text-sm font-black">
           {formatMoney(quote.quote_total)}
         </span>
       </div>
@@ -243,12 +231,12 @@ export default function QuoteCard({
 
   if (showCompact) {
     return (
-      <article className="overflow-hidden rounded-2xl border border-cdl-border bg-cdl-surface p-3.5 shadow-cdl transition-colors active:border-cdl-accent-border/60">
+      <article className="quote-pscs-card overflow-hidden rounded-2xl p-3.5 transition-colors active:border-[var(--brand-primary-2)]">
         <QuoteCardCompactSummary quote={quote} onToggle={() => onToggleExpand?.()} />
         <button
           type="button"
           onClick={() => onToggleExpand?.()}
-          className="mt-3 w-full min-h-[44px] rounded-xl border border-cdl-border bg-cdl-inset px-3 py-2.5 text-xs font-bold uppercase tracking-wider text-cdl-brand transition-colors hover:border-cdl-accent-border"
+          className="mt-3 w-full min-h-[44px] rounded-xl border border-[var(--brand-border)] bg-[#f6f7f9] px-3 py-2.5 text-xs font-bold uppercase tracking-wider text-[var(--brand-primary-2)] transition-colors hover:border-[var(--brand-primary)]"
         >
           Detalhes
         </button>
@@ -258,7 +246,7 @@ export default function QuoteCard({
 
   return (
     <article
-      className={`group flex h-full flex-col overflow-hidden rounded-2xl border border-cdl-border bg-cdl-surface shadow-cdl transition-all duration-200 hover:border-cdl-accent-border/60 hover:shadow-lg ${
+      className={`quote-pscs-card group flex h-full flex-col overflow-hidden rounded-2xl transition-all duration-200 hover:shadow-lg ${
         mobileCompact ? 'p-3.5' : 'p-4 sm:p-5'
       }`}
     >

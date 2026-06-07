@@ -37,6 +37,17 @@ async function fetchQuotesFromApi(): Promise<QuoteListItem[]> {
   return result.data ?? []
 }
 
+function buildQuotesSummary(items: QuoteListItem[]) {
+  const totalValue = items.reduce(
+    (sum, quote) => sum + Number(quote.quote_total ?? 0),
+    0,
+  )
+  return {
+    count: items.length,
+    totalValue,
+  }
+}
+
 export default function QuotesDashboard({
   initialQuotes,
 }: {
@@ -53,29 +64,37 @@ export default function QuotesDashboard({
 
   const filteredQuotes = useFilteredQuotes(quotes, filters)
 
-  const refreshQuotes = useCallback(async (options?: { silent?: boolean }) => {
-    if (!options?.silent) {
-      setLoading(true)
-    }
-    setRefreshError(null)
-
-    try {
-      const next = await fetchQuotesFromApi()
-      setQuotes(next)
-      setLastUpdated(new Date())
-      router.refresh()
-    } catch (error) {
-      setRefreshError(
-        error instanceof Error
-          ? error.message
-          : 'Não foi possível buscar cotações.',
-      )
-    } finally {
+  const refreshQuotes = useCallback(
+    async (options?: { silent?: boolean; excludeIds?: string[] }) => {
       if (!options?.silent) {
-        setLoading(false)
+        setLoading(true)
       }
-    }
-  }, [router])
+      setRefreshError(null)
+
+      try {
+        const next = await fetchQuotesFromApi()
+        const exclude = new Set(options?.excludeIds ?? [])
+        const sanitized =
+          exclude.size > 0
+            ? next.filter((quote) => !exclude.has(quote.id))
+            : next
+        setQuotes(sanitized)
+        setLastUpdated(new Date())
+        router.refresh()
+      } catch (error) {
+        setRefreshError(
+          error instanceof Error
+            ? error.message
+            : 'Não foi possível buscar cotações.',
+        )
+      } finally {
+        if (!options?.silent) {
+          setLoading(false)
+        }
+      }
+    },
+    [router],
+  )
 
   useEffect(() => {
     void refreshQuotes()
@@ -91,7 +110,7 @@ export default function QuotesDashboard({
     (quoteId: string) => {
       setQuotes((current) => current.filter((quote) => quote.id !== quoteId))
       setExpandedQuoteId((current) => (current === quoteId ? null : current))
-      void refreshQuotes({ silent: true })
+      void refreshQuotes({ silent: true, excludeIds: [quoteId] })
     },
     [refreshQuotes],
   )
@@ -100,28 +119,28 @@ export default function QuotesDashboard({
     setExpandedQuoteId((current) => (current === quoteId ? null : quoteId))
   }, [])
 
-  const summary = useMemo(() => {
-    const totalValue = filteredQuotes.reduce(
-      (sum, quote) => sum + Number(quote.quote_total ?? 0),
-      0,
-    )
-    return {
-      count: filteredQuotes.length,
-      totalValue,
-    }
-  }, [filteredQuotes])
+  const summary = useMemo(
+    () => buildQuotesSummary(filteredQuotes),
+    [filteredQuotes],
+  )
 
   return (
-    <main className="min-h-screen overflow-x-hidden bg-cdl-bg px-4 py-6 text-cdl-fg sm:px-6 sm:py-10">
+    <main className="quotes-pscs min-h-screen overflow-x-hidden px-4 py-6 sm:px-6 sm:py-10">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 sm:gap-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between sm:gap-5">
           <div className="flex items-center gap-4">
-            <CdlBrandLogo size="sm" className="!h-14 !w-14 sm:!h-20 sm:!w-20" />
+            <CdlBrandLogo size="sm" className="!h-12 !w-12 opacity-90 sm:!h-14 sm:!w-14" />
             <div className="min-w-0">
-              <h1 className="text-2xl font-black text-cdl-title sm:text-4xl">
-                Cotações CDL
+              <h1 className="text-2xl font-black tracking-tight text-[var(--brand-primary)] sm:text-4xl">
+                Cotações
               </h1>
-              <p className="mt-1 text-sm text-cdl-text-secondary">
+              <p className="text-xs font-semibold uppercase tracking-wider text-[var(--brand-primary-2)]/80">
+                Catering AI · CDL BBQ At Home
+              </p>
+              <p
+                className="mt-1 text-sm text-[var(--brand-text-muted)]"
+                key={`${summary.count}-${summary.totalValue.toFixed(2)}`}
+              >
                 {summary.count} cotação(ões) · ${summary.totalValue.toFixed(2)}{' '}
                 em propostas
               </p>
@@ -129,13 +148,13 @@ export default function QuotesDashboard({
           </div>
           <Link
             href="/quotes/new"
-            className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-cdl-accent px-5 py-3 text-sm font-bold text-cdl-on-accent transition-opacity hover:opacity-90"
+            className="pscs-btn-primary inline-flex min-h-[44px] items-center justify-center rounded-xl px-5 py-3 text-sm font-bold"
           >
             Nova cotação
           </Link>
         </div>
 
-        <div className="sticky top-0 z-20 -mx-4 space-y-2 bg-cdl-bg/95 px-4 py-2 backdrop-blur md:static md:mx-0 md:bg-transparent md:p-0 md:backdrop-blur-none">
+        <div className="sticky top-0 z-20 -mx-4 space-y-2 bg-[color-mix(in_srgb,var(--brand-bg)_95%,transparent)] px-4 py-2 backdrop-blur md:static md:mx-0 md:bg-transparent md:p-0 md:backdrop-blur-none">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
             <div className="min-w-0 flex-1">
               <QuoteFilters
@@ -149,17 +168,17 @@ export default function QuotesDashboard({
                 type="button"
                 onClick={() => void refreshQuotes()}
                 disabled={loading}
-                className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-cdl-accent-border bg-cdl-surface px-5 py-3 text-sm font-bold uppercase tracking-wider text-cdl-fg shadow-cdl transition-colors hover:border-cdl-brand hover:bg-cdl-muted-bg disabled:cursor-not-allowed disabled:opacity-50"
+                className="pscs-btn-outline inline-flex min-h-[44px] items-center justify-center rounded-xl px-5 py-3 text-sm font-bold uppercase tracking-wider disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {loading ? 'Buscando cotações…' : 'Buscar novas cotações'}
               </button>
               {lastUpdated ? (
-                <p className="text-center text-xs text-cdl-muted xl:text-right">
+                <p className="text-center text-xs text-[var(--brand-text-muted)] xl:text-right">
                   Atualizado agora às {formatRefreshTime(lastUpdated)}
                 </p>
               ) : null}
               {refreshError ? (
-                <p className="text-center text-xs text-cdl-action xl:text-right">
+                <p className="text-center text-xs text-[var(--brand-danger)] xl:text-right">
                   {refreshError}
                 </p>
               ) : null}
@@ -168,7 +187,7 @@ export default function QuotesDashboard({
         </div>
 
         {filteredQuotes.length === 0 ? (
-          <div className="cdl-panel p-8 text-center text-cdl-text-secondary">
+          <div className="pscs-panel p-8 text-center text-[var(--brand-text-muted)]">
             {loading
               ? 'Buscando cotações…'
               : 'Nenhuma cotação ativa encontrada com os filtros atuais.'}

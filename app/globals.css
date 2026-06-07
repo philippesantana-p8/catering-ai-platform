@@ -340,6 +340,90 @@
     border-color: var(--cdl-warning-border);
     background: var(--cdl-warning-soft);
   }
+
+  /* PSCS / Catering AI — quotes dashboard shell */
+  .quotes-pscs {
+    --brand-primary: #0b1f3a;
+    --brand-primary-2: #123b63;
+    --brand-accent: #c9a227;
+    --brand-bg: #f6f7f9;
+    --brand-card: #ffffff;
+    --brand-danger: #e11d2e;
+    --brand-text: #1f2933;
+    --brand-text-muted: #5b6775;
+    --brand-border: #d8dee6;
+    background: var(--brand-bg);
+    color: var(--brand-text);
+  }
+
+  .quotes-pscs .pscs-panel,
+  .quotes-pscs .cdl-panel {
+    border-radius: 1.25rem;
+    border: 1px solid var(--brand-border);
+    background: var(--brand-card);
+    box-shadow: 0 1px 2px rgba(11, 31, 58, 0.04), 0 8px 24px rgba(11, 31, 58, 0.06);
+  }
+
+  .quotes-pscs .pscs-btn-primary {
+    background: var(--brand-primary-2);
+    color: #ffffff;
+    transition: opacity 0.15s, background 0.15s;
+  }
+
+  .quotes-pscs .pscs-btn-primary:hover {
+    opacity: 0.92;
+    background: var(--brand-primary);
+  }
+
+  .quotes-pscs .pscs-btn-outline {
+    border: 1px solid var(--brand-border);
+    background: var(--brand-card);
+    color: var(--brand-primary);
+    box-shadow: 0 1px 2px rgba(11, 31, 58, 0.04);
+    transition: border-color 0.15s, background 0.15s;
+  }
+
+  .quotes-pscs .pscs-btn-outline:hover {
+    border-color: var(--brand-primary-2);
+    background: #f0f4f8;
+  }
+
+  .quotes-pscs .pscs-btn-danger {
+    border: 1px solid color-mix(in srgb, var(--brand-danger) 45%, transparent);
+    background: color-mix(in srgb, var(--brand-danger) 8%, white);
+    color: var(--brand-danger);
+    transition: background 0.15s, border-color 0.15s;
+  }
+
+  .quotes-pscs .pscs-btn-danger:hover {
+    background: color-mix(in srgb, var(--brand-danger) 14%, white);
+    border-color: var(--brand-danger);
+  }
+
+  .quotes-pscs .quote-pscs-card {
+    border: 1px solid var(--brand-border);
+    background: var(--brand-card);
+    box-shadow: 0 1px 2px rgba(11, 31, 58, 0.04), 0 6px 18px rgba(11, 31, 58, 0.05);
+  }
+
+  .quotes-pscs .quote-pscs-card:hover {
+    border-color: color-mix(in srgb, var(--brand-primary-2) 35%, var(--brand-border));
+  }
+
+  .quotes-pscs .quote-pscs-total {
+    color: var(--brand-accent);
+  }
+
+  .quotes-pscs .cdl-eyebrow {
+    color: var(--brand-text-muted);
+  }
+
+  .quotes-pscs input,
+  .quotes-pscs select {
+    border-color: var(--brand-border);
+    background: #ffffff;
+    color: var(--brand-text);
+  }
 }
 
 body {
