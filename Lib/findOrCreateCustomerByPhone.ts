@@ -1,6 +1,7 @@
 import { getCdlCompanyId } from './cdlCompany'
 import { getCustomerDisplayName } from './getCustomerDisplayName'
 import {
+  buildCustomersListSelect,
   pickCustomersInsertPayload,
   type CustomersInsertPayload,
 } from './customersTableSchema'
@@ -12,7 +13,6 @@ export type CustomerRecord = {
   phone?: string | null
   email?: string | null
   full_name?: string | null
-  customer_name?: string | null
   contact_name?: string | null
   first_name?: string | null
   last_name?: string | null
@@ -57,7 +57,6 @@ function buildInsertRow(
 
   if (name) {
     row.contact_name = name
-    row.customer_name = name
     row.full_name = name
     row.ab_name = name
   }
@@ -105,7 +104,7 @@ export async function findOrCreateCustomerByPhone(
 
   const { data: rows, error: searchError } = await supabase
     .from('customers')
-    .select('*')
+    .select(buildCustomersListSelect())
     .eq('company_id', companyId)
 
   if (searchError) {
@@ -131,7 +130,7 @@ export async function findOrCreateCustomerByPhone(
   const { data: created, error: insertError } = await supabase
     .from('customers')
     .insert(insertRow)
-    .select('*')
+    .select(buildCustomersListSelect())
     .single()
 
   if (insertError || !created) {

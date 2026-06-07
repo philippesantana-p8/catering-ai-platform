@@ -43,7 +43,6 @@ export type Customer = {
   id: string
   full_name?: string | null
   name?: string | null
-  customer_name?: string | null
   contact_name?: string | null
   first_name?: string | null
   last_name?: string | null
@@ -608,8 +607,7 @@ function TimePickerField({
 }
 
 function getCustomerName(customer: Customer) {
-  const name = getCustomerDisplayName(customer)
-  return name === 'Cliente não informado' ? '—' : name
+  return getCustomerDisplayName(customer, { emptyLabel: '—' })
 }
 
 function getEventDefaultsFromCustomer(customer: Customer) {

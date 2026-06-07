@@ -1,3 +1,5 @@
+import { buildCustomersListSelect } from '../../../Lib/customersTableSchema'
+import { getCdlCompanyId } from '../../../Lib/cdlCompany'
 import { supabase } from '../../../Lib/supabase'
 import { fetchSupabaseCommercialRules } from '../../../Lib/supabaseCommercialRules'
 import QuoteWizard, {
@@ -9,9 +11,15 @@ import QuoteWizard, {
 export default async function NewQuotePage() {
   const fetchErrors: string[] = []
 
+  const companyId = getCdlCompanyId()
+
   const [customersRes, packagesRes, additionalRes, commercialRules] =
     await Promise.all([
-      supabase.from('customers').select('*'),
+      supabase
+        .from('customers')
+        .select(buildCustomersListSelect())
+        .eq('company_id', companyId)
+        .eq('active', true),
       supabase
         .from('packages')
         .select('*')

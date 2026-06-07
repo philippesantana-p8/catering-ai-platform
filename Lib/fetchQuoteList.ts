@@ -1,4 +1,12 @@
 import { getCdlCompanyId } from './cdlCompany'
+import {
+  buildCustomersSelect,
+  type CustomersNameSourceColumn,
+} from './customersTableSchema'
+import {
+  getCustomerDisplayName,
+  type CustomerNameSource,
+} from './getCustomerDisplayName'
 import { supabase } from './supabase'
 
 export type QuoteListGrillFields = {
@@ -64,10 +72,10 @@ type ListViewRow = {
   package_name?: string | null
 }
 
-type CustomerRow = {
-  id: string
-  ab_name?: string | null
-}
+type CustomerRow = { id: string } & Pick<
+  CustomerNameSource,
+  CustomersNameSourceColumn
+>
 
 type EventRow = {
   id: string
@@ -94,10 +102,16 @@ const QUOTE_LIST_SELECT =
   'id, quote_number, quote_total, quote_status, created_at, customer_id, event_id, package_id, active, reservation_amount, balance_due, physical_guest_count, billable_guest_count, additional_total, mileage_fee, mileage_distance'
 
 function resolveCustomerName(
-  abName: string | null | undefined,
-  detailName: string | null | undefined,
+  customer: CustomerRow | undefined,
+  viewName: string | null | undefined,
 ): string {
-  return abName?.trim() || detailName?.trim() || 'Cliente não informado'
+  const fromCustomer = customer
+    ? getCustomerDisplayName(customer)
+    : ''
+  if (fromCustomer !== 'Cliente não informado') return fromCustomer
+  const fromView = viewName?.trim()
+  if (fromView) return fromView
+  return 'Cliente não informado'
 }
 
 function resolvePackageName(
@@ -194,7 +208,10 @@ export async function fetchQuoteList() {
   const [customersRes, listViewRes, eventsRes, packagesRes, grillMap] =
     await Promise.all([
       customerIds.length > 0
-        ? supabase.from('customers').select('id, ab_name').in('id', customerIds)
+        ? supabase
+            .from('customers')
+            .select(buildCustomersSelect())
+            .in('id', customerIds)
         : Promise.resolve({ data: [] as CustomerRow[], error: null }),
       supabase
         .from('quote_list_view')
@@ -259,7 +276,7 @@ export async function fetchQuoteList() {
   const customerMap = new Map(
     ((customersRes.data ?? []) as CustomerRow[]).map((customer) => [
       customer.id,
-      customer.ab_name,
+      customer,
     ]),
   )
   const listViewMap = new Map(listViewRows.map((row) => [row.id, row]))
@@ -274,7 +291,7 @@ export async function fetchQuoteList() {
     const view = listViewMap.get(row.id)
     const event = row.event_id ? eventMap.get(row.event_id) : undefined
     const pkg = row.package_id ? packageMap.get(row.package_id) : undefined
-    const abName = row.customer_id
+    const customer = row.customer_id
       ? customerMap.get(row.customer_id)
       : undefined
     const grill = grillMap.get(row.id) ?? QUOTE_LIST_GRILL_DEFAULTS
@@ -282,7 +299,7 @@ export async function fetchQuoteList() {
     return {
       id: row.id,
       quote_number: row.quote_number ?? '—',
-      customer_name: resolveCustomerName(abName, view?.customer_name),
+      customer_name: resolveCustomerName(customer, view?.customer_name),
       quote_status: row.quote_status,
       event_date: view?.event_date ?? event?.event_date ?? null,
       created_at: row.created_at,

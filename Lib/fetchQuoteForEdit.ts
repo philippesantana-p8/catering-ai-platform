@@ -1,3 +1,4 @@
+import { buildCustomersListSelect } from '@/Lib/customersTableSchema'
 import type { QuoteAdditionalItem, QuoteDetail } from '@/app/quotes/[id]/quoteDetailTypes'
 import type { AdditionalItem, Customer, Package } from '@/app/quotes/new/QuoteWizard'
 import { fetchQuoteDetail } from './fetchQuoteDetail'
@@ -150,7 +151,11 @@ export async function fetchQuoteForEdit(
       ? supabase.from('events').select('*').eq('id', eventId).maybeSingle()
       : Promise.resolve({ data: null, error: null }),
     customerId
-      ? supabase.from('customers').select('*').eq('id', customerId).maybeSingle()
+      ? supabase
+          .from('customers')
+          .select(buildCustomersListSelect())
+          .eq('id', customerId)
+          .maybeSingle()
       : Promise.resolve({ data: null, error: null }),
     packageId
       ? supabase.from('packages').select('*').eq('id', packageId).maybeSingle()
