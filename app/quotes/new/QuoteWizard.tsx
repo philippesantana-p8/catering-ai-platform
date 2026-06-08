@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import AppMainNav from '../../../components/AppMainNav'
 import CdlBrandLogo from '../../../components/CdlBrandLogo'
+import PackageCatalogCard from '../../../components/PackageCatalogCard'
 import QuoteWizardSummaryStep from '../../../components/quote-review/QuoteWizardSummaryStep'
 import { RESERVATION_PAYMENT_TEXT } from '../../../Lib/cdlCommercialRules'
 import { calcAdditionalLineTotal } from '../../../Lib/calculateQuoteTotals'
@@ -39,6 +40,7 @@ import type { QuoteSnapshotRecord } from '../../../Lib/readQuoteSnapshot'
 import {
   buildPricingFingerprint,
   createInitialWizardState,
+  type QuoteLanguage,
   type WizardState,
 } from '../../../Lib/quoteWizardTypes'
 import AddressAutocompleteFields from './AddressAutocompleteFields'
@@ -662,10 +664,6 @@ function getPackagePrice(pkg: Package) {
   )
 }
 
-function getPackageImage(pkg: Package) {
-  return pkg.image_url ?? null
-}
-
 function getAdditionalLabel(item: AdditionalItem) {
   return (
     item.item_name ??
@@ -844,72 +842,6 @@ function ImagePlaceholder({
   )
 }
 
-function PackageCard({
-  pkg,
-  selected,
-  onSelect,
-  onSelectAndAdvance,
-  autoAdvanceOnSelect = false,
-}: {
-  pkg: Package
-  selected: boolean
-  onSelect: () => void
-  onSelectAndAdvance: () => void
-  autoAdvanceOnSelect?: boolean
-}) {
-  const image = getPackageImage(pkg)
-
-  return (
-    <button
-      type="button"
-      onClick={autoAdvanceOnSelect ? onSelectAndAdvance : onSelect}
-      onDoubleClick={onSelectAndAdvance}
-      title={
-        autoAdvanceOnSelect
-          ? 'Selecionar pacote e continuar'
-          : 'Duplo clique para ir aos adicionais'
-      }
-      className={`relative overflow-hidden rounded-lg border text-left shadow-cdl transition-colors sm:rounded-xl ${
-        selected
-          ? 'border-cdl-success-border bg-cdl-success-soft ring-1 ring-cdl-success-border'
-          : 'border-cdl-border bg-cdl-inset hover:border-cdl-accent-border'
-      }`}
-    >
-      {selected && (
-        <span className="absolute right-1.5 top-1.5 z-10 hidden rounded-full border border-cdl-success-border bg-cdl-success-soft px-2 py-0.5 text-[9px] font-bold tracking-wider text-cdl-success sm:right-3 sm:top-3 sm:inline-flex sm:px-2.5 sm:text-[10px]">
-          SELECIONADO
-        </span>
-      )}
-      {image ? (
-        <div className="aspect-[4/3] w-full overflow-hidden bg-cdl-image sm:aspect-video">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={image}
-            alt={getPackageName(pkg)}
-            className="h-full w-full object-cover"
-          />
-        </div>
-      ) : (
-        <ImagePlaceholder label="SEM IMAGEM" compact />
-      )}
-      <div className="p-2 sm:p-4 lg:p-6">
-        <p className="truncate text-[10px] font-bold uppercase tracking-wide text-cdl-muted sm:text-xs">
-          {pkg.package_key}
-        </p>
-        <h3 className="mt-0.5 truncate text-xs font-bold leading-snug text-cdl-fg sm:mt-1.5 sm:text-lg lg:text-xl">
-          {getPackageName(pkg)}
-        </h3>
-        <p className="mt-1 text-sm font-black text-cdl-price sm:mt-3 sm:text-xl lg:text-2xl">
-          {formatCurrency(getPackagePrice(pkg))}
-          <span className="ml-0.5 text-[10px] font-semibold text-cdl-text-secondary sm:ml-1 sm:text-sm">
-            / pessoa
-          </span>
-        </p>
-      </div>
-    </button>
-  )
-}
-
 function WizardStepButton({
   label,
   onClick,
@@ -940,6 +872,7 @@ function PackageBlock({
   onSelect,
   onSelectAndAdvance,
   autoAdvanceOnSelect = false,
+  language = 'pt',
 }: {
   title: string
   subtitle: string
@@ -950,6 +883,7 @@ function PackageBlock({
   onSelect: (id: string) => void
   onSelectAndAdvance: (id: string) => void
   autoAdvanceOnSelect?: boolean
+  language?: QuoteLanguage
 }) {
   if (blockPackages.length === 0) return null
 
@@ -994,12 +928,13 @@ function PackageBlock({
       </button>
 
       {expanded && (
-        <div className="border-t border-cdl-border-subtle p-3 sm:p-5 lg:p-6">
-          <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-3 md:gap-4 lg:grid-cols-4">
+        <div className="border-t border-cdl-border-subtle p-2 sm:p-5 lg:p-6">
+          <div className="grid grid-cols-2 gap-1.5 min-[360px]:gap-2 sm:gap-3 md:grid-cols-3 md:gap-4 lg:grid-cols-4">
             {blockPackages.map((pkg) => (
-              <PackageCard
+              <PackageCatalogCard
                 key={pkg.id}
                 pkg={pkg}
+                language={language}
                 selected={selectedPackageId === pkg.id}
                 onSelect={() => onSelect(pkg.id)}
                 onSelectAndAdvance={() => onSelectAndAdvance(pkg.id)}
@@ -2650,6 +2585,7 @@ export default function QuoteWizard({
                   onSelect={(id) => updateState({ packageId: id })}
                   onSelectAndAdvance={selectPackageAndAdvance}
                   autoAdvanceOnSelect={!isEditMode}
+                  language={state.language}
                 />
                 <PackageBlock
                   title="Com guarnições"
@@ -2661,6 +2597,7 @@ export default function QuoteWizard({
                   onSelect={(id) => updateState({ packageId: id })}
                   onSelectAndAdvance={selectPackageAndAdvance}
                   autoAdvanceOnSelect={!isEditMode}
+                  language={state.language}
                 />
                 <PackageBlock
                   title="Personalizado"
@@ -2672,6 +2609,7 @@ export default function QuoteWizard({
                   onSelect={(id) => updateState({ packageId: id })}
                   onSelectAndAdvance={selectPackageAndAdvance}
                   autoAdvanceOnSelect={!isEditMode}
+                  language={state.language}
                 />
               </div>
             )}
