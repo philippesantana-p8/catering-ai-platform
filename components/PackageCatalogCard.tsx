@@ -25,10 +25,26 @@ function perPersonSuffix(language: QuoteLanguage): string {
   return 'pessoa'
 }
 
+const PACKAGE_IMAGE_FRAME_CLASS =
+  'flex aspect-[16/10] w-full shrink-0 items-center justify-center bg-[#f5f5f5] md:aspect-[4/5]'
+
+function PackageCatalogImage({ src, alt }: { src: string; alt: string }) {
+  return (
+    <div className={PACKAGE_IMAGE_FRAME_CLASS}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={src}
+        alt={alt}
+        className="h-full w-full object-contain"
+      />
+    </div>
+  )
+}
+
 function CatalogImagePlaceholder({ premium }: { premium?: boolean }) {
   return (
     <div
-      className={`flex w-full items-center justify-center bg-cdl-muted-bg text-cdl-faint ${
+      className={`flex w-full items-center justify-center bg-[#f5f5f5] text-cdl-faint ${
         premium ? 'aspect-[16/10]' : 'aspect-[5/6] sm:aspect-[4/5]'
       }`}
     >
@@ -121,14 +137,7 @@ export default function PackageCatalogCard({
       )}
 
       {image ? (
-        <div className="aspect-[16/10] w-full shrink-0 overflow-hidden bg-cdl-image md:aspect-[4/5]">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={image}
-            alt={name}
-            className="h-full w-full object-cover"
-          />
-        </div>
+        <PackageCatalogImage src={image} alt={name} />
       ) : (
         <CatalogImagePlaceholder premium />
       )}
