@@ -300,7 +300,7 @@ export default function PackagesDashboard({
             Novo pacote
           </button>
           <Link
-            href="/packages/images"
+            href="/packages/images#pacotes"
             className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-cdl-border bg-cdl-surface px-5 py-3 text-sm font-bold uppercase tracking-wider text-cdl-fg"
           >
             Imagens

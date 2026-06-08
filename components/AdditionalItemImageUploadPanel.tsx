@@ -1,43 +1,34 @@
 'use client'
 
 import CatalogImageFrame from '@/components/CatalogImageFrame'
+import type { AdditionalItemListItem } from '@/Lib/fetchAdditionalItems'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 
-type PackageRow = {
-  id: string
-  package_key?: string | null
-  package_name?: string | null
-  label_pt?: string | null
-  image_url?: string | null
-}
-
-function getPackageLabel(pkg: PackageRow) {
+function getItemLabel(item: AdditionalItemListItem) {
   return (
-    pkg.label_pt?.trim() ||
-    pkg.package_name?.trim() ||
-    pkg.package_key?.trim() ||
-    pkg.id
+    item.label_pt?.trim() ||
+    item.item_name?.trim() ||
+    item.item_key?.trim() ||
+    item.id
   )
 }
 
-function getPackageImage(pkg: PackageRow) {
-  return pkg.image_url ?? null
-}
-
-export default function PackageImageUploadPanel({
-  packages,
+export default function AdditionalItemImageUploadPanel({
+  items,
 }: {
-  packages: PackageRow[]
+  items: AdditionalItemListItem[]
 }) {
   const router = useRouter()
-  const [selectedId, setSelectedId] = useState(packages[0]?.id ?? '')
+  const [selectedId, setSelectedId] = useState(items[0]?.id ?? '')
+  const [previewUrl, setPreviewUrl] = useState<string | null>(
+    items[0]?.image_url?.trim() || null,
+  )
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
 
-  const selected = packages.find((pkg) => pkg.id === selectedId) ?? null
-  const previewUrl = selected ? getPackageImage(selected) : null
+  const selected = items.find((item) => item.id === selectedId) ?? null
 
   async function handleUpload(file: File | null) {
     if (!file || !selectedId) return
@@ -50,19 +41,24 @@ export default function PackageImageUploadPanel({
       const formData = new FormData()
       formData.append('file', file)
 
-      const response = await fetch(`/api/packages/${selectedId}/image`, {
+      const response = await fetch(`/api/additional-items/${selectedId}/image`, {
         method: 'POST',
         body: formData,
       })
       const result = (await response.json()) as {
+        success?: boolean
         image_url?: string
+        item?: AdditionalItemListItem
         error?: string
       }
 
-      if (!response.ok) {
+      if (!response.ok || !result.success) {
         throw new Error(result.error ?? 'Falha ao enviar imagem.')
       }
 
+      setPreviewUrl(
+        result.item?.image_url?.trim() || result.image_url?.trim() || null,
+      )
       setSuccess('Imagem atualizada com sucesso.')
       router.refresh()
     } catch (uploadError) {
@@ -76,28 +72,31 @@ export default function PackageImageUploadPanel({
     }
   }
 
-  if (packages.length === 0) {
+  if (items.length === 0) {
     return (
-      <p className="text-sm text-cdl-muted">Nenhum pacote ativo encontrado.</p>
+      <p className="text-sm text-cdl-muted">Nenhum item adicional ativo encontrado.</p>
     )
   }
 
   return (
     <div className="space-y-5">
       <label className="block">
-        <span className="cdl-eyebrow">Pacote</span>
+        <span className="cdl-eyebrow">Item adicional</span>
         <select
           value={selectedId}
           onChange={(e) => {
-            setSelectedId(e.target.value)
+            const nextId = e.target.value
+            setSelectedId(nextId)
+            const nextItem = items.find((item) => item.id === nextId)
+            setPreviewUrl(nextItem?.image_url?.trim() || null)
             setError(null)
             setSuccess(null)
           }}
           className="mt-1 w-full rounded-xl border border-cdl-border bg-cdl-inset px-3 py-3 text-sm text-cdl-fg"
         >
-          {packages.map((pkg) => (
-            <option key={pkg.id} value={pkg.id}>
-              {getPackageLabel(pkg)}
+          {items.map((item) => (
+            <option key={item.id} value={item.id}>
+              {getItemLabel(item)}
             </option>
           ))}
         </select>
@@ -106,8 +105,8 @@ export default function PackageImageUploadPanel({
       <div className="overflow-hidden rounded-2xl border border-cdl-border bg-cdl-inset">
         <CatalogImageFrame
           src={previewUrl}
-          alt={selected ? getPackageLabel(selected) : 'Pacote'}
-          variant="package"
+          alt={selected ? getItemLabel(selected) : 'Item adicional'}
+          variant="additionalItem"
           rounded="none"
         />
       </div>
@@ -116,7 +115,7 @@ export default function PackageImageUploadPanel({
         <span className="cdl-eyebrow">Nova imagem</span>
         <input
           type="file"
-          accept="image/jpeg,image/png,image/webp"
+          accept="image/jpeg,image/jpg,image/png,image/webp"
           disabled={uploading}
           onChange={(e) => {
             const file = e.target.files?.[0] ?? null
@@ -127,8 +126,8 @@ export default function PackageImageUploadPanel({
       </label>
 
       <p className="text-xs text-cdl-muted">
-        Bucket Supabase: <code>package-images</code> · salva em{' '}
-        <code>packages.image_url</code>
+        Bucket Supabase: <code>additional-item-images</code> · salva em{' '}
+        <code>additional_items.image_url</code>
       </p>
 
       {uploading ? (

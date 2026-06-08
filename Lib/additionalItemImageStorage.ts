@@ -3,6 +3,7 @@ import {
   buildAdditionalItemsListSelect,
   type AdditionalItemsTableColumn,
 } from './additionalItemsTableSchema'
+import type { AdditionalItemListItem } from './fetchAdditionalItems'
 import { getSupabaseServerClient } from './supabaseServer'
 
 export const ADDITIONAL_ITEM_IMAGES_BUCKET = 'additional-item-images'
@@ -22,7 +23,7 @@ export type AdditionalItemImageRow = {
 
 export type UploadAdditionalItemImageResult = {
   publicUrl: string | null
-  item: Record<string, unknown> | null
+  item: AdditionalItemListItem | null
   error: string | null
 }
 
@@ -174,7 +175,7 @@ export async function uploadAdditionalItemImage(
 
   return {
     publicUrl,
-    item: (updated as Record<string, unknown> | null) ?? null,
+    item: (updated as unknown as AdditionalItemListItem | null) ?? null,
     error: null,
   }
 }

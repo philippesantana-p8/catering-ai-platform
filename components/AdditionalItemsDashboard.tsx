@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import BackofficeTableShell from '@/components/BackofficeTableShell'
 import CatalogImageFrame from '@/components/CatalogImageFrame'
@@ -391,13 +392,21 @@ export default function AdditionalItemsDashboard({
       loading={loading}
       error={error}
       actions={
-        <button
-          type="button"
-          onClick={startNew}
-          className="cdl-btn-primary inline-flex min-h-[44px] items-center justify-center rounded-xl px-5 py-3 text-sm font-bold"
-        >
-          Novo item adicional
-        </button>
+        <>
+          <button
+            type="button"
+            onClick={startNew}
+            className="cdl-btn-primary inline-flex min-h-[44px] items-center justify-center rounded-xl px-5 py-3 text-sm font-bold"
+          >
+            Novo item adicional
+          </button>
+          <Link
+            href="/packages/images#adicionais"
+            className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-cdl-border bg-cdl-surface px-5 py-3 text-sm font-bold uppercase tracking-wider text-cdl-fg"
+          >
+            Imagens
+          </Link>
+        </>
       }
     >
       <input
@@ -552,7 +561,7 @@ export default function AdditionalItemsDashboard({
                             disabled={uploadingId === item.id}
                             className="rounded-lg border border-[var(--brand-accent)] px-2 py-1 text-xs font-bold text-[var(--brand-accent)] disabled:opacity-50"
                           >
-                            {uploadingId === item.id ? '…' : 'Imagem'}
+                            {uploadingId === item.id ? '…' : 'Foto'}
                           </button>
                           {item.active !== false ? (
                             <button
