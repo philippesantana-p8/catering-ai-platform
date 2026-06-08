@@ -11,11 +11,25 @@ export type PackageCatalogFields = {
   name_pt?: string | null
   name_en?: string | null
   name_es?: string | null
+  description_pt?: string | null
+  description_en?: string | null
+  description_es?: string | null
   price_per_person?: number | null
   price?: number | null
   base_price?: number | null
   image_url?: string | null
 }
+
+export type PackageSidesPricingMode = 'breakdown' | 'total_included'
+
+export type PackageSidesPricingDisplay = {
+  mode: PackageSidesPricingMode
+  sidesPricePerPerson: number
+  basePricePerPerson: number | null
+  totalPerPerson: number
+}
+
+const PRICE_TOLERANCE = 0.01
 
 export function getPackageCatalogVariant(
   pkg: PackageCatalogFields,
@@ -65,6 +79,70 @@ export function getPackageCatalogPrice(pkg: PackageCatalogFields): number {
   return Number(pkg.price_per_person ?? pkg.price ?? pkg.base_price ?? 0)
 }
 
+export function getBasePackageKey(packageKey: string): string {
+  return packageKey.trim().replace(/\+$/, '')
+}
+
+export function findBasePackage(
+  pkg: PackageCatalogFields,
+  allPackages: ReadonlyArray<PackageCatalogFields>,
+): PackageCatalogFields | null {
+  const key = (pkg.package_key ?? '').trim()
+  if (!key.endsWith('+')) return null
+  const baseKey = getBasePackageKey(key)
+  return (
+    allPackages.find(
+      (candidate) => (candidate.package_key ?? '').trim() === baseKey,
+    ) ?? null
+  )
+}
+
+/**
+ * Exibição visual do preço com guarnições — não altera o valor salvo na cotação
+ * (sempre usa `price_per_person` do pacote selecionado no Supabase).
+ */
+export function resolvePackageSidesPricing(
+  pkg: PackageCatalogFields,
+  basePackage: PackageCatalogFields | null,
+  sidesPricePerPerson: number,
+): PackageSidesPricingDisplay | null {
+  if (getPackageCatalogVariant(pkg) !== 'with_sides') return null
+
+  const registered = getPackageCatalogPrice(pkg)
+  const basePrice = basePackage ? getPackageCatalogPrice(basePackage) : null
+
+  if (
+    basePrice != null &&
+    Math.abs(registered - (basePrice + sidesPricePerPerson)) < PRICE_TOLERANCE
+  ) {
+    return {
+      mode: 'breakdown',
+      sidesPricePerPerson,
+      basePricePerPerson: basePrice,
+      totalPerPerson: registered,
+    }
+  }
+
+  if (
+    basePrice != null &&
+    Math.abs(registered - basePrice) < PRICE_TOLERANCE
+  ) {
+    return {
+      mode: 'total_included',
+      sidesPricePerPerson,
+      basePricePerPerson: basePrice,
+      totalPerPerson: registered,
+    }
+  }
+
+  return {
+    mode: 'total_included',
+    sidesPricePerPerson,
+    basePricePerPerson: basePrice,
+    totalPerPerson: registered,
+  }
+}
+
 export function isPackageCatalogPriceOnRequest(
   pkg: PackageCatalogFields,
 ): boolean {
@@ -84,7 +162,7 @@ export function getPackageCatalogPriceOnRequestLabel(
 ): string {
   if (language === 'en') return 'Price on request'
   if (language === 'es') return 'Bajo consulta'
-  return 'Sob Consulta'
+  return 'Sob consulta'
 }
 
 export function formatPackageCatalogPriceLabel(
@@ -99,8 +177,37 @@ export function formatPackageCatalogPriceLabel(
   return `${formatCurrency(getPackageCatalogPrice(pkg))} / ${perPersonSuffix(language)}`
 }
 
-export function getPackageSidesSummary(language: QuoteLanguage): string {
-  if (language === 'en') return 'Includes selected side dishes'
-  if (language === 'es') return 'Incluye guarniciones seleccionadas'
-  return 'Inclui guarnições selecionadas'
+export function getPackageSidesDescription(language: QuoteLanguage): string {
+  if (language === 'en') {
+    return 'Sides: rice, tropeiro beans, vinaigrette, farofa and cassava.'
+  }
+  if (language === 'es') {
+    return 'Guarniciones: arroz, feijão tropeiro, vinagrete, farofa y mandioca.'
+  }
+  return 'Guarnições: arroz, feijão tropeiro, vinagrete, farofa e mandioca.'
+}
+
+export function getPackageSidesIncludedLabel(language: QuoteLanguage): string {
+  if (language === 'en') return 'Sides included'
+  if (language === 'es') return 'Guarniciones incluidas'
+  return 'Guarnições incluídas'
+}
+
+export function getPackagePriceLineLabel(
+  kind: 'package' | 'sides' | 'total',
+  language: QuoteLanguage,
+): string {
+  if (language === 'en') {
+    if (kind === 'package') return 'Package'
+    if (kind === 'sides') return 'Sides'
+    return 'Total'
+  }
+  if (language === 'es') {
+    if (kind === 'package') return 'Paquete'
+    if (kind === 'sides') return 'Guarniciones'
+    return 'Total'
+  }
+  if (kind === 'package') return 'Pacote'
+  if (kind === 'sides') return 'Guarnições'
+  return 'Total'
 }

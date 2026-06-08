@@ -866,6 +866,7 @@ function PackageBlock({
   title,
   subtitle,
   packages: blockPackages,
+  allPackages,
   selectedPackageId,
   expanded,
   onToggle,
@@ -873,10 +874,12 @@ function PackageBlock({
   onSelectAndAdvance,
   autoAdvanceOnSelect = false,
   language = 'pt',
+  sidesPricePerPerson = 13,
 }: {
   title: string
   subtitle: string
   packages: Package[]
+  allPackages: Package[]
   selectedPackageId: string | null
   expanded: boolean
   onToggle: () => void
@@ -884,6 +887,7 @@ function PackageBlock({
   onSelectAndAdvance: (id: string) => void
   autoAdvanceOnSelect?: boolean
   language?: QuoteLanguage
+  sidesPricePerPerson?: number
 }) {
   if (blockPackages.length === 0) return null
 
@@ -928,13 +932,15 @@ function PackageBlock({
       </button>
 
       {expanded && (
-        <div className="border-t border-cdl-border-subtle p-2 sm:p-5 lg:p-6">
-          <div className="grid grid-cols-2 gap-1.5 min-[360px]:gap-2 sm:gap-3 md:grid-cols-3 md:gap-4 lg:grid-cols-4">
+        <div className="border-t border-cdl-border-subtle p-3 md:p-5 lg:p-6">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-4 lg:grid-cols-3 xl:grid-cols-4">
             {blockPackages.map((pkg) => (
               <PackageCatalogCard
                 key={pkg.id}
                 pkg={pkg}
                 language={language}
+                allPackages={allPackages}
+                sidesPricePerPerson={sidesPricePerPerson}
                 selected={selectedPackageId === pkg.id}
                 onSelect={() => onSelect(pkg.id)}
                 onSelectAndAdvance={() => onSelectAndAdvance(pkg.id)}
@@ -2579,6 +2585,7 @@ export default function QuoteWizard({
                   title="Sem guarnições"
                   subtitle="BBQTRAD · BBQSEL · BBQCHO · BBQPRI"
                   packages={packagesWithoutSides}
+                  allPackages={packages}
                   selectedPackageId={state.packageId}
                   expanded={openPackageBlocks.has('without-sides')}
                   onToggle={() => togglePackageBlock('without-sides')}
@@ -2586,11 +2593,13 @@ export default function QuoteWizard({
                   onSelectAndAdvance={selectPackageAndAdvance}
                   autoAdvanceOnSelect={!isEditMode}
                   language={state.language}
+                  sidesPricePerPerson={commercialRules.sidesPricePerPerson}
                 />
                 <PackageBlock
                   title="Com guarnições"
                   subtitle="BBQTRAD+ · BBQSEL+ · BBQCHO+ · BBQPRI+"
                   packages={packagesWithSides}
+                  allPackages={packages}
                   selectedPackageId={state.packageId}
                   expanded={openPackageBlocks.has('with-sides')}
                   onToggle={() => togglePackageBlock('with-sides')}
@@ -2598,11 +2607,13 @@ export default function QuoteWizard({
                   onSelectAndAdvance={selectPackageAndAdvance}
                   autoAdvanceOnSelect={!isEditMode}
                   language={state.language}
+                  sidesPricePerPerson={commercialRules.sidesPricePerPerson}
                 />
                 <PackageBlock
                   title="Personalizado"
                   subtitle="BBQPERS sem guarnições · BBQPERS+ com guarnições"
                   packages={customPackages}
+                  allPackages={packages}
                   selectedPackageId={state.packageId}
                   expanded={openPackageBlocks.has('custom')}
                   onToggle={() => togglePackageBlock('custom')}
@@ -2610,6 +2621,7 @@ export default function QuoteWizard({
                   onSelectAndAdvance={selectPackageAndAdvance}
                   autoAdvanceOnSelect={!isEditMode}
                   language={state.language}
+                  sidesPricePerPerson={commercialRules.sidesPricePerPerson}
                 />
               </div>
             )}

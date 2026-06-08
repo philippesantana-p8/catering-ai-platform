@@ -1,12 +1,16 @@
 'use client'
 
 import {
+  findBasePackage,
   formatPackageCatalogPriceLabel,
   getPackageCatalogImage,
   getPackageCatalogName,
   getPackageCatalogVariant,
-  getPackageSidesSummary,
+  getPackagePriceLineLabel,
+  getPackageSidesDescription,
+  getPackageSidesIncludedLabel,
   isPackageCatalogPriceOnRequest,
+  resolvePackageSidesPricing,
   type PackageCatalogFields,
 } from '@/Lib/packageCatalogVisual'
 import type { QuoteLanguage } from '@/Lib/quoteWizardTypes'
@@ -15,13 +19,52 @@ function formatCurrency(value: number) {
   return `$${value.toFixed(2)}`
 }
 
-function CatalogImagePlaceholder() {
+function perPersonSuffix(language: QuoteLanguage): string {
+  if (language === 'en') return 'person'
+  if (language === 'es') return 'persona'
+  return 'pessoa'
+}
+
+function CatalogImagePlaceholder({ premium }: { premium?: boolean }) {
   return (
-    <div className="flex aspect-[5/6] w-full items-center justify-center bg-cdl-muted-bg text-cdl-faint sm:aspect-[4/5]">
-      <span className="px-2 text-center text-[9px] font-semibold uppercase leading-tight tracking-wider sm:text-[10px]">
+    <div
+      className={`flex w-full items-center justify-center bg-cdl-muted-bg text-cdl-faint ${
+        premium ? 'aspect-[16/10]' : 'aspect-[5/6] sm:aspect-[4/5]'
+      }`}
+    >
+      <span
+        className={`px-3 text-center font-semibold uppercase tracking-wider text-cdl-faint ${
+          premium ? 'text-xs' : 'text-[9px] leading-tight sm:text-[10px]'
+        }`}
+      >
         SEM IMAGEM
       </span>
     </div>
+  )
+}
+
+function PriceLine({
+  label,
+  value,
+  emphasis = false,
+}: {
+  label: string
+  value: string
+  emphasis?: boolean
+}) {
+  return (
+    <p
+      className={`leading-snug ${
+        emphasis
+          ? 'text-sm font-black text-cdl-price sm:text-base'
+          : 'text-xs text-cdl-text-secondary sm:text-sm'
+      }`}
+    >
+      <span className="font-semibold text-cdl-muted">{label}:</span>{' '}
+      <span className={emphasis ? 'font-black text-cdl-price' : 'font-bold text-cdl-fg'}>
+        {value}
+      </span>
+    </p>
   )
 }
 
@@ -32,6 +75,8 @@ export default function PackageCatalogCard({
   onSelect,
   onSelectAndAdvance,
   autoAdvanceOnSelect = false,
+  allPackages = [],
+  sidesPricePerPerson = 13,
 }: {
   pkg: PackageCatalogFields & { id?: string }
   language?: QuoteLanguage
@@ -39,18 +84,19 @@ export default function PackageCatalogCard({
   onSelect: () => void
   onSelectAndAdvance: () => void
   autoAdvanceOnSelect?: boolean
+  allPackages?: ReadonlyArray<PackageCatalogFields>
+  sidesPricePerPerson?: number
 }) {
   const image = getPackageCatalogImage(pkg)
   const variant = getPackageCatalogVariant(pkg)
   const name = getPackageCatalogName(pkg, language)
   const priceOnRequest = isPackageCatalogPriceOnRequest(pkg)
-  const priceLabel = formatPackageCatalogPriceLabel(
-    pkg,
-    language,
-    formatCurrency,
-  )
-  const sidesSummary =
-    variant === 'with_sides' ? getPackageSidesSummary(language) : null
+  const perPerson = perPersonSuffix(language)
+  const basePackage = findBasePackage(pkg, allPackages)
+  const sidesPricing =
+    variant === 'with_sides'
+      ? resolvePackageSidesPricing(pkg, basePackage, sidesPricePerPerson)
+      : null
 
   return (
     <button
@@ -62,20 +108,20 @@ export default function PackageCatalogCard({
           ? 'Selecionar pacote e continuar'
           : 'Duplo clique para ir aos adicionais'
       }
-      className={`relative flex h-full flex-col overflow-hidden rounded-lg border text-left shadow-cdl transition-colors sm:rounded-xl ${
+      className={`relative flex h-full w-full flex-col overflow-hidden rounded-2xl border text-left shadow-cdl transition-colors ${
         selected
-          ? 'border-cdl-success-border bg-cdl-success-soft ring-1 ring-cdl-success-border'
+          ? 'border-cdl-success-border bg-cdl-success-soft ring-2 ring-cdl-success-border'
           : 'border-cdl-border bg-cdl-inset hover:border-cdl-accent-border'
       }`}
     >
       {selected && (
-        <span className="absolute right-1 top-1 z-10 rounded-full border border-cdl-success-border bg-cdl-success-soft px-1.5 py-px text-[8px] font-bold uppercase tracking-wide text-cdl-success sm:right-2 sm:top-2 sm:px-2 sm:py-0.5 sm:text-[9px]">
-          ✓
+        <span className="absolute right-3 top-3 z-10 rounded-full border border-cdl-success-border bg-cdl-success-soft px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-cdl-success">
+          Selecionado
         </span>
       )}
 
       {image ? (
-        <div className="aspect-[5/6] w-full shrink-0 overflow-hidden bg-cdl-image sm:aspect-[4/5]">
+        <div className="aspect-[16/10] w-full shrink-0 overflow-hidden bg-cdl-image md:aspect-[4/5]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={image}
@@ -84,30 +130,64 @@ export default function PackageCatalogCard({
           />
         </div>
       ) : (
-        <CatalogImagePlaceholder />
+        <CatalogImagePlaceholder premium />
       )}
 
-      <div className="flex min-h-0 flex-1 flex-col justify-end p-1.5 sm:p-2.5 lg:p-3">
-        <p className="truncate text-[9px] font-bold uppercase tracking-wide text-cdl-muted sm:text-[10px]">
+      <div className="flex flex-1 flex-col p-4 md:p-3 lg:p-4">
+        <p className="text-xs font-bold uppercase tracking-wider text-cdl-muted">
           {pkg.package_key}
         </p>
-        <h3 className="mt-0.5 line-clamp-2 text-[11px] font-extrabold leading-tight text-cdl-title sm:text-sm lg:text-base">
+        <h3 className="mt-1 text-lg font-extrabold leading-tight text-cdl-title md:text-base lg:text-lg">
           {name}
         </h3>
-        {sidesSummary && (
-          <p className="mt-0.5 line-clamp-2 text-[9px] leading-snug text-cdl-text-secondary sm:text-[10px]">
-            {sidesSummary}
+
+        {variant === 'with_sides' && (
+          <p className="mt-2 text-sm leading-snug text-cdl-text-secondary md:text-xs lg:text-sm">
+            {getPackageSidesDescription(language)}
           </p>
         )}
-        <p
-          className={`mt-1 font-black text-cdl-price ${
-            priceOnRequest
-              ? 'text-[10px] uppercase tracking-wide sm:text-xs'
-              : 'text-xs sm:text-base lg:text-lg'
-          }`}
-        >
-          {priceLabel}
-        </p>
+
+        <div className="mt-3 space-y-1 md:mt-2">
+          {priceOnRequest ? (
+            <p className="text-sm font-black uppercase tracking-wide text-cdl-price md:text-xs">
+              {formatPackageCatalogPriceLabel(pkg, language, formatCurrency)}
+            </p>
+          ) : variant === 'with_sides' && sidesPricing ? (
+            sidesPricing.mode === 'breakdown' &&
+            sidesPricing.basePricePerPerson != null ? (
+              <>
+                <PriceLine
+                  label={getPackagePriceLineLabel('package', language)}
+                  value={`${formatCurrency(sidesPricing.basePricePerPerson)} / ${perPerson}`}
+                />
+                <PriceLine
+                  label={getPackagePriceLineLabel('sides', language)}
+                  value={`+ ${formatCurrency(sidesPricing.sidesPricePerPerson)} / ${perPerson}`}
+                />
+                <PriceLine
+                  label={getPackagePriceLineLabel('total', language)}
+                  value={`${formatCurrency(sidesPricing.totalPerPerson)} / ${perPerson}`}
+                  emphasis
+                />
+              </>
+            ) : (
+              <>
+                <PriceLine
+                  label={getPackagePriceLineLabel('total', language)}
+                  value={`${formatCurrency(sidesPricing.totalPerPerson)} / ${perPerson}`}
+                  emphasis
+                />
+                <p className="text-xs font-semibold text-cdl-success sm:text-sm">
+                  {getPackageSidesIncludedLabel(language)}
+                </p>
+              </>
+            )
+          ) : (
+            <p className="text-base font-black text-cdl-price md:text-sm lg:text-base">
+              {formatPackageCatalogPriceLabel(pkg, language, formatCurrency)}
+            </p>
+          )}
+        </div>
       </div>
     </button>
   )
