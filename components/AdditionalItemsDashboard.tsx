@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import BackofficeTableShell from '@/components/BackofficeTableShell'
+import CatalogImageFrame from '@/components/CatalogImageFrame'
 import type { AdditionalItemListItem } from '@/Lib/fetchAdditionalItems'
 import { getAdditionalItemPrice } from '@/Lib/getAdditionalItemPrice'
 import type { AdditionalItemsInsertPayload } from '@/Lib/additionalItemsTableSchema'
@@ -195,6 +196,37 @@ export default function AdditionalItemsDashboard({
     key: ColumnKey,
     type: 'text' | 'number' = 'text',
   ) {
+    if (key === 'image_url') {
+      const url =
+        editingId === item.id
+          ? String(draft.image_url ?? '').trim() || null
+          : item.image_url?.trim() || null
+      const label = item.item_name ?? item.label_pt ?? item.item_key ?? 'Item'
+      return (
+        <div className="flex max-w-[10rem] flex-col gap-2">
+          <CatalogImageFrame
+            src={url}
+            alt={label}
+            variant="additionalItem"
+            size="thumbnail"
+            rounded="all"
+          />
+          {editingId === item.id ? (
+            <input
+              type="text"
+              value={String(draft.image_url ?? '')}
+              onChange={(e) =>
+                setDraft((c) => ({ ...c, image_url: e.target.value }))
+              }
+              className="w-full rounded-lg border border-cdl-border bg-cdl-inset px-2 py-1.5 text-xs"
+            />
+          ) : (
+            <span className="line-clamp-2 text-xs text-cdl-muted">{url ?? '—'}</span>
+          )}
+        </div>
+      )
+    }
+
     if (key === 'active') {
       if (editingId === item.id) {
         return (

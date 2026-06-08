@@ -1,6 +1,7 @@
 'use client'
 
 import type { ReactNode } from 'react'
+import CatalogImageFrame from '@/components/CatalogImageFrame'
 import CdlBrandLogo from '@/components/CdlBrandLogo'
 import {
   CdlImportantRulesPanel,
@@ -23,12 +24,7 @@ import {
   formatDate,
   formatTime,
 } from '@/app/quotes/[id]/quoteDetailTypes'
-import {
-  AdditionalPlaceholder,
-  IconCalendar,
-  IconClock,
-  IconLocation,
-} from './QuoteReviewIcons'
+import { IconCalendar, IconClock, IconLocation } from './QuoteReviewIcons'
 import type { QuoteReviewAdditional, QuoteReviewData } from './quoteReviewTypes'
 
 function ProposalSection({
@@ -419,18 +415,13 @@ export default function QuoteReviewLayout({
                         key={item.id}
                         className="quote-print-additional-card quote-proposal-additional-card"
                       >
-                        {item.imageUrl ? (
-                          <div className="quote-print-thumb quote-proposal-additional-image">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src={item.imageUrl}
-                              alt={item.label}
-                              className="h-full w-full object-cover"
-                            />
-                          </div>
-                        ) : (
-                          <AdditionalPlaceholder />
-                        )}
+                        <CatalogImageFrame
+                          src={item.imageUrl}
+                          alt={item.label}
+                          variant="additionalItem"
+                          rounded="none"
+                          className="quote-print-thumb quote-proposal-additional-image !min-h-0 !max-h-none !aspect-video"
+                        />
                         <div className="quote-print-additional-body quote-proposal-additional-body">
                           <h4 className="quote-proposal-additional-name">{item.label}</h4>
                           <div className="quote-proposal-additional-metrics">

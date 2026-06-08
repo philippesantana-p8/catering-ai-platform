@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import AppMainNav from '../../../components/AppMainNav'
 import CdlBrandLogo from '../../../components/CdlBrandLogo'
+import CatalogImageFrame from '../../../components/CatalogImageFrame'
 import PackageCatalogCard from '../../../components/PackageCatalogCard'
 import QuoteWizardSummaryStep from '../../../components/quote-review/QuoteWizardSummaryStep'
 import { RESERVATION_PAYMENT_TEXT } from '../../../Lib/cdlCommercialRules'
@@ -818,30 +819,6 @@ function compareAdditionalCategories(a: string, b: string) {
   return a.localeCompare(b, 'pt-BR')
 }
 
-function ImagePlaceholder({
-  label,
-  compact = false,
-}: {
-  label: string
-  compact?: boolean
-}) {
-  return (
-    <div
-      className={`flex w-full items-center justify-center bg-cdl-muted-bg text-cdl-faint ${
-        compact ? 'aspect-[4/3]' : 'aspect-video'
-      }`}
-    >
-      <span
-        className={`font-semibold uppercase tracking-wider ${
-          compact ? 'px-1 text-center text-[9px] leading-tight' : 'text-xs'
-        }`}
-      >
-        {label}
-      </span>
-    </div>
-  )
-}
-
 function WizardStepButton({
   label,
   onClick,
@@ -980,17 +957,13 @@ function AdditionalItemCard({
       : 'border-cdl-border bg-cdl-inset'
   }`
 
-  const media = image ? (
-    <div className="aspect-video w-full overflow-hidden bg-cdl-image">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={image}
-        alt={getAdditionalLabel(item)}
-        className="h-full w-full object-cover"
-      />
-    </div>
-  ) : (
-    <ImagePlaceholder label="Sem imagem" />
+  const media = (
+    <CatalogImageFrame
+      src={image}
+      alt={getAdditionalLabel(item)}
+      variant="additionalItem"
+      className="shrink-0"
+    />
   )
 
   const header = (

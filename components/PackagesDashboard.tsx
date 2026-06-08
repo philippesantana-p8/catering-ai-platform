@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import BackofficeTableShell from '@/components/BackofficeTableShell'
+import CatalogImageFrame from '@/components/CatalogImageFrame'
 import type { PackageListItem } from '@/Lib/fetchPackages'
 import type { PackagesInsertPayload } from '@/Lib/packagesTableSchema'
 
@@ -227,6 +228,37 @@ export default function PackagesDashboard({
     key: keyof PackagesInsertPayload,
     type: 'text' | 'number' = 'text',
   ) {
+    if (key === 'image_url') {
+      const url =
+        editingId === pkg.id
+          ? String(draft.image_url ?? '').trim() || null
+          : pkg.image_url?.trim() || null
+      const label = pkg.package_key ?? pkg.label_pt ?? 'Pacote'
+      return (
+        <div className="flex max-w-[10rem] flex-col gap-2">
+          <CatalogImageFrame
+            src={url}
+            alt={label}
+            variant="package"
+            size="thumbnail"
+            rounded="all"
+          />
+          {editingId === pkg.id ? (
+            <input
+              type="text"
+              value={String(draft.image_url ?? '')}
+              onChange={(e) =>
+                setDraft((current) => ({ ...current, image_url: e.target.value }))
+              }
+              className="w-full rounded-lg border border-cdl-border bg-cdl-inset px-2 py-1.5 text-xs text-cdl-fg"
+            />
+          ) : (
+            <span className="line-clamp-2 text-xs text-cdl-muted">{url ?? '—'}</span>
+          )}
+        </div>
+      )
+    }
+
     if (editingId === pkg.id) {
       return (
         <input

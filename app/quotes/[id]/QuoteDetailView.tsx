@@ -17,6 +17,7 @@ import {
   getZipCode,
   groupAdditionalsByCategory,
 } from './quoteDetailTypes'
+import CatalogImageFrame from '@/components/CatalogImageFrame'
 import CdlBrandLogo from '../../../components/CdlBrandLogo'
 import { CdlPdfPoliciesSection } from '../../../components/CdlImportantRulesPanel'
 import {
@@ -93,33 +94,6 @@ function TeamCard({
       </div>
       <span className="quote-proposal-label">{label}</span>
       <p className="quote-proposal-team-value">{displayValue(value)}</p>
-    </div>
-  )
-}
-
-function AdditionalPlaceholder() {
-  return (
-    <div className="quote-proposal-placeholder" aria-hidden>
-      <svg viewBox="0 0 24 24" fill="none" className="quote-proposal-placeholder-icon">
-        <rect
-          x="3"
-          y="5"
-          width="18"
-          height="14"
-          rx="2"
-          stroke="currentColor"
-          strokeWidth="1.5"
-        />
-        <circle cx="8.5" cy="10" r="1.5" fill="currentColor" />
-        <path
-          d="M3 16l4.5-4.5 3 3L14 11l7 7"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-      <span>Foto em atualização</span>
     </div>
   )
 }
@@ -518,18 +492,13 @@ export default function QuoteDetailView({ quote }: { quote: QuoteDetail }) {
                           key={item.item_id}
                           className="quote-print-additional-card quote-proposal-additional-card"
                         >
-                          {image ? (
-                            <div className="quote-print-thumb quote-proposal-additional-image">
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img
-                                src={image}
-                                alt={getAdditionalLabel(item, lang)}
-                                className="h-full w-full object-cover"
-                              />
-                            </div>
-                          ) : (
-                            <AdditionalPlaceholder />
-                          )}
+                          <CatalogImageFrame
+                            src={image}
+                            alt={getAdditionalLabel(item, lang)}
+                            variant="additionalItem"
+                            rounded="none"
+                            className="quote-print-thumb quote-proposal-additional-image !min-h-0 !max-h-none !aspect-video"
+                          />
                           <div className="quote-print-additional-body quote-proposal-additional-body">
                             <h4 className="quote-proposal-additional-name">
                               {getAdditionalLabel(item, lang)}

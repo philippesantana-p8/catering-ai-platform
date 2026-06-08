@@ -1,5 +1,6 @@
 'use client'
 
+import CatalogImageFrame from '@/components/CatalogImageFrame'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 
@@ -103,18 +104,12 @@ export default function PackageImageUploadPanel({
       </label>
 
       <div className="overflow-hidden rounded-2xl border border-cdl-border bg-cdl-inset">
-        {previewUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={previewUrl}
-            alt={selected ? getPackageLabel(selected) : 'Pacote'}
-            className="aspect-video w-full object-cover"
-          />
-        ) : (
-          <div className="flex aspect-video items-center justify-center text-sm font-semibold uppercase tracking-wider text-cdl-muted">
-            Sem imagem
-          </div>
-        )}
+        <CatalogImageFrame
+          src={previewUrl}
+          alt={selected ? getPackageLabel(selected) : 'Pacote'}
+          variant="package"
+          rounded="none"
+        />
       </div>
 
       <label className="block">

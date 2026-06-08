@@ -14,6 +14,7 @@ import {
   type PackageCatalogFields,
 } from '@/Lib/packageCatalogVisual'
 import type { QuoteLanguage } from '@/Lib/quoteWizardTypes'
+import CatalogImageFrame from '@/components/CatalogImageFrame'
 
 function formatCurrency(value: number) {
   return `$${value.toFixed(2)}`
@@ -23,40 +24,6 @@ function perPersonSuffix(language: QuoteLanguage): string {
   if (language === 'en') return 'person'
   if (language === 'es') return 'persona'
   return 'pessoa'
-}
-
-const PACKAGE_IMAGE_FRAME_CLASS =
-  'flex aspect-[16/10] w-full shrink-0 items-center justify-center bg-[#f5f5f5] md:aspect-[4/5]'
-
-function PackageCatalogImage({ src, alt }: { src: string; alt: string }) {
-  return (
-    <div className={PACKAGE_IMAGE_FRAME_CLASS}>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={src}
-        alt={alt}
-        className="h-full w-full object-contain"
-      />
-    </div>
-  )
-}
-
-function CatalogImagePlaceholder({ premium }: { premium?: boolean }) {
-  return (
-    <div
-      className={`flex w-full items-center justify-center bg-[#f5f5f5] text-cdl-faint ${
-        premium ? 'aspect-[16/10]' : 'aspect-[5/6] sm:aspect-[4/5]'
-      }`}
-    >
-      <span
-        className={`px-3 text-center font-semibold uppercase tracking-wider text-cdl-faint ${
-          premium ? 'text-xs' : 'text-[9px] leading-tight sm:text-[10px]'
-        }`}
-      >
-        SEM IMAGEM
-      </span>
-    </div>
-  )
 }
 
 function PriceLine({
@@ -136,11 +103,12 @@ export default function PackageCatalogCard({
         </span>
       )}
 
-      {image ? (
-        <PackageCatalogImage src={image} alt={name} />
-      ) : (
-        <CatalogImagePlaceholder premium />
-      )}
+      <CatalogImageFrame
+        src={image}
+        alt={name}
+        variant="package"
+        className="shrink-0"
+      />
 
       <div className="flex flex-1 flex-col p-4 md:p-3 lg:p-4">
         <p className="text-xs font-bold uppercase tracking-wider text-cdl-muted">
