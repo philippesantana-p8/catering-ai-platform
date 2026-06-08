@@ -10,7 +10,15 @@ import type { AdditionalItemsInsertPayload } from '@/Lib/additionalItemsTableSch
 
 type ActiveFilter = 'active' | 'all'
 
-type ColumnKey = keyof AdditionalItemsInsertPayload | 'active'
+type DataColumnKey = keyof AdditionalItemsInsertPayload
+type TableColumnKey = DataColumnKey | 'actions'
+
+const ACCEPTED_IMAGE_TYPES = new Set([
+  'image/png',
+  'image/jpeg',
+  'image/jpg',
+  'image/webp',
+])
 
 const EMPTY_ROW: AdditionalItemsInsertPayload = {
   item_key: '',
@@ -27,8 +35,8 @@ const EMPTY_ROW: AdditionalItemsInsertPayload = {
   active: true,
 }
 
-const COLUMNS: Array<{
-  key: ColumnKey
+const TABLE_COLUMNS: Array<{
+  key: TableColumnKey
   label: string
   type?: 'text' | 'number'
 }> = [
@@ -42,8 +50,8 @@ const COLUMNS: Array<{
   { key: 'unit_label', label: 'unit_label', type: 'text' },
   { key: 'currency_code', label: 'Moeda', type: 'text' },
   { key: 'display_order', label: 'Ordem', type: 'number' },
-  { key: 'image_url', label: 'image_url', type: 'text' },
-  { key: 'active', label: 'Ativo', type: 'text' },
+  { key: 'image_url', label: 'IMAGE_URL', type: 'text' },
+  { key: 'actions', label: 'Ações' },
 ]
 
 async function fetchItemsFromApi(
@@ -169,6 +177,15 @@ export default function AdditionalItemsDashboard({
     const itemId = uploadTargetIdRef.current
     if (!file || !itemId) return
 
+    if (!ACCEPTED_IMAGE_TYPES.has(file.type.toLowerCase())) {
+      const message = 'Formato inválido. Use PNG, JPG, JPEG ou WebP.'
+      setUploadErrors((current) => ({ ...current, [itemId]: message }))
+      setError(message)
+      uploadTargetIdRef.current = null
+      if (fileInputRef.current) fileInputRef.current.value = ''
+      return
+    }
+
     setUploadingId(itemId)
     setUploadErrors((current) => {
       const next = { ...current }
@@ -277,9 +294,62 @@ export default function AdditionalItemsDashboard({
     setItems((current) => current.filter((row) => row.id !== item.id))
   }
 
+  function renderActions(item: AdditionalItemListItem) {
+    if (editingId === item.id) {
+      return (
+        <div className="flex flex-col gap-1">
+          <button
+            type="button"
+            onClick={() => void saveRow()}
+            disabled={saving}
+            className="rounded-lg bg-[var(--brand-primary)] px-2 py-1 text-xs font-bold text-white disabled:opacity-50"
+          >
+            Salvar
+          </button>
+          <button
+            type="button"
+            onClick={cancelEdit}
+            className="rounded-lg border border-cdl-border px-2 py-1 text-xs font-bold"
+          >
+            Cancelar
+          </button>
+        </div>
+      )
+    }
+
+    return (
+      <div className="flex flex-col gap-1">
+        <button
+          type="button"
+          onClick={() => startEdit(item)}
+          className="rounded-lg border border-cdl-border px-2 py-1 text-xs font-bold"
+        >
+          Editar
+        </button>
+        <button
+          type="button"
+          onClick={() => triggerUpload(item.id)}
+          disabled={uploadingId === item.id}
+          className="rounded-lg border border-cdl-border px-2 py-1 text-xs font-bold disabled:opacity-50"
+        >
+          {uploadingId === item.id ? 'Enviando...' : 'Imagem'}
+        </button>
+        {item.active !== false ? (
+          <button
+            type="button"
+            onClick={() => void deactivate(item)}
+            className="rounded-lg border border-cdl-action px-2 py-1 text-xs font-bold text-cdl-action"
+          >
+            Inativar
+          </button>
+        ) : null}
+      </div>
+    )
+  }
+
   function renderCell(
     item: AdditionalItemListItem,
-    key: ColumnKey,
+    key: DataColumnKey,
     type: 'text' | 'number' = 'text',
   ) {
     if (key === 'image_url') {
@@ -322,24 +392,6 @@ export default function AdditionalItemsDashboard({
           )}
         </div>
       )
-    }
-
-    if (key === 'active') {
-      if (editingId === item.id) {
-        return (
-          <select
-            value={draft.active === false ? 'false' : 'true'}
-            onChange={(e) =>
-              setDraft((c) => ({ ...c, active: e.target.value === 'true' }))
-            }
-            className="w-full rounded-lg border border-cdl-border bg-cdl-inset px-2 py-1.5 text-xs"
-          >
-            <option value="true">Ativo</option>
-            <option value="false">Inativo</option>
-          </select>
-        )
-      }
-      return item.active === false ? 'Inativo' : 'Ativo'
     }
 
     if (editingId === item.id) {
@@ -421,7 +473,7 @@ export default function AdditionalItemsDashboard({
         <table className="w-full min-w-[1200px] border-collapse text-left">
           <thead>
             <tr className="border-b border-cdl-border bg-cdl-inset/50">
-              {COLUMNS.map((col) => (
+              {TABLE_COLUMNS.map((col) => (
                 <th
                   key={col.key}
                   className="px-3 py-3 text-xs font-bold uppercase tracking-wider text-cdl-muted"
@@ -430,14 +482,14 @@ export default function AdditionalItemsDashboard({
                 </th>
               ))}
               <th className="px-3 py-3 text-xs font-bold uppercase tracking-wider text-cdl-muted">
-                Ações
+                Status
               </th>
             </tr>
           </thead>
           <tbody>
             {editingId === 'new' ? (
               <tr className="border-b border-cdl-border bg-[color-mix(in_srgb,var(--brand-accent)_8%,transparent)]">
-                {COLUMNS.map((col) => (
+                {TABLE_COLUMNS.filter((c) => c.key !== 'actions').map((col) => (
                   <td key={col.key} className="px-3 py-2">
                     {col.key === 'pricing_type' ? (
                       <select
@@ -449,20 +501,6 @@ export default function AdditionalItemsDashboard({
                       >
                         <option value="PER_UNIT">PER_UNIT</option>
                         <option value="PER_PERSON">PER_PERSON</option>
-                      </select>
-                    ) : col.key === 'active' ? (
-                      <select
-                        value={draft.active === false ? 'false' : 'true'}
-                        onChange={(e) =>
-                          setDraft((c) => ({
-                            ...c,
-                            active: e.target.value === 'true',
-                          }))
-                        }
-                        className="w-full rounded-lg border border-cdl-border bg-cdl-inset px-2 py-1.5 text-xs"
-                      >
-                        <option value="true">Ativo</option>
-                        <option value="false">Inativo</option>
                       </select>
                     ) : (
                       <input
@@ -485,7 +523,7 @@ export default function AdditionalItemsDashboard({
                   </td>
                 ))}
                 <td className="px-3 py-2">
-                  <div className="flex gap-1">
+                  <div className="flex flex-col gap-1">
                     <button
                       type="button"
                       onClick={() => void saveRow()}
@@ -503,13 +541,28 @@ export default function AdditionalItemsDashboard({
                     </button>
                   </div>
                 </td>
+                <td className="px-3 py-2">
+                  <select
+                    value={draft.active === false ? 'false' : 'true'}
+                    onChange={(e) =>
+                      setDraft((c) => ({
+                        ...c,
+                        active: e.target.value === 'true',
+                      }))
+                    }
+                    className="w-full rounded-lg border border-cdl-border bg-cdl-inset px-2 py-1.5 text-xs"
+                  >
+                    <option value="true">Ativo</option>
+                    <option value="false">Inativo</option>
+                  </select>
+                </td>
               </tr>
             ) : null}
 
             {filteredItems.length === 0 && editingId !== 'new' ? (
               <tr>
                 <td
-                  colSpan={COLUMNS.length + 1}
+                  colSpan={TABLE_COLUMNS.length + 1}
                   className="px-4 py-10 text-center text-cdl-muted"
                 >
                   {loading ? 'Carregando…' : 'Nenhum item encontrado.'}
@@ -521,60 +574,38 @@ export default function AdditionalItemsDashboard({
                   key={item.id}
                   className={`border-b border-cdl-border ${item.active === false ? 'opacity-50' : ''}`}
                 >
-                  {COLUMNS.map((col) => (
+                  {TABLE_COLUMNS.filter((c) => c.key !== 'actions').map((col) => (
                     <td key={col.key} className="px-3 py-2 align-top text-sm">
-                      {renderCell(item, col.key, col.type)}
+                      {renderCell(
+                        item,
+                        col.key as DataColumnKey,
+                        col.type,
+                      )}
                     </td>
                   ))}
                   <td className="px-3 py-2 align-top">
-                    <div className="flex flex-wrap gap-1">
-                      {editingId === item.id ? (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => void saveRow()}
-                            disabled={saving}
-                            className="rounded-lg bg-[var(--brand-primary)] px-2 py-1 text-xs font-bold text-white"
-                          >
-                            Salvar
-                          </button>
-                          <button
-                            type="button"
-                            onClick={cancelEdit}
-                            className="rounded-lg border border-cdl-border px-2 py-1 text-xs font-bold"
-                          >
-                            Cancelar
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => startEdit(item)}
-                            className="rounded-lg border border-cdl-border px-2 py-1 text-xs font-bold"
-                          >
-                            Editar
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => triggerUpload(item.id)}
-                            disabled={uploadingId === item.id}
-                            className="rounded-lg border border-[var(--brand-accent)] px-2 py-1 text-xs font-bold text-[var(--brand-accent)] disabled:opacity-50"
-                          >
-                            {uploadingId === item.id ? '…' : 'Foto'}
-                          </button>
-                          {item.active !== false ? (
-                            <button
-                              type="button"
-                              onClick={() => void deactivate(item)}
-                              className="rounded-lg border border-cdl-action px-2 py-1 text-xs font-bold text-cdl-action"
-                            >
-                              Inativar
-                            </button>
-                          ) : null}
-                        </>
-                      )}
-                    </div>
+                    {renderActions(item)}
+                  </td>
+                  <td className="px-3 py-2 align-top text-xs text-cdl-muted">
+                    {editingId === item.id ? (
+                      <select
+                        value={draft.active === false ? 'false' : 'true'}
+                        onChange={(e) =>
+                          setDraft((c) => ({
+                            ...c,
+                            active: e.target.value === 'true',
+                          }))
+                        }
+                        className="w-full rounded-lg border border-cdl-border bg-cdl-inset px-2 py-1.5 text-xs"
+                      >
+                        <option value="true">Ativo</option>
+                        <option value="false">Inativo</option>
+                      </select>
+                    ) : item.active === false ? (
+                      'Inativo'
+                    ) : (
+                      'Ativo'
+                    )}
                   </td>
                 </tr>
               ))

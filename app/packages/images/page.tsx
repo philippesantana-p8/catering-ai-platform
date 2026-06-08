@@ -3,6 +3,7 @@ import AppMainNav from '@/components/AppMainNav'
 import AdditionalItemImageUploadPanel from '@/components/AdditionalItemImageUploadPanel'
 import PackageImageUploadPanel from '@/components/PackageImageUploadPanel'
 import { buildAdditionalItemsListSelect } from '@/Lib/additionalItemsTableSchema'
+import type { AdditionalItemListItem } from '@/Lib/fetchAdditionalItems'
 import { supabase } from '@/Lib/supabase'
 
 export default async function CatalogImagesPage() {
@@ -101,7 +102,9 @@ export default async function CatalogImagesPage() {
             </pre>
           ) : (
             <section className="cdl-panel p-5 sm:p-7">
-              <AdditionalItemImageUploadPanel items={additionalRes.data ?? []} />
+              <AdditionalItemImageUploadPanel
+                items={(additionalRes.data ?? []) as unknown as AdditionalItemListItem[]}
+              />
             </section>
           )}
         </section>
