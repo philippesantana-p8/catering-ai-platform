@@ -15,6 +15,8 @@ export type AdditionalItemListItem = {
   currency_code?: string | null
   display_order?: number | null
   image_url?: string | null
+  image_status?: string | null
+  image_notes?: string | null
   active?: boolean | null
 }
 

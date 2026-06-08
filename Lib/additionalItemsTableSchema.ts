@@ -83,6 +83,8 @@ export const ADDITIONAL_ITEMS_LIST_COLUMNS = [
   'currency_code',
   'display_order',
   'image_url',
+  'image_status',
+  'image_notes',
   'active',
 ] as const
 

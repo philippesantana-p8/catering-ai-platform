@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import BackofficeTableShell from '@/components/BackofficeTableShell'
 import CatalogImageFrame from '@/components/CatalogImageFrame'
 import type { AdditionalItemListItem } from '@/Lib/fetchAdditionalItems'
@@ -67,6 +67,23 @@ async function fetchItemsFromApi(
   return result.data ?? []
 }
 
+function getImageStatusLabel(
+  item: AdditionalItemListItem,
+  uploadError?: string | null,
+) {
+  if (uploadError) return 'Erro no upload'
+  if (item.image_url?.trim() || item.image_status === 'uploaded') {
+    return 'Imagem enviada'
+  }
+  return 'Sem imagem'
+}
+
+function imageStatusClass(label: string) {
+  if (label === 'Imagem enviada') return 'text-cdl-success'
+  if (label === 'Erro no upload') return 'text-cdl-action'
+  return 'text-cdl-muted'
+}
+
 export default function AdditionalItemsDashboard({
   initialItems,
 }: {
@@ -80,6 +97,10 @@ export default function AdditionalItemsDashboard({
   const [editingId, setEditingId] = useState<string | 'new' | null>(null)
   const [draft, setDraft] = useState<AdditionalItemsInsertPayload>(EMPTY_ROW)
   const [saving, setSaving] = useState(false)
+  const [uploadingId, setUploadingId] = useState<string | null>(null)
+  const [uploadErrors, setUploadErrors] = useState<Record<string, string>>({})
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const uploadTargetIdRef = useRef<string | null>(null)
 
   const filteredItems = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -131,8 +152,72 @@ export default function AdditionalItemsDashboard({
       unit_label: item.unit_label ?? 'UN',
       currency_code: item.currency_code ?? 'USD',
       display_order: item.display_order ?? 0,
+      image_url: item.image_url ?? '',
+      image_status: item.image_status ?? '',
+      image_notes: item.image_notes ?? '',
       active: item.active !== false,
     })
+  }
+
+  function triggerUpload(itemId: string) {
+    uploadTargetIdRef.current = itemId
+    fileInputRef.current?.click()
+  }
+
+  async function handleFileSelected(file: File | undefined) {
+    const itemId = uploadTargetIdRef.current
+    if (!file || !itemId) return
+
+    setUploadingId(itemId)
+    setUploadErrors((current) => {
+      const next = { ...current }
+      delete next[itemId]
+      return next
+    })
+    setError(null)
+
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const response = await fetch(`/api/additional-items/${itemId}/image`, {
+        method: 'POST',
+        body: formData,
+      })
+      const result = (await response.json()) as {
+        success?: boolean
+        image_url?: string
+        item?: AdditionalItemListItem
+        error?: string
+      }
+
+      if (!response.ok || !result.success || !result.item) {
+        throw new Error(result.error ?? 'Falha no upload da imagem.')
+      }
+
+      setItems((current) =>
+        current.map((row) => (row.id === itemId ? { ...row, ...result.item } : row)),
+      )
+
+      if (editingId === itemId) {
+        setDraft((current) => ({
+          ...current,
+          image_url: result.item?.image_url ?? result.image_url ?? current.image_url,
+          image_status: result.item?.image_status ?? 'uploaded',
+          image_notes: null,
+        }))
+      }
+    } catch (uploadError) {
+      const message =
+        uploadError instanceof Error
+          ? uploadError.message
+          : 'Erro ao enviar imagem.'
+      setUploadErrors((current) => ({ ...current, [itemId]: message }))
+      setError(message)
+    } finally {
+      setUploadingId(null)
+      uploadTargetIdRef.current = null
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
   }
 
   function cancelEdit() {
@@ -202,6 +287,7 @@ export default function AdditionalItemsDashboard({
           ? String(draft.image_url ?? '').trim() || null
           : item.image_url?.trim() || null
       const label = item.item_name ?? item.label_pt ?? item.item_key ?? 'Item'
+      const statusLabel = getImageStatusLabel(item, uploadErrors[item.id])
       return (
         <div className="flex max-w-[10rem] flex-col gap-2">
           <CatalogImageFrame
@@ -211,6 +297,16 @@ export default function AdditionalItemsDashboard({
             size="thumbnail"
             rounded="all"
           />
+          <span
+            className={`text-[10px] font-bold uppercase tracking-wide ${imageStatusClass(statusLabel)}`}
+          >
+            {statusLabel}
+          </span>
+          {uploadErrors[item.id] ? (
+            <span className="text-[10px] leading-snug text-cdl-action">
+              {uploadErrors[item.id]}
+            </span>
+          ) : null}
           {editingId === item.id ? (
             <input
               type="text"
@@ -304,6 +400,14 @@ export default function AdditionalItemsDashboard({
         </button>
       }
     >
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/jpeg,image/jpg,image/png,image/webp"
+        className="hidden"
+        onChange={(e) => void handleFileSelected(e.target.files?.[0])}
+      />
+
       <div className="overflow-x-auto rounded-2xl border border-cdl-border bg-cdl-surface shadow-cdl">
         <table className="w-full min-w-[1200px] border-collapse text-left">
           <thead>
@@ -441,6 +545,14 @@ export default function AdditionalItemsDashboard({
                             className="rounded-lg border border-cdl-border px-2 py-1 text-xs font-bold"
                           >
                             Editar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => triggerUpload(item.id)}
+                            disabled={uploadingId === item.id}
+                            className="rounded-lg border border-[var(--brand-accent)] px-2 py-1 text-xs font-bold text-[var(--brand-accent)] disabled:opacity-50"
+                          >
+                            {uploadingId === item.id ? '…' : 'Imagem'}
                           </button>
                           {item.active !== false ? (
                             <button

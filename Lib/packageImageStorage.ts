@@ -59,5 +59,3 @@ export async function uploadPackageImage(
 
   return { publicUrl, error: null }
 }
-
-// Future: additional_items.image_url and bucket additional-item-images.
