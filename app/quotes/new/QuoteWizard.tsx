@@ -820,10 +820,24 @@ function compareAdditionalCategories(a: string, b: string) {
   return a.localeCompare(b, 'pt-BR')
 }
 
-function ImagePlaceholder({ label }: { label: string }) {
+function ImagePlaceholder({
+  label,
+  compact = false,
+}: {
+  label: string
+  compact?: boolean
+}) {
   return (
-    <div className="flex aspect-video w-full items-center justify-center bg-cdl-muted-bg text-cdl-faint">
-      <span className="text-xs font-semibold uppercase tracking-wider">
+    <div
+      className={`flex w-full items-center justify-center bg-cdl-muted-bg text-cdl-faint ${
+        compact ? 'aspect-[4/3]' : 'aspect-video'
+      }`}
+    >
+      <span
+        className={`font-semibold uppercase tracking-wider ${
+          compact ? 'px-1 text-center text-[9px] leading-tight' : 'text-xs'
+        }`}
+      >
         {label}
       </span>
     </div>
@@ -855,19 +869,19 @@ function PackageCard({
           ? 'Selecionar pacote e continuar'
           : 'Duplo clique para ir aos adicionais'
       }
-      className={`relative overflow-hidden rounded-xl border text-left shadow-cdl transition-colors ${
+      className={`relative overflow-hidden rounded-lg border text-left shadow-cdl transition-colors sm:rounded-xl ${
         selected
-          ? 'border-cdl-success-border bg-cdl-success-soft'
+          ? 'border-cdl-success-border bg-cdl-success-soft ring-1 ring-cdl-success-border'
           : 'border-cdl-border bg-cdl-inset hover:border-cdl-accent-border'
       }`}
     >
       {selected && (
-        <span className="absolute right-3 top-3 z-10 rounded-full border border-cdl-success-border bg-cdl-success-soft px-2.5 py-0.5 text-[10px] font-bold tracking-wider text-cdl-success">
+        <span className="absolute right-1.5 top-1.5 z-10 hidden rounded-full border border-cdl-success-border bg-cdl-success-soft px-2 py-0.5 text-[9px] font-bold tracking-wider text-cdl-success sm:right-3 sm:top-3 sm:inline-flex sm:px-2.5 sm:text-[10px]">
           SELECIONADO
         </span>
       )}
       {image ? (
-        <div className="aspect-video w-full overflow-hidden bg-cdl-image">
+        <div className="aspect-[4/3] w-full overflow-hidden bg-cdl-image sm:aspect-video">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={image}
@@ -876,19 +890,18 @@ function PackageCard({
           />
         </div>
       ) : (
-        <ImagePlaceholder label="Sem imagem" />
+        <ImagePlaceholder label="SEM IMAGEM" compact />
       )}
-      <div className="p-6">
-        <p className="cdl-eyebrow">{pkg.package_key}</p>
-        <h3 className="mt-2 text-xl font-bold text-cdl-fg sm:text-2xl">
+      <div className="p-2 sm:p-4 lg:p-6">
+        <p className="truncate text-[10px] font-bold uppercase tracking-wide text-cdl-muted sm:text-xs">
+          {pkg.package_key}
+        </p>
+        <h3 className="mt-0.5 truncate text-xs font-bold leading-snug text-cdl-fg sm:mt-1.5 sm:text-lg lg:text-xl">
           {getPackageName(pkg)}
         </h3>
-        {getPackageDescription(pkg) && (
-          <p className="mt-2 text-sm text-cdl-text-secondary">{getPackageDescription(pkg)}</p>
-        )}
-        <p className="mt-4 text-2xl font-black text-cdl-price">
+        <p className="mt-1 text-sm font-black text-cdl-price sm:mt-3 sm:text-xl lg:text-2xl">
           {formatCurrency(getPackagePrice(pkg))}
-          <span className="ml-1 text-sm font-semibold text-cdl-text-secondary">
+          <span className="ml-0.5 text-[10px] font-semibold text-cdl-text-secondary sm:ml-1 sm:text-sm">
             / pessoa
           </span>
         </p>
@@ -981,8 +994,8 @@ function PackageBlock({
       </button>
 
       {expanded && (
-        <div className="border-t border-cdl-border-subtle p-5 sm:p-6">
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div className="border-t border-cdl-border-subtle p-3 sm:p-5 lg:p-6">
+          <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-3 md:gap-4 lg:grid-cols-4">
             {blockPackages.map((pkg) => (
               <PackageCard
                 key={pkg.id}

@@ -31,6 +31,63 @@ function validateSaveInput(input: QuoteSaveInput): SaveQuoteErrorInfo | null {
   return null
 }
 
+async function findOrCreateCustomerForQuoteSave(
+  draft: NonNullable<QuoteSaveInput['customerDraft']>,
+): Promise<{
+  customer: { id: string } | null
+  error: { message: string } | null
+}> {
+  const payload = {
+    phone: draft.phone,
+    name: draft.name,
+    email: draft.email,
+  }
+
+  if (typeof window !== 'undefined') {
+    try {
+      const response = await fetch('/api/customers/find-or-create', {
+        method: 'POST',
+        cache: 'no-store',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      const result = (await response.json()) as {
+        customer?: { id: string }
+        error?: string
+      }
+
+      if (!response.ok || !result.customer?.id) {
+        return {
+          customer: null,
+          error: {
+            message:
+              result.error ?? 'Não foi possível criar ou vincular cliente.',
+          },
+        }
+      }
+
+      return { customer: result.customer, error: null }
+    } catch {
+      return {
+        customer: null,
+        error: { message: 'Erro de rede ao criar ou vincular cliente.' },
+      }
+    }
+  }
+
+  const { customer, error } = await findOrCreateCustomerByPhone(payload)
+  if (error || !customer?.id) {
+    return {
+      customer: null,
+      error: {
+        message: error?.message ?? 'Não foi possível criar ou vincular cliente.',
+      },
+    }
+  }
+
+  return { customer, error: null }
+}
+
 async function resolveCustomerIdForSave(
   input: QuoteSaveInput,
 ): Promise<{ customerId: string | null; error: SaveQuoteErrorInfo | null }> {
@@ -53,11 +110,7 @@ async function resolveCustomerIdForSave(
     }
   }
 
-  const { customer, error } = await findOrCreateCustomerByPhone({
-    phone: draft.phone,
-    name: draft.name,
-    email: draft.email,
-  })
+  const { customer, error } = await findOrCreateCustomerForQuoteSave(draft)
 
   if (error || !customer?.id) {
     return {

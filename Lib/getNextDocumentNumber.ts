@@ -1,4 +1,4 @@
-import { supabase } from './supabase'
+import { getSupabaseServerClient } from './supabaseServer'
 
 /** quote=Q-YYYY-000001 · order=O · service_order=SO · customer/address book=AB000001 */
 export type DocumentType = 'quote' | 'order' | 'service_order' | 'customer'
@@ -23,10 +23,13 @@ export async function getNextDocumentNumber(
     }
   }
 
-  const { data, error } = await supabase.rpc('get_next_document_number', {
+  const { data, error } = await getSupabaseServerClient().rpc(
+    'get_next_document_number',
+    {
     p_company_id: normalizedCompanyId,
-    p_document_type: documentType,
-  })
+      p_document_type: documentType,
+    },
+  )
 
   if (error) {
     return {
