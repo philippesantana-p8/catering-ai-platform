@@ -1,4 +1,5 @@
 import type { QuoteTotals } from '@/Lib/calculateQuoteTotals'
+import { resolvePackageCatalogImageUrl } from '@/Lib/packageCatalogVisual'
 import type { WizardState } from '@/Lib/quoteWizardTypes'
 import type { CommercialRulesSnapshot } from '@/Lib/supabaseCommercialRules'
 import { getGrillPhotoStatusLabel } from '@/Lib/grillPhotoStatus'
@@ -60,6 +61,15 @@ export function mapWizardToQuoteReview(
     language: state.language,
   })
 
+  const packageImageUrl =
+    resolvePackageCatalogImageUrl(
+      input.selectedPackage,
+      input.allPackages ?? [],
+      state.packageId,
+    ) ||
+    input.packageImageUrl?.trim() ||
+    null
+
   return {
     preview: true,
     customerName: input.customerName,
@@ -72,7 +82,7 @@ export function mapWizardToQuoteReview(
     state: state.state || null,
     zipCode: state.zipCode || null,
     packageName: input.packageName,
-    packageImageUrl: input.packageImageUrl?.trim() || null,
+    packageImageUrl,
     packageUnitPrice: input.packageUnitPrice,
     packageTotal: quoteTotals.packageTotal,
     packageSummary,

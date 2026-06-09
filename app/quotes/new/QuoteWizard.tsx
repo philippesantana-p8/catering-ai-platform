@@ -9,6 +9,7 @@ import CatalogImageFrame from '../../../components/CatalogImageFrame'
 import PackageCatalogCard from '../../../components/PackageCatalogCard'
 import QuoteWizardSummaryStep from '../../../components/quote-review/QuoteWizardSummaryStep'
 import { RESERVATION_PAYMENT_TEXT } from '../../../Lib/cdlCommercialRules'
+import { resolvePackageCatalogImageUrl } from '../../../Lib/packageCatalogVisual'
 import { calcAdditionalLineTotal } from '../../../Lib/calculateQuoteTotals'
 import type { CommercialRulesSnapshot } from '../../../Lib/supabaseCommercialRules'
 import { calculateQuoteDraftFromSupabasePricing } from '../../../Lib/calculateQuoteDraftFromSupabasePricing'
@@ -1547,6 +1548,16 @@ export default function QuoteWizard({
       : CUSTOMER_DISPLAY_NAME_EMPTY
   const selectedPackage = packages.find((p) => p.id === state.packageId) ?? null
 
+  const packageImageUrl = useMemo(
+    () =>
+      resolvePackageCatalogImageUrl(
+        selectedPackage,
+        packages,
+        state.packageId,
+      ),
+    [selectedPackage, packages, state.packageId],
+  )
+
   const filteredCustomers = useMemo(
     () => filterCustomersBySearch(localCustomers, customerSearch),
     [localCustomers, customerSearch],
@@ -2887,9 +2898,7 @@ export default function QuoteWizard({
             packageName={
               selectedPackage ? getPackageName(selectedPackage) : null
             }
-            packageImageUrl={
-              selectedPackage?.image_url?.trim() || null
-            }
+            packageImageUrl={packageImageUrl}
             packageUnitPrice={packageUnitPrice}
             selectedPackage={selectedPackage}
             allPackages={packages}

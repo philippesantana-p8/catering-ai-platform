@@ -1,5 +1,6 @@
 import type { QuoteDetail } from '@/app/quotes/[id]/quoteDetailTypes'
 import { SIDES_PRICE_PER_PERSON } from '@/Lib/cdlCommercialRules'
+import { resolvePackageCatalogImageUrl } from '@/Lib/packageCatalogVisual'
 import type { QuoteSavedSnapshot } from '@/Lib/readQuoteSnapshot'
 import type { QuoteLanguage } from '@/Lib/quoteWizardTypes'
 import {
@@ -47,6 +48,15 @@ export function quoteDetailToPackageFields(
     price: quote.package_price_per_person ?? quote.package_unit_price ?? undefined,
     image_url: quote.package_image_url ?? undefined,
   }
+}
+
+export function resolveQuoteDetailPackageImageUrl(quote: QuoteDetail): string | null {
+  const pkg = quoteDetailToPackageFields(quote)
+  return (
+    resolvePackageCatalogImageUrl(pkg, pkg ? [pkg] : [], quote.package_id) ||
+    quote.package_image_url?.trim() ||
+    null
+  )
 }
 
 export function buildQuoteReviewPackageSummaryFromQuote(

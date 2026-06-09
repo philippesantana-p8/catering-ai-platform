@@ -71,8 +71,45 @@ export function getPackageCatalogName(
   )
 }
 
-export function getPackageCatalogImage(pkg: PackageCatalogFields): string | null {
-  return pkg.image_url?.trim() || null
+export function getPackageCatalogImage(
+  pkg: PackageCatalogFields,
+  allPackages?: ReadonlyArray<PackageCatalogFields>,
+): string | null {
+  const direct = pkg.image_url?.trim() || null
+  if (direct) return direct
+
+  if (!allPackages?.length) return null
+
+  const basePackage = findBasePackage(pkg, allPackages)
+  if (basePackage) {
+    return basePackage.image_url?.trim() || null
+  }
+
+  return null
+}
+
+export type PackageCatalogRecord = PackageCatalogFields & { id?: string }
+
+/** Mesma resolução de imagem usada na seleção e na revisão do pacote. */
+export function resolvePackageCatalogImageUrl(
+  pkg: PackageCatalogRecord | null | undefined,
+  allPackages: ReadonlyArray<PackageCatalogRecord> = [],
+  packageId?: string | null,
+): string | null {
+  if (pkg) {
+    const fromSelected = getPackageCatalogImage(pkg, allPackages)
+    if (fromSelected) return fromSelected
+  }
+
+  const normalizedId = packageId?.trim()
+  if (normalizedId && allPackages.length > 0) {
+    const match = allPackages.find((candidate) => candidate.id === normalizedId)
+    if (match) {
+      return getPackageCatalogImage(match, allPackages)
+    }
+  }
+
+  return null
 }
 
 export function getPackageCatalogPrice(pkg: PackageCatalogFields): number {

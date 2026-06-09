@@ -2,7 +2,10 @@ import {
   getGrillPhotoDetailLabel,
 } from '@/Lib/grillPhotoStatus'
 import { getCustomerDisplayNameFromQuote } from '@/Lib/getCustomerDisplayName'
-import { buildQuoteReviewPackageSummaryFromQuote } from '@/components/quote-review/mapQuoteDetailToQuoteReview'
+import {
+  buildQuoteReviewPackageSummaryFromQuote,
+  resolveQuoteDetailPackageImageUrl,
+} from '@/components/quote-review/mapQuoteDetailToQuoteReview'
 import QuoteReviewPackageCdlSection from '@/components/quote-review/QuoteReviewPackageCdlSection'
 import {
   type QuoteDetail,
@@ -173,6 +176,7 @@ export default function QuoteDetailView({ quote }: { quote: QuoteDetail }) {
 
   const snapshot = readQuoteSnapshot(quote)
   const packageSummary = buildQuoteReviewPackageSummaryFromQuote(quote, snapshot)
+  const packageImageUrl = resolveQuoteDetailPackageImageUrl(quote)
   const guestCounts = snapshot.guestCounts
   const chargedMiles = getChargedMilesFromSnapshot(
     snapshot.mileageDistance,
@@ -304,7 +308,7 @@ export default function QuoteDetailView({ quote }: { quote: QuoteDetail }) {
           <ProposalSection title="Pacote CDL">
             <QuoteReviewPackageCdlSection
               packageName={packageName ?? null}
-              packageImageUrl={quote.package_image_url}
+              packageImageUrl={packageImageUrl}
               packageSummary={packageSummary}
               physicalGuestCount={snapshot.physicalGuestCount}
               billableGuestCount={snapshot.billableGuestCount}

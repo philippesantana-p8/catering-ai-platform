@@ -70,7 +70,7 @@ export default function PackageCatalogCard({
   allPackages?: ReadonlyArray<PackageCatalogFields>
   sidesPricePerPerson?: number
 }) {
-  const image = getPackageCatalogImage(pkg)
+  const image = getPackageCatalogImage(pkg, allPackages)
   const variant = getPackageCatalogVariant(pkg)
   const name = getPackageCatalogName(pkg, language)
   const priceOnRequest = isPackageCatalogPriceOnRequest(pkg)
