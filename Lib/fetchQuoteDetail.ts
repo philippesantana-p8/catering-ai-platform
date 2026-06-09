@@ -1,4 +1,5 @@
 import type { QuoteDetail } from '@/app/quotes/[id]/quoteDetailTypes'
+import { fetchQuoteLinkedPackageCatalog } from '@/Lib/fetchQuoteLinkedPackageCatalog'
 import type { CustomerNameSource } from '@/Lib/getCustomerDisplayName'
 import { supabase } from './supabase'
 
@@ -60,10 +61,46 @@ export async function fetchQuoteDetail(id: string) {
     )
   }
 
-  const data = normalizeQuoteDetailRow({
+  const quote = normalizeQuoteDetailRow({
     ...(viewRes.data as Record<string, unknown>),
     ...(guestRes.data ?? {}),
   })
+
+  const packageCatalog = await fetchQuoteLinkedPackageCatalog({
+    packageId: quote.package_id,
+    packageKey: quote.package_key,
+  })
+
+  const linkedPackage = packageCatalog.linkedPackage
+
+  const data: QuoteDetail = {
+    ...quote,
+    package_key: quote.package_key ?? linkedPackage?.package_key ?? null,
+    package_name_pt:
+      quote.package_name_pt ??
+      linkedPackage?.label_pt ??
+      linkedPackage?.package_name ??
+      null,
+    package_name_en: quote.package_name_en ?? linkedPackage?.label_en ?? null,
+    package_name_es: quote.package_name_es ?? linkedPackage?.label_es ?? null,
+    package_description_pt:
+      quote.package_description_pt ?? linkedPackage?.description_pt ?? null,
+    package_description_en:
+      quote.package_description_en ?? linkedPackage?.description_en ?? null,
+    package_description_es:
+      quote.package_description_es ?? linkedPackage?.description_es ?? null,
+    package_price_per_person:
+      quote.package_price_per_person ??
+      quote.package_unit_price ??
+      linkedPackage?.price_per_person ??
+      null,
+    package_image_url:
+      quote.package_image_url?.trim() ||
+      packageCatalog.resolvedImageUrl ||
+      linkedPackage?.image_url?.trim() ||
+      null,
+    packageCatalogPackages: packageCatalog.catalogPackages,
+  }
 
   return { data, error: null }
 }

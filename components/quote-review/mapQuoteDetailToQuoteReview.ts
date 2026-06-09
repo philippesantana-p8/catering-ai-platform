@@ -1,4 +1,7 @@
-import type { QuoteDetail } from '@/app/quotes/[id]/quoteDetailTypes'
+import type {
+  QuoteDetail,
+  QuoteDetailPackageCatalogRow,
+} from '@/app/quotes/[id]/quoteDetailTypes'
 import { SIDES_PRICE_PER_PERSON } from '@/Lib/cdlCommercialRules'
 import { resolvePackageCatalogImageUrl } from '@/Lib/packageCatalogVisual'
 import type { QuoteSavedSnapshot } from '@/Lib/readQuoteSnapshot'
@@ -24,36 +27,62 @@ function packageNameIndicatesGarnish(name: string | null | undefined): boolean {
   )
 }
 
+function linkedPackageFromQuote(
+  quote: QuoteDetail,
+): QuoteDetailPackageCatalogRow | null {
+  return quote.packageCatalogPackages?.[0] ?? null
+}
+
 export function quoteDetailToPackageFields(
   quote: QuoteDetail,
 ): QuoteReviewPackageFields | null {
-  const packageKey = quote.package_key?.trim()
-  if (!packageKey && !quote.package_name_pt) return null
+  const linked = linkedPackageFromQuote(quote)
+  const packageKey = (quote.package_key ?? linked?.package_key)?.trim()
+  if (!packageKey && !quote.package_name_pt && !linked?.package_name) return null
 
   return {
     package_key: packageKey,
-    package_name: quote.package_name_pt,
-    label_pt: quote.package_name_pt,
-    label_en: quote.package_name_en,
-    label_es: quote.package_name_es,
+    package_name: quote.package_name_pt ?? linked?.package_name ?? undefined,
+    label_pt: quote.package_name_pt ?? linked?.label_pt ?? linked?.package_name,
+    label_en: quote.package_name_en ?? linked?.label_en ?? undefined,
+    label_es: quote.package_name_es ?? linked?.label_es ?? undefined,
     description_pt:
       quote.package_description_pt ??
+      linked?.description_pt ??
       quote.package_description ??
       undefined,
-    description_en: quote.package_description_en ?? undefined,
-    description_es: quote.package_description_es ?? undefined,
+    description_en:
+      quote.package_description_en ?? linked?.description_en ?? undefined,
+    description_es:
+      quote.package_description_es ?? linked?.description_es ?? undefined,
     description: quote.package_description ?? undefined,
     price_per_person:
-      quote.package_price_per_person ?? quote.package_unit_price ?? undefined,
-    price: quote.package_price_per_person ?? quote.package_unit_price ?? undefined,
-    image_url: quote.package_image_url ?? undefined,
+      quote.package_price_per_person ??
+      quote.package_unit_price ??
+      linked?.price_per_person ??
+      undefined,
+    price:
+      quote.package_price_per_person ??
+      quote.package_unit_price ??
+      linked?.price_per_person ??
+      undefined,
+    image_url:
+      linked?.image_url ??
+      quote.package_image_url ??
+      undefined,
   }
 }
 
 export function resolveQuoteDetailPackageImageUrl(quote: QuoteDetail): string | null {
+  const catalogPackages = quote.packageCatalogPackages ?? []
   const pkg = quoteDetailToPackageFields(quote)
+
   return (
-    resolvePackageCatalogImageUrl(pkg, pkg ? [pkg] : [], quote.package_id) ||
+    resolvePackageCatalogImageUrl(
+      catalogPackages[0] ?? pkg,
+      catalogPackages,
+      quote.package_id,
+    ) ||
     quote.package_image_url?.trim() ||
     null
   )
@@ -74,6 +103,7 @@ export function buildQuoteReviewPackageSummaryFromQuote(
 
   return buildQuoteReviewPackageSummary({
     pkg,
+    allPackages: quote.packageCatalogPackages ?? [],
     sidesPricePerPerson: SIDES_PRICE_PER_PERSON,
     chargedPeople: snapshot.billableGuestCount ?? 0,
     fromWithSidesSection:
