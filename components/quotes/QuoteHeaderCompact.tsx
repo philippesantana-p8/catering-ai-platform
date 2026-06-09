@@ -8,7 +8,7 @@ export default function QuoteHeaderCompact({
   isEditMode?: boolean
 }) {
   return (
-    <header className="mb-3 flex max-h-20 items-center gap-3 rounded-2xl border border-cdl-border bg-cdl-surface px-3 py-2.5 shadow-sm sm:mb-4 sm:px-4 sm:py-3">
+    <header className="mb-3 flex max-h-20 items-center gap-3 rounded-2xl border border-cdl-border bg-cdl-surface px-3 py-2.5 shadow-sm md:hidden sm:mb-4 sm:px-4 sm:py-3">
       <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full border border-cdl-border-subtle bg-white sm:h-12 sm:w-12">
         <CdlBrandLogo
           size="sm"

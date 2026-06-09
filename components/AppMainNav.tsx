@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import BuildVersionBadge from '@/components/BuildVersionBadge'
 
 const NAV_LINKS = [
   { href: '/quotes', label: 'Cotações' },
@@ -52,10 +53,11 @@ export default function AppMainNav({ className = '' }: { className?: string }) {
     pathname === '/quotes/new' || pathname.startsWith('/quotes/new/')
 
   return (
-    <nav
-      className={`flex flex-wrap items-center gap-2 ${className}`}
-      aria-label="Navegação principal"
-    >
+    <div className={`w-full ${className}`}>
+      <nav
+        className="flex flex-wrap items-center gap-2"
+        aria-label="Navegação principal"
+      >
       {NAV_LINKS.map((link) => {
         const active = isNavActive(pathname, link.href)
         return (
@@ -82,6 +84,8 @@ export default function AppMainNav({ className = '' }: { className?: string }) {
       >
         Nova cotação
       </Link>
-    </nav>
+      </nav>
+      <BuildVersionBadge className="mt-2 hidden sm:block" />
+    </div>
   )
 }

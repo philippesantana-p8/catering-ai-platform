@@ -5,7 +5,9 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import AppMainNav from '../../../components/AppMainNav'
 import CatalogImageFrame from '../../../components/CatalogImageFrame'
+import BuildVersionBadge from '../../../components/BuildVersionBadge'
 import QuoteHeaderCompact from '../../../components/quotes/QuoteHeaderCompact'
+import QuoteHeroBanner from '../../../components/quotes/QuoteHeroBanner'
 import QuotePackageStepExplorer from '../../../components/quotes/QuotePackageStepExplorer'
 import {
   findDefaultQuotePackage,
@@ -2047,6 +2049,8 @@ export default function QuoteWizard({
         </div>
 
         <QuoteHeaderCompact isEditMode={isEditMode} />
+        <QuoteHeroBanner isEditMode={isEditMode} />
+        <BuildVersionBadge className="mb-3 md:mb-4" />
 
         <nav
           className="mb-4 rounded-2xl border border-cdl-border bg-cdl-surface p-3 shadow-cdl sm:mb-5 sm:p-4"

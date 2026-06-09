@@ -8,7 +8,7 @@ import {
 import QuotePackageSummary from '@/components/quotes/QuotePackageSummary'
 import { PackageCodeOption } from '@/components/premium/PremiumPrimitives'
 import { sortPackagesByCommercialTier } from '@/Lib/packageDisplay'
-import { getPackageHasGarnish } from '@/Lib/packageFieldAccess'
+import { getPackageHasGarnish, getPackageKey } from '@/Lib/packageFieldAccess'
 import type { PackageCatalogFields } from '@/Lib/packageCatalogVisual'
 import type { QuoteLanguage } from '@/Lib/quoteWizardTypes'
 
@@ -69,7 +69,7 @@ function resolveGroupForPackage(
 function MobilePackageList({
   packages,
   selectedPackageId,
-  expandedPackageId,
+  expandedPackageCode,
   allPackages,
   language,
   sidesPricePerPerson,
@@ -77,7 +77,7 @@ function MobilePackageList({
 }: {
   packages: PackageRow[]
   selectedPackageId: string | null
-  expandedPackageId: string | null
+  expandedPackageCode: string | null
   allPackages: PackageRow[]
   language: QuoteLanguage
   sidesPricePerPerson: number
@@ -86,8 +86,9 @@ function MobilePackageList({
   return (
     <div className="space-y-3">
       {packages.map((pkg) => {
+        const code = getPackageKey(pkg)
         const isSelected = selectedPackageId === pkg.id
-        const isExpanded = expandedPackageId === pkg.id
+        const isExpanded = expandedPackageCode === code
 
         return (
           <div key={pkg.id}>
@@ -97,7 +98,7 @@ function MobilePackageList({
               onClick={() => onPackageClick(pkg)}
             />
             {isExpanded ? (
-              <div className="mt-2">
+              <div className="mt-2 md:hidden">
                 <QuotePackageSummary
                   pkg={pkg}
                   allPackages={allPackages}
@@ -156,7 +157,9 @@ export default function QuotePackageStepExplorer({
   const [mobileExpandedGroup, setMobileExpandedGroup] =
     useState<GarnishGroup>('with')
 
-  const [expandedPackageId, setExpandedPackageId] = useState<string | null>(null)
+  const [expandedPackageCode, setExpandedPackageCode] = useState<string | null>(
+    null,
+  )
   const mobileExpandInitialized = useRef(false)
 
   useEffect(() => {
@@ -175,11 +178,10 @@ export default function QuotePackageStepExplorer({
     const prime = list[0]
     if (!prime) return null
     onSelect(prime.id)
-    setExpandedPackageId(prime.id)
+    setExpandedPackageCode(getPackageKey(prime))
     return prime.id
   }
 
-  /** Desktop: só troca pacote se o atual não pertence ao grupo. */
   function selectGroupDesktop(group: GarnishGroup) {
     setSelectedGroup(group)
     const list = group === 'with' ? sortedWithSides : sortedWithoutSides
@@ -189,7 +191,6 @@ export default function QuotePackageStepExplorer({
     }
   }
 
-  /** Mobile: sempre seleciona Prime e abre card inline abaixo dele. */
   function openMobileGroup(group: GarnishGroup) {
     setSelectedGroup(group)
     setMobileExpandedGroup(group)
@@ -198,17 +199,17 @@ export default function QuotePackageStepExplorer({
   }
 
   function handleMobilePackageClick(pkg: PackageRow) {
-    const isSamePackage = selectedPackageId === pkg.id
-    const isCurrentlyExpanded = expandedPackageId === pkg.id
+    const code = getPackageKey(pkg)
+    const isCurrentlyExpanded = expandedPackageCode === code
 
     onSelect(pkg.id)
 
-    if (isSamePackage && isCurrentlyExpanded) {
-      setExpandedPackageId(null)
+    if (isCurrentlyExpanded) {
+      setExpandedPackageCode(null)
       return
     }
 
-    setExpandedPackageId(pkg.id)
+    setExpandedPackageCode(code)
   }
 
   useEffect(() => {
@@ -220,7 +221,7 @@ export default function QuotePackageStepExplorer({
 
     if (!selectedPackageId) {
       onSelect(prime.id)
-      setExpandedPackageId(prime.id)
+      setExpandedPackageCode(getPackageKey(prime))
       mobileExpandInitialized.current = true
       return
     }
@@ -229,7 +230,10 @@ export default function QuotePackageStepExplorer({
       (pkg) => pkg.id === selectedPackageId,
     )
     if (selectedInWith) {
-      setExpandedPackageId(selectedPackageId)
+      const selected = sortedWithSides.find((pkg) => pkg.id === selectedPackageId)
+      setExpandedPackageCode(
+        selected ? getPackageKey(selected) : getPackageKey(prime),
+      )
       mobileExpandInitialized.current = true
     }
   }, [mobileExpandedGroup, selectedPackageId, sortedWithSides, onSelect])
@@ -252,7 +256,7 @@ export default function QuotePackageStepExplorer({
     return (
       <section
         key={group}
-        className="overflow-hidden rounded-2xl border border-cdl-border bg-cdl-surface shadow-cdl lg:hidden"
+        className="overflow-hidden rounded-2xl border border-cdl-border bg-cdl-surface shadow-cdl md:hidden"
       >
         <button
           type="button"
@@ -282,7 +286,7 @@ export default function QuotePackageStepExplorer({
             <MobilePackageList
               packages={packages}
               selectedPackageId={selectedPackageId}
-              expandedPackageId={expandedPackageId}
+              expandedPackageCode={expandedPackageCode}
               allPackages={allPackages}
               language={language}
               sidesPricePerPerson={sidesPricePerPerson}
@@ -296,8 +300,8 @@ export default function QuotePackageStepExplorer({
 
   return (
     <div className="space-y-3">
-      {/* Desktop — 3 colunas (inalterado) */}
-      <div className="hidden lg:block">
+      {/* Desktop — 3 colunas (md+) */}
+      <div className="hidden md:block">
         <BackofficeCascadeLayout>
           <BackofficeCascadePanel
             title="Tipo de pacote"
@@ -361,7 +365,7 @@ export default function QuotePackageStepExplorer({
         </BackofficeCascadeLayout>
       </div>
 
-      {/* Mobile — detalhe inline logo abaixo do pacote clicado */}
+      {/* Mobile — detalhe inline abaixo do pacote clicado */}
       {sortedWithSides.length > 0
         ? mobileGroupSection(
             'with',
