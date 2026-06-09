@@ -8,23 +8,33 @@ import {
   BackofficeBtnOutline,
   BackofficeBtnPrimary,
   BackofficeBtnSecondary,
-  BackofficeCardGrid,
-  BackofficeCardImage,
-  BackofficeEmptyState,
-  BackofficeEntityCard,
-  BackofficeField,
   BackofficeFormCard,
-  BackofficeInput,
   BackofficeMetaRow,
-  BackofficeSelect,
   BackofficeStatusBadge,
 } from '@/components/backoffice/BackofficeCardPrimitives'
+import {
+  AdditionalItemAdminFormFields,
+  EMPTY_ADDITIONAL_ITEM_ROW,
+  additionalItemDraftFromListItem,
+} from '@/components/backoffice/AdditionalItemAdminFormFields'
+import {
+  BackofficeCascadeLayout,
+  BackofficeCascadeListButton,
+  BackofficeCascadePanel,
+  BackofficeInventoryButton,
+} from '@/components/backoffice/BackofficeSectionPrimitives'
 import CatalogImageFrame from '@/components/CatalogImageFrame'
 import type { AdditionalItemListItem } from '@/Lib/fetchAdditionalItems'
+import {
+  groupAdditionalItemsByCategory,
+  normalizeAdditionalItemDraft,
+} from '@/Lib/additionalItemCatalogAdmin'
+import { calcMarginPercent, formatUsd } from '@/Lib/backofficeFinance'
 import { getAdditionalItemPrice } from '@/Lib/getAdditionalItemPrice'
 import type { AdditionalItemsInsertPayload } from '@/Lib/additionalItemsTableSchema'
 
 type ActiveFilter = 'active' | 'all'
+type MobileStep = 'categories' | 'items' | 'detail'
 
 const ACCEPTED_IMAGE_TYPES = new Set([
   'image/png',
@@ -32,21 +42,6 @@ const ACCEPTED_IMAGE_TYPES = new Set([
   'image/jpg',
   'image/webp',
 ])
-
-const EMPTY_ROW: AdditionalItemsInsertPayload = {
-  item_key: '',
-  item_name: '',
-  label_pt: '',
-  category_pt: '',
-  price: 0,
-  charge_type: 'UNIT',
-  pricing_type: 'PER_UNIT',
-  unit_label: 'UN',
-  currency_code: 'USD',
-  display_order: 0,
-  image_url: '',
-  active: true,
-}
 
 async function fetchItemsFromApi(
   query: string,
@@ -77,101 +72,6 @@ function chargeLabel(item: AdditionalItemListItem | AdditionalItemsInsertPayload
   return 'por unidade'
 }
 
-function ItemEditFields({
-  draft,
-  setDraft,
-}: {
-  draft: AdditionalItemsInsertPayload
-  setDraft: React.Dispatch<React.SetStateAction<AdditionalItemsInsertPayload>>
-}) {
-  return (
-    <>
-      <BackofficeField label="Chave">
-        <BackofficeInput
-          value={draft.item_key ?? ''}
-          onChange={(v) => setDraft((c) => ({ ...c, item_key: v }))}
-        />
-      </BackofficeField>
-      <BackofficeField label="Nome">
-        <BackofficeInput
-          value={draft.item_name ?? ''}
-          onChange={(v) => setDraft((c) => ({ ...c, item_name: v }))}
-        />
-      </BackofficeField>
-      <BackofficeField label="PT">
-        <BackofficeInput
-          value={draft.label_pt ?? ''}
-          onChange={(v) => setDraft((c) => ({ ...c, label_pt: v }))}
-        />
-      </BackofficeField>
-      <BackofficeField label="Categoria">
-        <BackofficeInput
-          value={draft.category_pt ?? ''}
-          onChange={(v) => setDraft((c) => ({ ...c, category_pt: v }))}
-        />
-      </BackofficeField>
-      <BackofficeField label="Preço">
-        <BackofficeInput
-          type="number"
-          value={draft.price ?? 0}
-          onChange={(v) => setDraft((c) => ({ ...c, price: Number(v) }))}
-        />
-      </BackofficeField>
-      <BackofficeField label="Tipo de precificação">
-        <BackofficeSelect
-          value={String(draft.pricing_type ?? 'PER_UNIT')}
-          onChange={(v) => setDraft((c) => ({ ...c, pricing_type: v }))}
-        >
-          <option value="PER_UNIT">Por unidade</option>
-          <option value="PER_PERSON">Por pessoa</option>
-        </BackofficeSelect>
-      </BackofficeField>
-      <BackofficeField label="charge_type">
-        <BackofficeInput
-          value={draft.charge_type ?? 'UNIT'}
-          onChange={(v) => setDraft((c) => ({ ...c, charge_type: v }))}
-        />
-      </BackofficeField>
-      <BackofficeField label="unit_label">
-        <BackofficeInput
-          value={draft.unit_label ?? 'UN'}
-          onChange={(v) => setDraft((c) => ({ ...c, unit_label: v }))}
-        />
-      </BackofficeField>
-      <BackofficeField label="Moeda">
-        <BackofficeInput
-          value={draft.currency_code ?? 'USD'}
-          onChange={(v) => setDraft((c) => ({ ...c, currency_code: v }))}
-        />
-      </BackofficeField>
-      <BackofficeField label="Ordem">
-        <BackofficeInput
-          type="number"
-          value={draft.display_order ?? 0}
-          onChange={(v) =>
-            setDraft((c) => ({ ...c, display_order: Number(v) }))
-          }
-        />
-      </BackofficeField>
-      <BackofficeField label="Imagem URL" className="sm:col-span-2">
-        <BackofficeInput
-          value={draft.image_url ?? ''}
-          onChange={(v) => setDraft((c) => ({ ...c, image_url: v }))}
-        />
-      </BackofficeField>
-      <BackofficeField label="Status">
-        <BackofficeSelect
-          value={draft.active === false ? 'false' : 'true'}
-          onChange={(v) => setDraft((c) => ({ ...c, active: v === 'true' }))}
-        >
-          <option value="true">Ativo</option>
-          <option value="false">Inativo</option>
-        </BackofficeSelect>
-      </BackofficeField>
-    </>
-  )
-}
-
 export default function AdditionalItemsDashboard({
   initialItems,
 }: {
@@ -183,10 +83,13 @@ export default function AdditionalItemsDashboard({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | 'new' | null>(null)
-  const [draft, setDraft] = useState<AdditionalItemsInsertPayload>(EMPTY_ROW)
+  const [draft, setDraft] = useState<AdditionalItemsInsertPayload>(EMPTY_ADDITIONAL_ITEM_ROW)
   const [saving, setSaving] = useState(false)
   const [uploadingId, setUploadingId] = useState<string | null>(null)
   const [uploadErrors, setUploadErrors] = useState<Record<string, string>>({})
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
+  const [mobileStep, setMobileStep] = useState<MobileStep>('categories')
   const fileInputRef = useRef<HTMLInputElement>(null)
   const uploadTargetIdRef = useRef<string | null>(null)
 
@@ -194,13 +97,55 @@ export default function AdditionalItemsDashboard({
     const q = search.trim().toLowerCase()
     if (!q) return items
     return items.filter((item) =>
-      [item.item_key, item.item_name, item.label_pt, item.category_pt]
+      [
+        item.item_key,
+        item.item_name,
+        item.label_pt,
+        item.category_pt,
+        item.category_group,
+      ]
         .filter(Boolean)
         .join(' ')
         .toLowerCase()
         .includes(q),
     )
   }, [items, search])
+
+  const grouped = useMemo(
+    () => groupAdditionalItemsByCategory(filteredItems),
+    [filteredItems],
+  )
+
+  const categoryItems = useMemo(() => {
+    if (!selectedCategory) return []
+    return grouped.find((g) => g.category === selectedCategory)?.items ?? []
+  }, [grouped, selectedCategory])
+
+  const selectedItem = useMemo(
+    () => items.find((item) => item.id === selectedItemId) ?? null,
+    [items, selectedItemId],
+  )
+
+  useEffect(() => {
+    if (grouped.length === 0) {
+      setSelectedCategory(null)
+      setSelectedItemId(null)
+      return
+    }
+    if (!selectedCategory || !grouped.some((g) => g.category === selectedCategory)) {
+      setSelectedCategory(grouped[0].category)
+    }
+  }, [grouped, selectedCategory])
+
+  useEffect(() => {
+    if (categoryItems.length === 0) {
+      setSelectedItemId(null)
+      return
+    }
+    if (!selectedItemId || !categoryItems.some((item) => item.id === selectedItemId)) {
+      setSelectedItemId(categoryItems[0].id)
+    }
+  }, [categoryItems, selectedItemId])
 
   const refreshItems = useCallback(async () => {
     setLoading(true)
@@ -222,29 +167,33 @@ export default function AdditionalItemsDashboard({
     void refreshItems()
   }, [activeFilter])
 
+  function selectCategory(category: string) {
+    setSelectedCategory(category)
+    setMobileStep('items')
+    const first = grouped.find((g) => g.category === category)?.items[0]
+    setSelectedItemId(first?.id ?? null)
+  }
+
+  function selectItem(itemId: string) {
+    setSelectedItemId(itemId)
+    setMobileStep('detail')
+    if (editingId && editingId !== itemId) {
+      setEditingId(null)
+      setDraft({ ...EMPTY_ADDITIONAL_ITEM_ROW })
+    }
+  }
+
   function startNew() {
     setEditingId('new')
-    setDraft({ ...EMPTY_ROW })
+    setDraft({ ...EMPTY_ADDITIONAL_ITEM_ROW })
+    setMobileStep('detail')
   }
 
   function startEdit(item: AdditionalItemListItem) {
     setEditingId(item.id)
-    setDraft({
-      item_key: item.item_key ?? '',
-      item_name: item.item_name ?? '',
-      label_pt: item.label_pt ?? '',
-      category_pt: item.category_pt ?? '',
-      price: getAdditionalItemPrice(item),
-      charge_type: item.charge_type ?? 'UNIT',
-      pricing_type: item.pricing_type ?? 'PER_UNIT',
-      unit_label: item.unit_label ?? 'UN',
-      currency_code: item.currency_code ?? 'USD',
-      display_order: item.display_order ?? 0,
-      image_url: item.image_url ?? '',
-      image_status: item.image_status ?? '',
-      image_notes: item.image_notes ?? '',
-      active: item.active !== false,
-    })
+    setSelectedItemId(item.id)
+    setDraft(additionalItemDraftFromListItem(item as Record<string, unknown>))
+    setMobileStep('detail')
   }
 
   function triggerUpload(itemId: string) {
@@ -319,18 +268,16 @@ export default function AdditionalItemsDashboard({
 
   function cancelEdit() {
     setEditingId(null)
-    setDraft({ ...EMPTY_ROW })
+    setDraft({ ...EMPTY_ADDITIONAL_ITEM_ROW })
   }
 
   async function saveRow() {
     setSaving(true)
     setError(null)
-    const payload = {
+    const payload = normalizeAdditionalItemDraft({
       ...draft,
-      charge_type:
-        draft.pricing_type === 'PER_PERSON' ? 'PERSON' : draft.charge_type ?? 'UNIT',
       price: getAdditionalItemPrice(draft),
-    }
+    })
     try {
       const url =
         editingId && editingId !== 'new'
@@ -371,111 +318,195 @@ export default function AdditionalItemsDashboard({
       return
     }
     setItems((current) => current.filter((row) => row.id !== item.id))
+    if (selectedItemId === item.id) setSelectedItemId(null)
   }
 
-  function renderItemCard(item: AdditionalItemListItem) {
-    const isEditing = editingId === item.id
-    const itemKey = item.item_key ?? '—'
-    const displayName = item.item_name ?? item.label_pt ?? itemKey
+  function renderDetailPanel() {
+    if (editingId === 'new') {
+      return (
+        <BackofficeCascadePanel
+          title="Novo item adicional"
+          className="lg:col-span-5"
+          onBack={() => {
+            cancelEdit()
+            setMobileStep('items')
+          }}
+        >
+          <BackofficeFormCard
+            title="Cadastro"
+            actions={
+              <>
+                <BackofficeBtnPrimary
+                  onClick={() => void saveRow()}
+                  disabled={saving}
+                >
+                  {saving ? 'Salvando…' : 'Salvar'}
+                </BackofficeBtnPrimary>
+                <BackofficeBtnSecondary onClick={cancelEdit}>
+                  Cancelar
+                </BackofficeBtnSecondary>
+              </>
+            }
+          >
+            <AdditionalItemAdminFormFields draft={draft} setDraft={setDraft} />
+          </BackofficeFormCard>
+        </BackofficeCascadePanel>
+      )
+    }
+
+    if (!selectedItem) {
+      return (
+        <BackofficeCascadePanel
+          title="Detalhe"
+          subtitle="Selecione um item"
+          className="lg:col-span-5"
+          onBack={() => setMobileStep('items')}
+        >
+          <p className="text-sm text-neutral-500">
+            Escolha uma categoria e um item para ver os detalhes.
+          </p>
+        </BackofficeCascadePanel>
+      )
+    }
+
+    const isEditing = editingId === selectedItem.id
+    const itemKey = selectedItem.item_key ?? '—'
+    const displayName =
+      selectedItem.item_name ?? selectedItem.label_pt ?? itemKey
     const imageUrl = isEditing
       ? String(draft.image_url ?? '').trim() || null
-      : item.image_url?.trim() || null
-    const uploadError = uploadErrors[item.id]
+      : selectedItem.image_url?.trim() || null
+    const price = getAdditionalItemPrice(isEditing ? draft : selectedItem)
+    const cost = Number(
+      isEditing ? draft.cost ?? 0 : selectedItem.cost ?? 0,
+    )
+    const margin = isEditing
+      ? calcMarginPercent(price, cost)
+      : Number(selectedItem.margin_percent ?? calcMarginPercent(price, cost))
+    const uploadError = uploadErrors[selectedItem.id]
+    const category =
+      selectedItem.category_group ??
+      selectedItem.category_pt ??
+      'Outros'
 
     if (isEditing) {
       return (
-        <BackofficeFormCard
-          key={item.id}
-          title={`Editar item · ${itemKey}`}
-          actions={
-            <>
-              <BackofficeBtnPrimary
-                onClick={() => void saveRow()}
-                disabled={saving}
-              >
-                {saving ? 'Salvando…' : 'Salvar'}
-              </BackofficeBtnPrimary>
-              <BackofficeBtnSecondary onClick={cancelEdit}>Cancelar</BackofficeBtnSecondary>
-              <BackofficeBtnOutline
-                accent
-                onClick={() => triggerUpload(item.id)}
-                disabled={uploadingId === item.id}
-              >
-                {uploadingId === item.id ? 'Enviando…' : 'Enviar imagem'}
-              </BackofficeBtnOutline>
-            </>
-          }
+        <BackofficeCascadePanel
+          title={`Editar · ${itemKey}`}
+          className="lg:col-span-5"
+          onBack={() => {
+            cancelEdit()
+            setMobileStep('items')
+          }}
         >
-          <div className="col-span-full mb-2 max-w-xs">
+          <div className="mb-4 max-w-xs">
             <CatalogImageFrame
               src={imageUrl}
               alt={displayName}
               variant="additionalItem"
               fallbackLabel="Sem imagem cadastrada"
               rounded="all"
-              className="!aspect-[4/3] !min-h-0 !max-h-none"
+              className="!aspect-square !min-h-0 !max-h-none"
             />
           </div>
-          <ItemEditFields draft={draft} setDraft={setDraft} />
-        </BackofficeFormCard>
+          <BackofficeFormCard
+            title="Editar item"
+            actions={
+              <>
+                <BackofficeBtnPrimary
+                  onClick={() => void saveRow()}
+                  disabled={saving}
+                >
+                  {saving ? 'Salvando…' : 'Salvar'}
+                </BackofficeBtnPrimary>
+                <BackofficeBtnSecondary onClick={cancelEdit}>
+                  Cancelar
+                </BackofficeBtnSecondary>
+                <BackofficeBtnOutline
+                  accent
+                  onClick={() => triggerUpload(selectedItem.id)}
+                  disabled={uploadingId === selectedItem.id}
+                >
+                  {uploadingId === selectedItem.id ? 'Enviando…' : 'Enviar imagem'}
+                </BackofficeBtnOutline>
+              </>
+            }
+          >
+            <AdditionalItemAdminFormFields draft={draft} setDraft={setDraft} />
+          </BackofficeFormCard>
+        </BackofficeCascadePanel>
       )
     }
 
     return (
-      <BackofficeEntityCard
-        key={item.id}
-        inactive={item.active === false}
-        image={
-          <BackofficeCardImage>
-            <CatalogImageFrame
-              src={imageUrl}
-              alt={displayName}
-              variant="additionalItem"
-              fallbackLabel="Sem imagem cadastrada"
-              rounded="none"
-              className="!h-full !min-h-0 !max-h-none !w-full !rounded-none"
-            />
-          </BackofficeCardImage>
-        }
-        actions={
-          <>
-            <BackofficeBtnSecondary onClick={() => startEdit(item)}>
+      <BackofficeCascadePanel
+        title={displayName}
+        subtitle={category}
+        className="lg:col-span-5 overflow-hidden !p-0"
+        onBack={() => setMobileStep('items')}
+      >
+        <div className="w-full aspect-square bg-neutral-50 flex items-center justify-center">
+          <CatalogImageFrame
+            src={imageUrl}
+            alt={displayName}
+            variant="additionalItem"
+            fallbackLabel="Sem imagem cadastrada"
+            rounded="none"
+            className="!h-full !min-h-0 !max-h-none !w-full !rounded-none"
+          />
+        </div>
+        <div className="space-y-4 p-5">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-neutral-500">
+              {itemKey}
+            </span>
+            <BackofficeStatusBadge active={selectedItem.active !== false} />
+          </div>
+          <h3 className="text-2xl font-bold text-neutral-900">{displayName}</h3>
+          <BackofficeMetaRow label="Categoria" value={category} />
+          <BackofficeMetaRow label="Preço" value={formatUsd(price)} />
+          <BackofficeMetaRow label="Cobrança" value={chargeLabel(selectedItem)} />
+          {cost > 0 ? (
+            <BackofficeMetaRow label="Custo" value={formatUsd(cost)} />
+          ) : null}
+          {margin > 0 ? (
+            <BackofficeMetaRow label="Margem" value={`${margin.toFixed(2)}%`} />
+          ) : null}
+          {selectedItem.description_pt ? (
+            <p className="text-sm text-neutral-600">{selectedItem.description_pt}</p>
+          ) : null}
+          {uploadError ? (
+            <p className="text-xs text-red-600">{uploadError}</p>
+          ) : null}
+          <div className="flex flex-wrap gap-2 pt-2">
+            <BackofficeBtnSecondary onClick={() => startEdit(selectedItem)}>
               Editar
             </BackofficeBtnSecondary>
             <BackofficeBtnOutline
               accent
-              onClick={() => triggerUpload(item.id)}
-              disabled={uploadingId === item.id}
+              onClick={() => triggerUpload(selectedItem.id)}
+              disabled={uploadingId === selectedItem.id}
             >
-              {uploadingId === item.id ? 'Enviando…' : 'Imagem'}
+              {uploadingId === selectedItem.id ? 'Enviando…' : 'Imagem'}
             </BackofficeBtnOutline>
-            {item.active !== false ? (
-              <BackofficeBtnDanger onClick={() => void deactivate(item)}>
+            <BackofficeInventoryButton
+              source="additional_item"
+              id={selectedItem.id}
+            />
+            {selectedItem.active !== false ? (
+              <BackofficeBtnDanger onClick={() => void deactivate(selectedItem)}>
                 Inativar
               </BackofficeBtnDanger>
             ) : null}
-          </>
-        }
-      >
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-bold uppercase tracking-wider text-neutral-500">
-            {itemKey}
-          </span>
-          <BackofficeStatusBadge active={item.active !== false} />
+          </div>
         </div>
-        <h3 className="text-xl font-bold text-neutral-900">{displayName}</h3>
-        <BackofficeMetaRow label="Categoria" value={item.category_pt ?? '—'} />
-        <BackofficeMetaRow
-          label="Preço"
-          value={`$${getAdditionalItemPrice(item).toFixed(2)}`}
-        />
-        <BackofficeMetaRow label="Cobrança" value={chargeLabel(item)} />
-        {uploadError ? (
-          <p className="text-xs text-red-600">{uploadError}</p>
-        ) : null}
-      </BackofficeEntityCard>
+      </BackofficeCascadePanel>
     )
   }
+
+  const showCategories = mobileStep === 'categories'
+  const showItems = mobileStep === 'items'
+  const showDetail = mobileStep === 'detail' || editingId === 'new'
 
   return (
     <BackofficeTableShell
@@ -515,34 +546,85 @@ export default function AdditionalItemsDashboard({
         onChange={(e) => void handleFileSelected(e.target.files?.[0])}
       />
 
-      <BackofficeCardGrid>
-        {editingId === 'new' ? (
-          <BackofficeFormCard
-            title="Novo item adicional"
-            actions={
-              <>
-                <BackofficeBtnPrimary
-                  onClick={() => void saveRow()}
-                  disabled={saving}
-                >
-                  {saving ? 'Salvando…' : 'Salvar'}
-                </BackofficeBtnPrimary>
-                <BackofficeBtnSecondary onClick={cancelEdit}>
-                  Cancelar
-                </BackofficeBtnSecondary>
-              </>
+      {filteredItems.length === 0 ? (
+        <p className="rounded-2xl border border-neutral-200 bg-white p-8 text-center text-sm text-neutral-500 shadow-sm">
+          {loading ? 'Carregando…' : 'Nenhum item encontrado.'}
+        </p>
+      ) : (
+        <BackofficeCascadeLayout>
+          <div
+            className={
+              showCategories
+                ? 'block lg:col-span-3'
+                : 'hidden lg:block lg:col-span-3'
             }
           >
-            <ItemEditFields draft={draft} setDraft={setDraft} />
-          </BackofficeFormCard>
-        ) : null}
+            <BackofficeCascadePanel
+              title="Categorias"
+              subtitle={`${grouped.length} categorias`}
+            >
+              <div className="space-y-2">
+                {grouped.map(({ category, items: catItems }) => (
+                  <BackofficeCascadeListButton
+                    key={category}
+                    active={selectedCategory === category}
+                    onClick={() => selectCategory(category)}
+                  >
+                    <span>{category}</span>
+                    <span className="text-xs text-neutral-400">
+                      {catItems.length}
+                    </span>
+                  </BackofficeCascadeListButton>
+                ))}
+              </div>
+            </BackofficeCascadePanel>
+          </div>
 
-        {filteredItems.length === 0 && editingId !== 'new' ? (
-          <BackofficeEmptyState loading={loading} message="Nenhum item encontrado." />
-        ) : (
-          filteredItems.map((item) => renderItemCard(item))
-        )}
-      </BackofficeCardGrid>
+          <div
+            className={
+              showItems ? 'block lg:col-span-4' : 'hidden lg:block lg:col-span-4'
+            }
+          >
+            <BackofficeCascadePanel
+              title={selectedCategory ?? 'Itens'}
+              subtitle={
+                selectedCategory
+                  ? `${categoryItems.length} itens`
+                  : 'Selecione uma categoria'
+              }
+              onBack={() => setMobileStep('categories')}
+            >
+              <div className="space-y-2">
+                {categoryItems.map((item) => {
+                  const name = item.item_name ?? item.label_pt ?? item.item_key ?? '—'
+                  return (
+                    <BackofficeCascadeListButton
+                      key={item.id}
+                      active={selectedItemId === item.id}
+                      onClick={() => selectItem(item.id)}
+                    >
+                      <span>{name}</span>
+                      <span className="text-xs text-neutral-400">
+                        {formatUsd(getAdditionalItemPrice(item))}
+                      </span>
+                    </BackofficeCascadeListButton>
+                  )
+                })}
+              </div>
+            </BackofficeCascadePanel>
+          </div>
+
+          <div
+            className={
+              showDetail
+                ? 'block lg:col-span-5'
+                : 'hidden lg:block lg:col-span-5'
+            }
+          >
+            {renderDetailPanel()}
+          </div>
+        </BackofficeCascadeLayout>
+      )}
     </BackofficeTableShell>
   )
 }

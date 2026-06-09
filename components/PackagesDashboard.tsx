@@ -13,31 +13,30 @@ import {
   BackofficeCardImage,
   BackofficeEmptyState,
   BackofficeEntityCard,
-  BackofficeField,
   BackofficeFormCard,
-  BackofficeInput,
   BackofficeMetaRow,
-  BackofficeSelect,
   BackofficeStatusBadge,
 } from '@/components/backoffice/BackofficeCardPrimitives'
+import {
+  EMPTY_PACKAGE_ROW,
+  PackageAdminFormFields,
+  packageDraftFromListItem,
+} from '@/components/backoffice/PackageAdminFormFields'
+import {
+  BackofficeInventoryButton,
+  BackofficeSectionBlock,
+} from '@/components/backoffice/BackofficeSectionPrimitives'
 import CatalogImageFrame from '@/components/CatalogImageFrame'
 import type { PackageListItem } from '@/Lib/fetchPackages'
+import {
+  normalizePackageDraft,
+  packageKeyHasGarnish,
+  splitPackagesByGarnish,
+} from '@/Lib/packageCatalogAdmin'
 import type { PackagesInsertPayload } from '@/Lib/packagesTableSchema'
+import { formatUsd } from '@/Lib/backofficeFinance'
 
 type ActiveFilter = 'active' | 'all'
-
-const EMPTY_ROW: PackagesInsertPayload = {
-  package_key: '',
-  package_name: '',
-  label_pt: '',
-  label_en: '',
-  label_es: '',
-  price_per_person: 0,
-  currency_code: 'USD',
-  display_order: 0,
-  image_url: '',
-  active: true,
-}
 
 async function fetchPackagesFromApi(
   query: string,
@@ -66,88 +65,6 @@ function formatPrice(value: number | null | undefined, currency = 'USD') {
   return `${currency === 'USD' ? '$' : ''}${amount.toFixed(2)}`
 }
 
-function PackageEditFields({
-  draft,
-  setDraft,
-}: {
-  draft: PackagesInsertPayload
-  setDraft: React.Dispatch<React.SetStateAction<PackagesInsertPayload>>
-}) {
-  return (
-    <>
-      <BackofficeField label="Chave">
-        <BackofficeInput
-          value={draft.package_key ?? ''}
-          onChange={(v) => setDraft((c) => ({ ...c, package_key: v }))}
-        />
-      </BackofficeField>
-      <BackofficeField label="Nome">
-        <BackofficeInput
-          value={draft.package_name ?? ''}
-          onChange={(v) => setDraft((c) => ({ ...c, package_name: v }))}
-        />
-      </BackofficeField>
-      <BackofficeField label="PT">
-        <BackofficeInput
-          value={draft.label_pt ?? ''}
-          onChange={(v) => setDraft((c) => ({ ...c, label_pt: v }))}
-        />
-      </BackofficeField>
-      <BackofficeField label="EN">
-        <BackofficeInput
-          value={draft.label_en ?? ''}
-          onChange={(v) => setDraft((c) => ({ ...c, label_en: v }))}
-        />
-      </BackofficeField>
-      <BackofficeField label="ES">
-        <BackofficeInput
-          value={draft.label_es ?? ''}
-          onChange={(v) => setDraft((c) => ({ ...c, label_es: v }))}
-        />
-      </BackofficeField>
-      <BackofficeField label="Preço / pessoa">
-        <BackofficeInput
-          type="number"
-          value={draft.price_per_person ?? 0}
-          onChange={(v) =>
-            setDraft((c) => ({ ...c, price_per_person: Number(v) }))
-          }
-        />
-      </BackofficeField>
-      <BackofficeField label="Moeda">
-        <BackofficeInput
-          value={draft.currency_code ?? 'USD'}
-          onChange={(v) => setDraft((c) => ({ ...c, currency_code: v }))}
-        />
-      </BackofficeField>
-      <BackofficeField label="Ordem">
-        <BackofficeInput
-          type="number"
-          value={draft.display_order ?? 0}
-          onChange={(v) =>
-            setDraft((c) => ({ ...c, display_order: Number(v) }))
-          }
-        />
-      </BackofficeField>
-      <BackofficeField label="Imagem URL" className="sm:col-span-2 lg:col-span-3">
-        <BackofficeInput
-          value={draft.image_url ?? ''}
-          onChange={(v) => setDraft((c) => ({ ...c, image_url: v }))}
-        />
-      </BackofficeField>
-      <BackofficeField label="Status">
-        <BackofficeSelect
-          value={draft.active === false ? 'false' : 'true'}
-          onChange={(v) => setDraft((c) => ({ ...c, active: v === 'true' }))}
-        >
-          <option value="true">Ativo</option>
-          <option value="false">Inativo</option>
-        </BackofficeSelect>
-      </BackofficeField>
-    </>
-  )
-}
-
 export default function PackagesDashboard({
   initialPackages,
 }: {
@@ -159,7 +76,7 @@ export default function PackagesDashboard({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | 'new' | null>(null)
-  const [draft, setDraft] = useState<PackagesInsertPayload>(EMPTY_ROW)
+  const [draft, setDraft] = useState<PackagesInsertPayload>(EMPTY_PACKAGE_ROW)
   const [saving, setSaving] = useState(false)
   const [uploadingId, setUploadingId] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -169,13 +86,37 @@ export default function PackagesDashboard({
     const q = search.trim().toLowerCase()
     if (!q) return packages
     return packages.filter((pkg) =>
-      [pkg.package_key, pkg.package_name, pkg.label_pt, pkg.label_en, pkg.label_es]
+      [
+        pkg.package_key,
+        pkg.package_name,
+        pkg.label_pt,
+        pkg.label_en,
+        pkg.label_es,
+        pkg.card_description_pt,
+      ]
         .filter(Boolean)
         .join(' ')
         .toLowerCase()
         .includes(q),
     )
   }, [packages, search])
+
+  const { withoutGarnish, withGarnish } = useMemo(
+    () => splitPackagesByGarnish(filteredPackages),
+    [filteredPackages],
+  )
+
+  const basePackageOptions = useMemo(
+    () =>
+      packages
+        .filter((pkg) => !packageKeyHasGarnish(pkg.package_key))
+        .map((pkg) => ({
+          code: String(pkg.package_key ?? ''),
+          label: pkg.label_pt ?? pkg.package_name ?? pkg.package_key ?? '',
+        }))
+        .filter((opt) => opt.code),
+    [packages],
+  )
 
   const refreshPackages = useCallback(async () => {
     setLoading(true)
@@ -199,41 +140,31 @@ export default function PackagesDashboard({
 
   function startNew() {
     setEditingId('new')
-    setDraft({ ...EMPTY_ROW })
+    setDraft({ ...EMPTY_PACKAGE_ROW })
   }
 
   function startEdit(pkg: PackageListItem) {
     setEditingId(pkg.id)
-    setDraft({
-      package_key: pkg.package_key ?? '',
-      package_name: pkg.package_name ?? '',
-      label_pt: pkg.label_pt ?? '',
-      label_en: pkg.label_en ?? '',
-      label_es: pkg.label_es ?? '',
-      price_per_person: pkg.price_per_person ?? 0,
-      currency_code: pkg.currency_code ?? 'USD',
-      display_order: pkg.display_order ?? 0,
-      image_url: pkg.image_url ?? '',
-      active: pkg.active !== false,
-    })
+    setDraft(packageDraftFromListItem(pkg as Record<string, unknown>))
   }
 
   function cancelEdit() {
     setEditingId(null)
-    setDraft({ ...EMPTY_ROW })
+    setDraft({ ...EMPTY_PACKAGE_ROW })
   }
 
   async function saveRow() {
     setSaving(true)
     setError(null)
     try {
+      const payload = normalizePackageDraft(draft, packages)
       const url =
         editingId && editingId !== 'new' ? `/api/packages/${editingId}` : '/api/packages'
       const method = editingId && editingId !== 'new' ? 'PATCH' : 'POST'
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(draft),
+        body: JSON.stringify(payload),
       })
       const result = (await response.json()) as { error?: string }
       if (!response.ok) {
@@ -314,11 +245,14 @@ export default function PackagesDashboard({
     const isEditing = editingId === pkg.id
     const packageKey = pkg.package_key ?? '—'
     const displayName = pkg.label_pt ?? pkg.package_name ?? packageKey
-    const withSides = packageKey.trim().endsWith('+')
+    const withSides =
+      pkg.has_garnish === true || packageKeyHasGarnish(packageKey)
     const imageUrl = isEditing
       ? String(draft.image_url ?? '').trim() || null
       : pkg.image_url?.trim() || null
     const currency = pkg.currency_code ?? 'USD'
+    const cost = Number(pkg.cost_per_person ?? 0)
+    const margin = Number(pkg.margin_percent ?? 0)
 
     if (isEditing) {
       return (
@@ -354,7 +288,11 @@ export default function PackagesDashboard({
               className="!aspect-[4/3] !min-h-0 !max-h-none"
             />
           </div>
-          <PackageEditFields draft={draft} setDraft={setDraft} />
+          <PackageAdminFormFields
+            draft={draft}
+            setDraft={setDraft}
+            basePackageOptions={basePackageOptions}
+          />
         </BackofficeFormCard>
       )
     }
@@ -387,6 +325,7 @@ export default function PackagesDashboard({
             >
               {uploadingId === pkg.id ? 'Enviando…' : 'Foto'}
             </BackofficeBtnOutline>
+            <BackofficeInventoryButton source="package" id={pkg.id} />
             {pkg.active !== false ? (
               <BackofficeBtnDanger onClick={() => void deactivate(pkg)}>
                 Inativar
@@ -399,10 +338,17 @@ export default function PackagesDashboard({
           <span className="text-xs font-bold uppercase tracking-wider text-neutral-500">
             {packageKey}
           </span>
-          {withSides ? <BackofficeAccentBadge>Com guarnições</BackofficeAccentBadge> : null}
+          {withSides ? (
+            <BackofficeAccentBadge>Com guarnições</BackofficeAccentBadge>
+          ) : (
+            <BackofficeAccentBadge>Sem guarnições</BackofficeAccentBadge>
+          )}
           <BackofficeStatusBadge active={pkg.active !== false} />
         </div>
         <h3 className="text-xl font-bold text-neutral-900">{displayName}</h3>
+        {pkg.card_description_pt ? (
+          <p className="text-sm text-neutral-600">{pkg.card_description_pt}</p>
+        ) : null}
         <p className="text-2xl font-black text-red-600">
           {formatPrice(pkg.price_per_person, currency)}
           <span className="ml-1 text-sm font-semibold text-neutral-500">
@@ -411,10 +357,43 @@ export default function PackagesDashboard({
         </p>
         <BackofficeMetaRow label="Moeda" value={currency} />
         <BackofficeMetaRow label="Ordem" value={pkg.display_order ?? 0} />
-        {pkg.label_en ? (
-          <BackofficeMetaRow label="EN" value={pkg.label_en} />
+        {cost > 0 ? (
+          <BackofficeMetaRow label="Custo" value={formatUsd(cost)} />
+        ) : null}
+        {margin > 0 ? (
+          <BackofficeMetaRow label="Margem" value={`${margin.toFixed(2)}%`} />
+        ) : null}
+        {withSides && Number(pkg.garnish_price_per_person ?? 0) > 0 ? (
+          <BackofficeMetaRow
+            label="Guarnição"
+            value={formatUsd(pkg.garnish_price_per_person)}
+          />
         ) : null}
       </BackofficeEntityCard>
+    )
+  }
+
+  function renderSection(
+    title: string,
+    sectionPackages: PackageListItem[],
+    badgeLabel: string,
+  ) {
+    if (sectionPackages.length === 0) return null
+    const codes = sectionPackages
+      .map((pkg) => pkg.package_key ?? '')
+      .filter(Boolean)
+
+    return (
+      <BackofficeSectionBlock
+        title={title}
+        count={sectionPackages.length}
+        codes={codes}
+        badge={<BackofficeAccentBadge>{badgeLabel}</BackofficeAccentBadge>}
+      >
+        <BackofficeCardGrid>
+          {sectionPackages.map((pkg) => renderPackageCard(pkg))}
+        </BackofficeCardGrid>
+      </BackofficeSectionBlock>
     )
   }
 
@@ -456,7 +435,7 @@ export default function PackagesDashboard({
         onChange={(e) => void handleFileSelected(e.target.files?.[0])}
       />
 
-      <BackofficeCardGrid>
+      <div className="space-y-10">
         {editingId === 'new' ? (
           <BackofficeFormCard
             title="Novo pacote"
@@ -474,16 +453,23 @@ export default function PackagesDashboard({
               </>
             }
           >
-            <PackageEditFields draft={draft} setDraft={setDraft} />
+            <PackageAdminFormFields
+              draft={draft}
+              setDraft={setDraft}
+              basePackageOptions={basePackageOptions}
+            />
           </BackofficeFormCard>
         ) : null}
 
         {filteredPackages.length === 0 && editingId !== 'new' ? (
           <BackofficeEmptyState loading={loading} message="Nenhum pacote encontrado." />
         ) : (
-          filteredPackages.map((pkg) => renderPackageCard(pkg))
+          <>
+            {renderSection('Sem guarnições', withoutGarnish, 'Sem guarnições')}
+            {renderSection('Com guarnições', withGarnish, 'Com guarnições')}
+          </>
         )}
-      </BackofficeCardGrid>
+      </div>
     </BackofficeTableShell>
   )
 }
