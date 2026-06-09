@@ -7,6 +7,7 @@ import AppMainNav from '../../../components/AppMainNav'
 import CdlBrandLogo from '../../../components/CdlBrandLogo'
 import CatalogImageFrame from '../../../components/CatalogImageFrame'
 import QuotePackageStepExplorer from '../../../components/quotes/QuotePackageStepExplorer'
+import { getPackageCommercialName } from '../../../Lib/packageDisplay'
 import QuoteWizardSummaryStep from '../../../components/quote-review/QuoteWizardSummaryStep'
 import { RESERVATION_PAYMENT_TEXT } from '../../../Lib/cdlCommercialRules'
 import { resolvePackageCatalogImageUrl } from '../../../Lib/packageCatalogVisual'
@@ -1389,6 +1390,9 @@ export default function QuoteWizard({
   const [customerLinkSuccess, setCustomerLinkSuccess] = useState<string | null>(
     null,
   )
+  const [packageStepMessage, setPackageStepMessage] = useState<string | null>(
+    null,
+  )
   const router = useRouter()
   const distanceInputRef = useRef<HTMLInputElement>(null)
 
@@ -1850,15 +1854,6 @@ export default function QuoteWizard({
     setStep(1)
   }
 
-  function selectPackageAndAdvance(packageId: string) {
-    const pkg = packages.find((p) => p.id === packageId)
-    if (!pkg) return
-    updateState({ packageId })
-    if (!isEditMode) {
-      setStep(3)
-    }
-  }
-
   function setGrillPhotoStatus(status: GrillPhotoStatus) {
     updateState({
       grillPhotoStatus: status,
@@ -1898,11 +1893,22 @@ export default function QuoteWizard({
   }
 
   function goNext() {
+    if (step === 2 && !state.packageId) {
+      setPackageStepMessage('Selecione um pacote para continuar.')
+      return
+    }
+    setPackageStepMessage(null)
     if (step === 4 && !state.grillSetupAnswered) {
       updateState({ grillSetupAnswered: true })
     }
     if (step < STEPS.length - 1) setStep((s) => s + 1)
   }
+
+  useEffect(() => {
+    if (state.packageId) {
+      setPackageStepMessage(null)
+    }
+  }, [state.packageId])
 
   const mandatoryPendingSteps = useMemo(
     () => getMandatoryPendingSteps(stepStatusCtx),
@@ -2455,7 +2461,7 @@ export default function QuoteWizard({
                 Etapa 3 — Pacote
               </h2>
               <p className="mt-1 text-sm text-cdl-muted">
-                Clique em uma categoria para ver os pacotes com foto
+                Escolha o grupo, o código e confira o pacote antes de avançar
               </p>
             </section>
 
@@ -2467,9 +2473,7 @@ export default function QuoteWizard({
               selectedPackageId={state.packageId}
               language={state.language}
               sidesPricePerPerson={commercialRules.sidesPricePerPerson}
-              autoAdvanceOnSelect={!isEditMode}
               onSelect={(id) => updateState({ packageId: id })}
-              onSelectAndAdvance={selectPackageAndAdvance}
             />
           </div>
         )}
@@ -2772,23 +2776,44 @@ export default function QuoteWizard({
         )}
 
         {step !== 7 && (
-        <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
-          <button
-            type="button"
-            onClick={goBack}
-            disabled={step === 0}
-            className="rounded-xl border border-cdl-border bg-cdl-surface px-6 py-3 text-sm font-bold uppercase tracking-wider text-cdl-fg transition-colors hover:border-cdl-accent-border disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            Voltar
-          </button>
-          <button
-            type="button"
-            onClick={goNext}
-            disabled={step === STEPS.length - 1}
-            className="cdl-btn-primary disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            Próximo
-          </button>
+        <div className="mt-8 space-y-3">
+          {step === 2 && selectedPackage ? (
+            <p className="text-center text-sm text-cdl-muted sm:text-right">
+              Pacote selecionado:{' '}
+              <span className="font-semibold text-cdl-fg">
+                {getPackageCommercialName(selectedPackage)}
+              </span>
+              {' — '}
+              <span className="font-semibold text-cdl-price">
+                {formatCurrency(packageUnitPrice)} / pessoa
+              </span>
+            </p>
+          ) : null}
+          {step === 2 && packageStepMessage ? (
+            <p className="text-center text-sm font-medium text-red-600 sm:text-right">
+              {packageStepMessage}
+            </p>
+          ) : null}
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
+            <button
+              type="button"
+              onClick={goBack}
+              disabled={step === 0}
+              className="rounded-xl border border-cdl-border bg-cdl-surface px-6 py-3 text-sm font-bold uppercase tracking-wider text-cdl-fg transition-colors hover:border-cdl-accent-border disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Voltar
+            </button>
+            <button
+              type="button"
+              onClick={goNext}
+              disabled={
+                step === STEPS.length - 1 || (step === 2 && !state.packageId)
+              }
+              className="cdl-btn-primary disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Próximo
+            </button>
+          </div>
         </div>
         )}
       </div>

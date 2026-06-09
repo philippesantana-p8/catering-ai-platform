@@ -6,7 +6,7 @@ import {
   findBasePackage,
   formatPackageCatalogPriceLabel,
   getPackageCatalogImage,
-  getPackageCatalogName,
+  getPackageCatalogPrice,
   getPackageCatalogVariant,
   getPackagePriceLineLabel,
   isPackageCatalogPriceOnRequest,
@@ -14,6 +14,8 @@ import {
   type PackageCatalogFields,
 } from '@/Lib/packageCatalogVisual'
 import {
+  formatPackageBulletText,
+  getPackageCommercialName,
   getPackageGarnishDisplayText,
   getPackageItemsDisplayText,
 } from '@/Lib/packageDisplay'
@@ -29,28 +31,30 @@ function perPersonSuffix(language: QuoteLanguage): string {
   return 'pessoa'
 }
 
+function itemsNotRegisteredLabel(language: QuoteLanguage): string {
+  if (language === 'en') return 'Description not registered'
+  if (language === 'es') return 'Descripción no registrada'
+  return 'Descrição não cadastrada'
+}
+
 export default function QuotePackageSummary({
   pkg,
   allPackages = [],
   language = 'pt',
   sidesPricePerPerson = 13,
   selected = false,
-  onSelect,
-  onSelectAndAdvance,
-  showActions = true,
+  layout = 'stacked',
 }: {
   pkg: PackageCatalogFields & { id?: string }
   allPackages?: ReadonlyArray<PackageCatalogFields>
   language?: QuoteLanguage
   sidesPricePerPerson?: number
   selected?: boolean
-  onSelect?: () => void
-  onSelectAndAdvance?: () => void
-  showActions?: boolean
+  layout?: 'stacked' | 'split'
 }) {
   const image = getPackageCatalogImage(pkg, allPackages)
   const variant = getPackageCatalogVariant(pkg)
-  const name = getPackageCatalogName(pkg, language)
+  const commercialName = getPackageCommercialName(pkg)
   const priceOnRequest = isPackageCatalogPriceOnRequest(pkg)
   const perPerson = perPersonSuffix(language)
   const basePackage = findBasePackage(pkg, allPackages)
@@ -59,30 +63,69 @@ export default function QuotePackageSummary({
       ? resolvePackageSidesPricing(pkg, basePackage, sidesPricePerPerson)
       : null
 
-  const itemsText = getPackageItemsDisplayText(pkg, language) || '—'
+  const rawItems = getPackageItemsDisplayText(pkg, language)
+  const itemsText = rawItems
+    ? formatPackageBulletText(rawItems)
+    : itemsNotRegisteredLabel(language)
+
   const garnishText =
     variant === 'with_sides'
-      ? getPackageGarnishDisplayText(pkg, language)
+      ? formatPackageBulletText(getPackageGarnishDisplayText(pkg, language))
       : language === 'en'
         ? 'Not included'
         : language === 'es'
           ? 'No incluidas'
           : 'Não inclusas'
 
-  const breakdownRows =
-    priceOnRequest || !sidesPricing
+  const sidesNotIncludedLabel =
+    language === 'en'
+      ? 'Not included'
+      : language === 'es'
+        ? 'No incluidas'
+        : 'Não inclusas'
+
+  const basePackageLabel =
+    language === 'en'
+      ? 'Base package'
+      : language === 'es'
+        ? 'Paquete base'
+        : 'Pacote base'
+
+  const packagePrice = getPackageCatalogPrice(pkg)
+
+  const breakdownRows = priceOnRequest
+    ? [
+        {
+          label: getPackagePriceLineLabel('package', language),
+          value: formatPackageCatalogPriceLabel(pkg, language, formatCurrency),
+          emphasis: true,
+        },
+        {
+          label: getPackagePriceLineLabel('sides', language),
+          value: sidesNotIncludedLabel,
+        },
+      ]
+    : variant === 'without_sides'
       ? [
           {
-            label: getPackagePriceLineLabel('package', language),
-            value: formatPackageCatalogPriceLabel(pkg, language, formatCurrency),
+            label: basePackageLabel,
+            value: `${formatCurrency(packagePrice)} / ${perPerson}`,
+          },
+          {
+            label: getPackagePriceLineLabel('sides', language),
+            value: sidesNotIncludedLabel,
+          },
+          {
+            label: getPackagePriceLineLabel('total', language),
+            value: `${formatCurrency(packagePrice)} / ${perPerson}`,
             emphasis: true,
           },
         ]
-      : sidesPricing.mode === 'breakdown' &&
+      : sidesPricing?.mode === 'breakdown' &&
           sidesPricing.basePricePerPerson != null
         ? [
             {
-              label: getPackagePriceLineLabel('package', language),
+              label: basePackageLabel,
               value: `${formatCurrency(sidesPricing.basePricePerPerson)} / ${perPerson}`,
             },
             {
@@ -98,79 +141,91 @@ export default function QuotePackageSummary({
         : [
             {
               label: getPackagePriceLineLabel('total', language),
-              value: `${formatCurrency(sidesPricing.totalPerPerson)} / ${perPerson}`,
+              value: `${formatCurrency(sidesPricing?.totalPerPerson ?? packagePrice)} / ${perPerson}`,
               emphasis: true,
             },
           ]
 
-  return (
-    <PremiumCard className={selected ? 'ring-2 ring-red-200' : ''}>
-      <div className="aspect-[4/3] w-full bg-neutral-50 sm:aspect-[16/10]">
+  const garnishBadge =
+    variant === 'with_sides' ? 'Com guarnições' : 'Sem guarnições'
+
+  const imageBlock = (
+    <div
+      className={
+        layout === 'split'
+          ? 'w-full bg-neutral-50 lg:w-[42%] lg:shrink-0'
+          : 'w-full bg-neutral-50'
+      }
+    >
+      <div className="aspect-[4/3] w-full sm:aspect-[16/10] lg:aspect-square lg:min-h-[280px]">
         <CatalogImageFrame
           src={image}
-          alt={name}
+          alt={commercialName}
           variant="package"
           fallbackLabel="Imagem do pacote não cadastrada"
           rounded="none"
           className="!h-full !min-h-0 !max-h-none !w-full !rounded-none"
         />
       </div>
+    </div>
+  )
 
-      <div className="space-y-4 p-5 sm:p-6">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="font-mono text-xs font-bold uppercase tracking-wider text-neutral-500">
-            {pkg.package_key}
-          </span>
-          <span
-            className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
-              variant === 'with_sides'
-                ? 'bg-amber-50 text-amber-800 ring-1 ring-amber-100'
-                : 'bg-neutral-100 text-neutral-600 ring-1 ring-neutral-200'
-            }`}
-          >
-            {variant === 'with_sides' ? 'Com guarnições' : 'Sem guarnições'}
-          </span>
-          {selected ? <StatusBadge active label="Selecionado" /> : null}
-        </div>
-
-        <div>
-          <h3 className="text-2xl font-black text-neutral-900">{name}</h3>
-        </div>
-
-        <p className="text-sm leading-relaxed text-neutral-700">
-          <span className="font-bold text-neutral-900">Itens do pacote:</span>{' '}
-          {itemsText}
-        </p>
-        <p className="text-sm leading-relaxed text-neutral-700">
-          <span className="font-bold text-neutral-900">Guarnições:</span>{' '}
-          {garnishText}
-        </p>
-
-        <PriceBreakdownCard rows={breakdownRows} />
-
-        {showActions && (onSelect || onSelectAndAdvance) ? (
-          <div className="flex flex-wrap gap-2 border-t border-neutral-100 pt-4">
-            {onSelect ? (
-              <button
-                type="button"
-                onClick={onSelect}
-                className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-neutral-300 bg-white px-5 py-2.5 text-sm font-bold text-neutral-800 transition hover:bg-neutral-50"
-              >
-                Selecionar
-              </button>
-            ) : null}
-            {onSelectAndAdvance ? (
-              <button
-                type="button"
-                onClick={onSelectAndAdvance}
-                className="cdl-btn-primary inline-flex min-h-[44px] items-center justify-center rounded-xl px-5 py-2.5 text-sm font-bold"
-              >
-                Selecionar e continuar
-              </button>
-            ) : null}
-          </div>
-        ) : null}
+  const infoBlock = (
+    <div className="space-y-4 p-5 sm:p-6 lg:flex-1">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="font-mono text-xs font-bold uppercase tracking-wider text-neutral-500">
+          {pkg.package_key}
+        </span>
+        <span
+          className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+            variant === 'with_sides'
+              ? 'bg-amber-50 text-amber-900 ring-1 ring-amber-200'
+              : 'bg-neutral-100 text-neutral-600 ring-1 ring-neutral-200'
+          }`}
+        >
+          {garnishBadge}
+        </span>
+        {selected ? <StatusBadge active label="Selecionado" /> : null}
       </div>
+
+      <div>
+        <h3 className="text-2xl font-black tracking-tight text-neutral-900 sm:text-3xl">
+          {commercialName}
+        </h3>
+      </div>
+
+      <p className="text-sm leading-relaxed text-neutral-700">
+        <span className="font-bold text-neutral-900">Itens do pacote:</span>{' '}
+        {itemsText}
+      </p>
+      <p className="text-sm leading-relaxed text-neutral-700">
+        <span className="font-bold text-neutral-900">Guarnições:</span>{' '}
+        {garnishText}
+      </p>
+
+      <PriceBreakdownCard rows={breakdownRows} />
+    </div>
+  )
+
+  return (
+    <PremiumCard
+      className={
+        selected
+          ? 'overflow-hidden ring-2 ring-emerald-400 ring-offset-2'
+          : 'overflow-hidden'
+      }
+    >
+      {layout === 'split' ? (
+        <div className="flex flex-col lg:flex-row lg:items-stretch">
+          {imageBlock}
+          {infoBlock}
+        </div>
+      ) : (
+        <>
+          {imageBlock}
+          {infoBlock}
+        </>
+      )}
     </PremiumCard>
   )
 }

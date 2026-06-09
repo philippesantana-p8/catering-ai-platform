@@ -162,6 +162,18 @@ export function resolvePackageSidesPricing(
 
   if (
     basePrice != null &&
+    registered > basePrice + PRICE_TOLERANCE
+  ) {
+    return {
+      mode: 'breakdown',
+      sidesPricePerPerson: registered - basePrice,
+      basePricePerPerson: basePrice,
+      totalPerPerson: registered,
+    }
+  }
+
+  if (
+    basePrice != null &&
     Math.abs(registered - basePrice) < PRICE_TOLERANCE
   ) {
     return {

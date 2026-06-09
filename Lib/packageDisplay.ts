@@ -44,3 +44,30 @@ export function getPackageGroupSummaryCodes(
     .filter(Boolean)
     .join(' · ')
 }
+
+/** Converte texto com vírgulas ou quebras em lista com bullet • */
+export function formatPackageBulletText(text: string | null | undefined): string {
+  const raw = String(text ?? '').trim()
+  if (!raw) return ''
+
+  if (raw.includes('•')) return raw
+
+  return raw
+    .split(/\s*[,;]\s*|\n+/)
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join(' • ')
+}
+
+export function getPackageCommercialName(
+  pkg: PackageFieldSource | null | undefined,
+): string {
+  if (!pkg) return '—'
+  return (
+    pkg.label_en?.trim() ||
+    pkg.package_name?.trim() ||
+    pkg.label_pt?.trim() ||
+    getPackageKey(pkg) ||
+    '—'
+  )
+}

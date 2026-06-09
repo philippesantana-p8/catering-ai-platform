@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   BackofficeCascadeLayout,
-  BackofficeCascadeListButton,
   BackofficeCascadePanel,
 } from '@/components/backoffice/BackofficeSectionPrimitives'
 import QuotePackageSummary from '@/components/quotes/QuotePackageSummary'
@@ -28,9 +27,7 @@ export default function QuotePackageStepExplorer({
   selectedPackageId,
   language = 'pt',
   sidesPricePerPerson = 13,
-  autoAdvanceOnSelect = false,
   onSelect,
-  onSelectAndAdvance,
 }: {
   packagesWithoutSides: PackageRow[]
   packagesWithSides: PackageRow[]
@@ -39,9 +36,7 @@ export default function QuotePackageStepExplorer({
   selectedPackageId: string | null
   language?: QuoteLanguage
   sidesPricePerPerson?: number
-  autoAdvanceOnSelect?: boolean
   onSelect: (id: string) => void
-  onSelectAndAdvance: (id: string) => void
 }) {
   const [selectedGroup, setSelectedGroup] = useState<GarnishGroup | null>(null)
   const [mobileStep, setMobileStep] = useState<MobileStep>('groups')
@@ -75,6 +70,7 @@ export default function QuotePackageStepExplorer({
     } else if (packagesWithoutSides.some((pkg) => pkg.id === selectedPackageId)) {
       setSelectedGroup('without')
     }
+    setMobileStep('detail')
   }, [
     selectedPackageId,
     selectedPackage,
@@ -86,25 +82,16 @@ export default function QuotePackageStepExplorer({
   function selectGroup(group: GarnishGroup) {
     setSelectedGroup(group)
     setMobileStep('codes')
-    const list =
-      group === 'with'
-        ? packagesWithSides
-        : group === 'custom'
-          ? customPackages
-          : packagesWithoutSides
-    const first = list[0]
-    if (first) onSelect(first.id)
   }
 
   function selectPackage(id: string) {
     onSelect(id)
     setMobileStep('detail')
-    if (autoAdvanceOnSelect) onSelectAndAdvance(id)
   }
 
   const showGroups = mobileStep === 'groups'
   const showCodes = mobileStep === 'codes'
-  const showDetail = mobileStep === 'detail'
+  const showDetail = mobileStep === 'detail' || Boolean(selectedPackage)
 
   const totalCount =
     packagesWithoutSides.length + packagesWithSides.length + customPackages.length
@@ -119,7 +106,7 @@ export default function QuotePackageStepExplorer({
     <div className="space-y-6">
       <SectionHeader
         title="Escolha o pacote"
-        subtitle="Sem ou com guarnições → código → detalhe com foto e valores"
+        subtitle="Grupo → código → confira foto, itens e valores antes de avançar"
       />
 
       <BackofficeCascadeLayout>
@@ -177,7 +164,7 @@ export default function QuotePackageStepExplorer({
             subtitle={`${groupPackages.length} códigos`}
             onBack={() => setMobileStep('groups')}
           >
-            <div className="mb-4 flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2">
               {groupPackages.map((pkg) => {
                 const code = pkg.package_key ?? '—'
                 const active = selectedPackageId === pkg.id
@@ -199,17 +186,6 @@ export default function QuotePackageStepExplorer({
                   </PremiumChip>
                 )
               })}
-            </div>
-            <div className="space-y-2">
-              {groupPackages.map((pkg) => (
-                <BackofficeCascadeListButton
-                  key={pkg.id}
-                  active={selectedPackageId === pkg.id}
-                  onClick={() => selectPackage(pkg.id)}
-                >
-                  <span>{pkg.package_key}</span>
-                </BackofficeCascadeListButton>
-              ))}
             </div>
           </BackofficeCascadePanel>
         </div>
@@ -234,9 +210,7 @@ export default function QuotePackageStepExplorer({
                 language={language}
                 sidesPricePerPerson={sidesPricePerPerson}
                 selected={selectedPackageId === selectedPackage.id}
-                onSelect={() => onSelect(selectedPackage.id)}
-                onSelectAndAdvance={() => onSelectAndAdvance(selectedPackage.id)}
-                showActions={!autoAdvanceOnSelect}
+                layout="split"
               />
             </div>
           ) : (
