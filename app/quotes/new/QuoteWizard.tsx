@@ -8,6 +8,7 @@ import CdlBrandLogo from '../../../components/CdlBrandLogo'
 import CatalogImageFrame from '../../../components/CatalogImageFrame'
 import QuotePackageStepExplorer from '../../../components/quotes/QuotePackageStepExplorer'
 import {
+  findDefaultQuotePackage,
   getPackageDetailTitle,
   sortPackagesByCommercialTier,
 } from '../../../Lib/packageDisplay'
@@ -1888,6 +1889,14 @@ export default function QuoteWizard({
     }
   }, [state.packageId])
 
+  useEffect(() => {
+    if (step !== 2 || state.packageId) return
+    const defaultPkg = findDefaultQuotePackage(packages)
+    if (defaultPkg?.id) {
+      updateState({ packageId: defaultPkg.id })
+    }
+  }, [step, state.packageId, packages])
+
   const mandatoryPendingSteps = useMemo(
     () => getMandatoryPendingSteps(stepStatusCtx),
     [stepStatusCtx],
@@ -2436,11 +2445,14 @@ export default function QuoteWizard({
           <div className="space-y-6">
             <section className="rounded-2xl border border-cdl-border bg-cdl-surface p-7 shadow-cdl sm:p-9">
               <h2 className="cdl-section-title !mb-0 !border-0 !pb-0">
-                Etapa 3 — Pacote
+                Escolha o pacote
               </h2>
-              <p className="mt-1 text-sm text-cdl-muted">
-                Selecione o tipo de pacote e confira os detalhes antes de
-                continuar
+              <p className="mt-0.5 text-xs font-semibold uppercase tracking-wider text-cdl-muted">
+                Etapa 3 — Pacote
+              </p>
+              <p className="mt-2 text-sm text-cdl-muted">
+                Selecione o tipo de pacote, escolha a opção e confira os
+                detalhes antes de continuar
               </p>
             </section>
 

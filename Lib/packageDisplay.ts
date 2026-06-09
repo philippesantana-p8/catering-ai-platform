@@ -130,6 +130,18 @@ export function getPackageCascadeFriendlyLabel(
   return `BBQ ${PACKAGE_TIER_NAMES[tier]}`
 }
 
+/** Pacote padrão ao abrir Etapa 3: BBQPRI+ (Com guarnições / Prime). */
+export function findDefaultQuotePackage<
+  T extends PackageFieldSource & { id?: string },
+>(packages: ReadonlyArray<T>): T | null {
+  const withSides = packages.filter((pkg) => getPackageHasGarnish(pkg))
+  const sorted = sortPackagesByCommercialTier(withSides)
+  const byKey = sorted.find(
+    (pkg) => getPackageKey(pkg).toUpperCase() === 'BBQPRI+',
+  )
+  return byKey ?? sorted[0] ?? null
+}
+
 /** Card de detalhe na cotação: BBQ Choice com guarnições, etc. */
 export function getPackageDetailTitle(
   pkg: PackageFieldSource | null | undefined,
