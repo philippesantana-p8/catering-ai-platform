@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import AppMainNav from '../../../components/AppMainNav'
 import CdlBrandLogo from '../../../components/CdlBrandLogo'
 import CatalogImageFrame from '../../../components/CatalogImageFrame'
-import PackageCatalogCard from '../../../components/PackageCatalogCard'
+import QuotePackageStepExplorer from '../../../components/quotes/QuotePackageStepExplorer'
 import QuoteWizardSummaryStep from '../../../components/quote-review/QuoteWizardSummaryStep'
 import { RESERVATION_PAYMENT_TEXT } from '../../../Lib/cdlCommercialRules'
 import { resolvePackageCatalogImageUrl } from '../../../Lib/packageCatalogVisual'
@@ -840,98 +840,6 @@ function WizardStepButton({
   )
 }
 
-function PackageBlock({
-  title,
-  subtitle,
-  packages: blockPackages,
-  allPackages,
-  selectedPackageId,
-  expanded,
-  onToggle,
-  onSelect,
-  onSelectAndAdvance,
-  autoAdvanceOnSelect = false,
-  language = 'pt',
-  sidesPricePerPerson = 13,
-}: {
-  title: string
-  subtitle: string
-  packages: Package[]
-  allPackages: Package[]
-  selectedPackageId: string | null
-  expanded: boolean
-  onToggle: () => void
-  onSelect: (id: string) => void
-  onSelectAndAdvance: (id: string) => void
-  autoAdvanceOnSelect?: boolean
-  language?: QuoteLanguage
-  sidesPricePerPerson?: number
-}) {
-  if (blockPackages.length === 0) return null
-
-  const hasSelection = blockPackages.some((pkg) => pkg.id === selectedPackageId)
-  const selectedPackage = hasSelection
-    ? blockPackages.find((pkg) => pkg.id === selectedPackageId)
-    : null
-
-  return (
-    <section className="overflow-hidden rounded-2xl border border-cdl-border bg-cdl-surface shadow-cdl">
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={expanded}
-        className="flex w-full items-center justify-between gap-4 p-5 text-left transition-colors hover:bg-cdl-hover sm:p-6"
-      >
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <span className="text-lg font-extrabold text-cdl-title sm:text-xl">
-              {title}
-            </span>
-            <span className="text-sm text-cdl-muted">
-              {blockPackages.length}{' '}
-              {blockPackages.length === 1 ? 'pacote' : 'pacotes'}
-            </span>
-            {hasSelection && selectedPackage && (
-              <span className="rounded-full border border-cdl-accent-border bg-cdl-accent-soft px-2.5 py-0.5 text-xs font-bold text-cdl-brand">
-                {getPackageName(selectedPackage)}
-              </span>
-            )}
-          </div>
-          <p className="mt-1 text-sm text-cdl-muted">{subtitle}</p>
-        </div>
-        <span
-          className={`shrink-0 text-sm text-cdl-accent transition-transform duration-200 ${
-            expanded ? 'rotate-180' : ''
-          }`}
-          aria-hidden
-        >
-          ▼
-        </span>
-      </button>
-
-      {expanded && (
-        <div className="border-t border-cdl-border-subtle p-3 md:p-5 lg:p-6">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-4 lg:grid-cols-3 xl:grid-cols-4">
-            {blockPackages.map((pkg) => (
-              <PackageCatalogCard
-                key={pkg.id}
-                pkg={pkg}
-                language={language}
-                allPackages={allPackages}
-                sidesPricePerPerson={sidesPricePerPerson}
-                selected={selectedPackageId === pkg.id}
-                onSelect={() => onSelect(pkg.id)}
-                onSelectAndAdvance={() => onSelectAndAdvance(pkg.id)}
-                autoAdvanceOnSelect={autoAdvanceOnSelect}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-    </section>
-  )
-}
-
 function AdditionalItemCard({
   item,
   quantity,
@@ -1468,9 +1376,6 @@ export default function QuoteWizard({
   const [openAdditionalCategories, setOpenAdditionalCategories] = useState<
     Set<string>
   >(() => new Set())
-  const [openPackageBlocks, setOpenPackageBlocks] = useState<Set<string>>(
-    () => new Set(),
-  )
   const [reservationAmountCustomized, setReservationAmountCustomized] =
     useState(false)
   const [saving, setSaving] = useState(false)
@@ -1639,25 +1544,10 @@ export default function QuoteWizard({
   }, [additionalItemsByCategory, state.additionals])
 
   useEffect(() => {
-    if (step !== 3) {
-      setOpenPackageBlocks(new Set())
-    }
     if (step !== 4) {
       setOpenAdditionalCategories(new Set())
     }
   }, [step])
-
-  function togglePackageBlock(blockKey: string) {
-    setOpenPackageBlocks((prev) => {
-      const next = new Set(prev)
-      if (next.has(blockKey)) {
-        next.delete(blockKey)
-      } else {
-        next.add(blockKey)
-      }
-      return next
-    })
-  }
 
   function toggleAdditionalCategory(category: string) {
     setOpenAdditionalCategories((prev) => {
@@ -2569,56 +2459,18 @@ export default function QuoteWizard({
               </p>
             </section>
 
-            {packagesWithoutSides.length === 0 &&
-            packagesWithSides.length === 0 &&
-            customPackages.length === 0 ? (
-              <p className="text-sm text-cdl-muted">Nenhum pacote disponível.</p>
-            ) : (
-              <div className="space-y-3">
-                <PackageBlock
-                  title="Sem guarnições"
-                  subtitle="BBQTRAD · BBQSEL · BBQCHO · BBQPRI"
-                  packages={packagesWithoutSides}
-                  allPackages={packages}
-                  selectedPackageId={state.packageId}
-                  expanded={openPackageBlocks.has('without-sides')}
-                  onToggle={() => togglePackageBlock('without-sides')}
-                  onSelect={(id) => updateState({ packageId: id })}
-                  onSelectAndAdvance={selectPackageAndAdvance}
-                  autoAdvanceOnSelect={!isEditMode}
-                  language={state.language}
-                  sidesPricePerPerson={commercialRules.sidesPricePerPerson}
-                />
-                <PackageBlock
-                  title="Com guarnições"
-                  subtitle="BBQTRAD+ · BBQSEL+ · BBQCHO+ · BBQPRI+"
-                  packages={packagesWithSides}
-                  allPackages={packages}
-                  selectedPackageId={state.packageId}
-                  expanded={openPackageBlocks.has('with-sides')}
-                  onToggle={() => togglePackageBlock('with-sides')}
-                  onSelect={(id) => updateState({ packageId: id })}
-                  onSelectAndAdvance={selectPackageAndAdvance}
-                  autoAdvanceOnSelect={!isEditMode}
-                  language={state.language}
-                  sidesPricePerPerson={commercialRules.sidesPricePerPerson}
-                />
-                <PackageBlock
-                  title="Personalizado"
-                  subtitle="BBQPERS sem guarnições · BBQPERS+ com guarnições"
-                  packages={customPackages}
-                  allPackages={packages}
-                  selectedPackageId={state.packageId}
-                  expanded={openPackageBlocks.has('custom')}
-                  onToggle={() => togglePackageBlock('custom')}
-                  onSelect={(id) => updateState({ packageId: id })}
-                  onSelectAndAdvance={selectPackageAndAdvance}
-                  autoAdvanceOnSelect={!isEditMode}
-                  language={state.language}
-                  sidesPricePerPerson={commercialRules.sidesPricePerPerson}
-                />
-              </div>
-            )}
+            <QuotePackageStepExplorer
+              packagesWithoutSides={packagesWithoutSides}
+              packagesWithSides={packagesWithSides}
+              customPackages={customPackages}
+              allPackages={packages}
+              selectedPackageId={state.packageId}
+              language={state.language}
+              sidesPricePerPerson={commercialRules.sidesPricePerPerson}
+              autoAdvanceOnSelect={!isEditMode}
+              onSelect={(id) => updateState({ packageId: id })}
+              onSelectAndAdvance={selectPackageAndAdvance}
+            />
           </div>
         )}
 

@@ -15,6 +15,10 @@ import {
 } from '@/Lib/packageCatalogVisual'
 import type { QuoteLanguage } from '@/Lib/quoteWizardTypes'
 import CatalogImageFrame from '@/components/CatalogImageFrame'
+import {
+  getPackageGarnishDisplayText,
+  getPackageItemsDisplayText,
+} from '@/Lib/packageDisplay'
 
 function formatCurrency(value: number) {
   return `$${value.toFixed(2)}`
@@ -118,11 +122,24 @@ export default function PackageCatalogCard({
           {name}
         </h3>
 
-        {variant === 'with_sides' && (
-          <p className="mt-2 text-sm leading-snug text-cdl-text-secondary md:text-xs lg:text-sm">
-            {getPackageSidesDescription(language)}
+        {getPackageItemsDisplayText(pkg, language) ? (
+          <p className="mt-2 line-clamp-3 text-xs leading-snug text-cdl-text-secondary sm:text-sm">
+            <span className="font-bold text-cdl-fg">Itens do pacote:</span>{' '}
+            {getPackageItemsDisplayText(pkg, language)}
           </p>
-        )}
+        ) : null}
+
+        <p className="mt-2 line-clamp-2 text-xs leading-snug text-cdl-text-secondary sm:text-sm">
+          <span className="font-bold text-cdl-fg">Guarnições:</span>{' '}
+          {variant === 'with_sides'
+            ? getPackageGarnishDisplayText(pkg, language) ||
+              getPackageSidesDescription(language)
+            : language === 'en'
+              ? 'Not included'
+              : language === 'es'
+                ? 'No incluidas'
+                : 'Não inclusas'}
+        </p>
 
         <div className="mt-3 space-y-1 md:mt-2">
           {priceOnRequest ? (

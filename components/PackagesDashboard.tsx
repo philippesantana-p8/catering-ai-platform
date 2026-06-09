@@ -4,40 +4,25 @@ import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import BackofficeTableShell from '@/components/BackofficeTableShell'
 import {
-  BackofficeAccentBadge,
-  BackofficeBtnDanger,
   BackofficeBtnOutline,
   BackofficeBtnPrimary,
   BackofficeBtnSecondary,
-  BackofficeCardGrid,
-  BackofficeCardImage,
   BackofficeEmptyState,
-  BackofficeEntityCard,
   BackofficeFormCard,
-  BackofficeMetaRow,
-  BackofficeStatusBadge,
 } from '@/components/backoffice/BackofficeCardPrimitives'
 import {
   EMPTY_PACKAGE_ROW,
   PackageAdminFormFields,
   packageDraftFromListItem,
 } from '@/components/backoffice/PackageAdminFormFields'
-import {
-  BackofficeInventoryButton,
-  BackofficeSectionBlock,
-} from '@/components/backoffice/BackofficeSectionPrimitives'
 import CatalogImageFrame from '@/components/CatalogImageFrame'
+import PackageCascadeExplorer from '@/components/packages/PackageCascadeExplorer'
 import type { PackageListItem } from '@/Lib/fetchPackages'
-import { splitPackagesByGarnish } from '@/Lib/packageCatalogAdmin'
 import {
-  getPackageCurrencyCode,
   getPackageDescription,
-  getPackageDisplayOrder,
-  getPackageHasGarnish,
   getPackageImageUrl,
   getPackageKey,
   getPackageLabel,
-  getPackagePrice,
   mapPackageDraftToDeployed,
 } from '@/Lib/packageFieldAccess'
 import type { PackagesInsertPayload } from '@/Lib/packagesTableSchema'
@@ -64,10 +49,6 @@ async function fetchPackagesFromApi(
     throw new Error(result.error ?? 'Não foi possível buscar pacotes.')
   }
   return result.data ?? []
-}
-
-function formatPrice(value: number, currency = 'USD') {
-  return `${currency === 'USD' ? '$' : ''}${value.toFixed(2)}`
 }
 
 export default function PackagesDashboard({
@@ -105,11 +86,6 @@ export default function PackagesDashboard({
         .includes(q),
     )
   }, [packages, search])
-
-  const { withoutGarnish, withGarnish } = useMemo(
-    () => splitPackagesByGarnish(filteredPackages),
-    [filteredPackages],
-  )
 
   const refreshPackages = useCallback(async () => {
     setLoading(true)
@@ -192,8 +168,8 @@ export default function PackagesDashboard({
     setPackages((current) => current.filter((row) => row.id !== pkg.id))
   }
 
-  function triggerUpload(pkgId: string) {
-    uploadTargetIdRef.current = pkgId
+  function triggerUpload(pkg: PackageListItem) {
+    uploadTargetIdRef.current = pkg.id
     fileInputRef.current?.click()
   }
 
@@ -234,141 +210,10 @@ export default function PackagesDashboard({
     }
   }
 
-  function renderPackageCard(pkg: PackageListItem) {
-    const isEditing = editingId === pkg.id
-    const packageKey = getPackageKey(pkg) || '—'
-    const displayName = getPackageLabel(pkg)
-    const withSides = getPackageHasGarnish(pkg)
-    const imageUrl = isEditing
-      ? String(draft.image_url ?? '').trim() || null
-      : getPackageImageUrl(pkg)
-    const currency = getPackageCurrencyCode(pkg)
-    const description = getPackageDescription(pkg)
-
-    if (isEditing) {
-      return (
-        <BackofficeFormCard
-          key={pkg.id}
-          title={`Editar pacote · ${packageKey}`}
-          actions={
-            <>
-              <BackofficeBtnPrimary
-                onClick={() => void saveRow()}
-                disabled={saving}
-              >
-                {saving ? 'Salvando…' : 'Salvar'}
-              </BackofficeBtnPrimary>
-              <BackofficeBtnSecondary onClick={cancelEdit}>Cancelar</BackofficeBtnSecondary>
-              <BackofficeBtnOutline
-                accent
-                onClick={() => triggerUpload(pkg.id)}
-                disabled={uploadingId === pkg.id}
-              >
-                {uploadingId === pkg.id ? 'Enviando…' : 'Enviar foto'}
-              </BackofficeBtnOutline>
-            </>
-          }
-        >
-          <div className="col-span-full mb-2 max-w-xs">
-            <CatalogImageFrame
-              src={imageUrl}
-              alt={displayName}
-              variant="package"
-              fallbackLabel="Sem imagem cadastrada"
-              rounded="all"
-              className="!aspect-[4/3] !min-h-0 !max-h-none"
-            />
-          </div>
-          <PackageAdminFormFields draft={draft} setDraft={setDraft} />
-        </BackofficeFormCard>
-      )
-    }
-
-    return (
-      <BackofficeEntityCard
-        key={pkg.id}
-        inactive={pkg.active === false}
-        image={
-          <BackofficeCardImage>
-            <CatalogImageFrame
-              src={imageUrl}
-              alt={displayName}
-              variant="package"
-              fallbackLabel="Sem imagem cadastrada"
-              rounded="none"
-              className="!h-full !min-h-0 !max-h-none !w-full !rounded-none"
-            />
-          </BackofficeCardImage>
-        }
-        actions={
-          <>
-            <BackofficeBtnSecondary onClick={() => startEdit(pkg)}>
-              Editar
-            </BackofficeBtnSecondary>
-            <BackofficeBtnOutline
-              accent
-              onClick={() => triggerUpload(pkg.id)}
-              disabled={uploadingId === pkg.id}
-            >
-              {uploadingId === pkg.id ? 'Enviando…' : 'Foto'}
-            </BackofficeBtnOutline>
-            <BackofficeInventoryButton source="package" id={pkg.id} />
-            {pkg.active !== false ? (
-              <BackofficeBtnDanger onClick={() => void deactivate(pkg)}>
-                Inativar
-              </BackofficeBtnDanger>
-            ) : null}
-          </>
-        }
-      >
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-bold uppercase tracking-wider text-neutral-500">
-            {packageKey}
-          </span>
-          {withSides ? (
-            <BackofficeAccentBadge>Com guarnições</BackofficeAccentBadge>
-          ) : (
-            <BackofficeAccentBadge>Sem guarnições</BackofficeAccentBadge>
-          )}
-          <BackofficeStatusBadge active={pkg.active !== false} />
-        </div>
-        <h3 className="text-xl font-bold text-neutral-900">{displayName}</h3>
-        {description ? (
-          <p className="line-clamp-3 text-sm text-neutral-600">{description}</p>
-        ) : null}
-        <p className="text-2xl font-black text-red-600">
-          {formatPrice(getPackagePrice(pkg), currency)}
-          <span className="ml-1 text-sm font-semibold text-neutral-500">
-            / pessoa
-          </span>
-        </p>
-        <BackofficeMetaRow label="Moeda" value={currency} />
-        <BackofficeMetaRow label="Ordem" value={getPackageDisplayOrder(pkg)} />
-      </BackofficeEntityCard>
-    )
-  }
-
-  function renderSection(
-    title: string,
-    sectionPackages: PackageListItem[],
-    badgeLabel: string,
-  ) {
-    if (sectionPackages.length === 0) return null
-    const codes = sectionPackages.map((pkg) => getPackageKey(pkg)).filter(Boolean)
-
-    return (
-      <BackofficeSectionBlock
-        title={title}
-        count={sectionPackages.length}
-        codes={codes}
-        badge={<BackofficeAccentBadge>{badgeLabel}</BackofficeAccentBadge>}
-      >
-        <BackofficeCardGrid>
-          {sectionPackages.map((pkg) => renderPackageCard(pkg))}
-        </BackofficeCardGrid>
-      </BackofficeSectionBlock>
-    )
-  }
+  const editingPackage =
+    editingId && editingId !== 'new'
+      ? packages.find((pkg) => pkg.id === editingId) ?? null
+      : null
 
   return (
     <BackofficeTableShell
@@ -408,10 +253,14 @@ export default function PackagesDashboard({
         onChange={(e) => void handleFileSelected(e.target.files?.[0])}
       />
 
-      <div className="space-y-10">
-        {editingId === 'new' ? (
+      <div className="space-y-8">
+        {editingId === 'new' || editingPackage ? (
           <BackofficeFormCard
-            title="Novo pacote"
+            title={
+              editingId === 'new'
+                ? 'Novo pacote'
+                : `Editar pacote · ${getPackageKey(editingPackage ?? {}) || '—'}`
+            }
             actions={
               <>
                 <BackofficeBtnPrimary
@@ -423,9 +272,33 @@ export default function PackagesDashboard({
                 <BackofficeBtnSecondary onClick={cancelEdit}>
                   Cancelar
                 </BackofficeBtnSecondary>
+                {editingPackage ? (
+                  <BackofficeBtnOutline
+                    accent
+                    onClick={() => triggerUpload(editingPackage)}
+                    disabled={uploadingId === editingPackage.id}
+                  >
+                    {uploadingId === editingPackage.id ? 'Enviando…' : 'Enviar foto'}
+                  </BackofficeBtnOutline>
+                ) : null}
               </>
             }
           >
+            {editingPackage ? (
+              <div className="col-span-full mb-4 max-w-sm">
+                <CatalogImageFrame
+                  src={
+                    String(draft.image_url ?? '').trim() ||
+                    getPackageImageUrl(editingPackage)
+                  }
+                  alt={getPackageLabel(editingPackage)}
+                  variant="package"
+                  fallbackLabel="Sem imagem cadastrada"
+                  rounded="all"
+                  className="!aspect-[4/3] !min-h-0 !max-h-none"
+                />
+              </div>
+            ) : null}
             <PackageAdminFormFields draft={draft} setDraft={setDraft} />
           </BackofficeFormCard>
         ) : null}
@@ -433,10 +306,13 @@ export default function PackagesDashboard({
         {filteredPackages.length === 0 && editingId !== 'new' ? (
           <BackofficeEmptyState loading={loading} message="Nenhum pacote encontrado." />
         ) : (
-          <>
-            {renderSection('Sem guarnições', withoutGarnish, 'Sem guarnições')}
-            {renderSection('Com guarnições', withGarnish, 'Com guarnições')}
-          </>
+          <PackageCascadeExplorer
+            packages={filteredPackages}
+            onEdit={startEdit}
+            onPhoto={triggerUpload}
+            onDeactivate={(pkg) => void deactivate(pkg)}
+            uploadingId={uploadingId}
+          />
         )}
       </div>
     </BackofficeTableShell>

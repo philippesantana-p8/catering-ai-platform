@@ -2,12 +2,25 @@
 
 import { useCallback, useMemo, useState } from 'react'
 import BackofficeTableShell from '@/components/BackofficeTableShell'
+import {
+  BackofficeBtnPrimary,
+  BackofficeBtnSecondary,
+  BackofficeFormCard,
+} from '@/components/backoffice/BackofficeCardPrimitives'
+import {
+  PremiumMetricCard,
+  RuleGroupAccordion,
+  SectionHeader,
+} from '@/components/premium/PremiumPrimitives'
+import RuleCard from '@/components/rules/RuleCard'
 import type {
   CommercialRuleRow,
   CommercialRuleValue,
 } from '@/Lib/commercialRulesTableSchema'
-import { formatCommercialRuleDisplayValue } from '@/Lib/commercialRulesTableSchema'
-import { getCommercialRuleDescription } from '@/Lib/getCommercialRuleDescription'
+import {
+  getCommercialRuleCategory,
+  groupCommercialRulesByCategory,
+} from '@/Lib/commercialRuleGroups'
 import type { CommercialRulesSnapshot } from '@/Lib/supabaseCommercialRules'
 
 type ActiveFilter = 'active' | 'all'
@@ -38,10 +51,6 @@ const EMPTY_RULE: RuleDraft = {
   active: true,
 }
 
-function isLongTextType(type: string) {
-  return type === 'long_text' || type === 'text'
-}
-
 export default function CommercialRulesDashboard({
   initialData,
 }: {
@@ -50,12 +59,15 @@ export default function CommercialRulesDashboard({
   const [data, setData] = useState(initialData)
   const [search, setSearch] = useState('')
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>('active')
+  const [categoryFilter, setCategoryFilter] = useState<string>('all')
+  const [typeFilter, setTypeFilter] = useState<string>('all')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | 'new' | null>(null)
   const [draft, setDraft] = useState(EMPTY_RULE)
   const [saving, setSaving] = useState(false)
   const [seeding, setSeeding] = useState(false)
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({})
 
   const filteredRows = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -63,17 +75,42 @@ export default function CommercialRulesDashboard({
     if (activeFilter === 'active') {
       rows = rows.filter((row) => row.active !== false)
     }
+    if (categoryFilter !== 'all') {
+      rows = rows.filter(
+        (row) => getCommercialRuleCategory(row.rule_key) === categoryFilter,
+      )
+    }
+    if (typeFilter !== 'all') {
+      rows = rows.filter((row) => (row.rule_value?.type ?? 'text') === typeFilter)
+    }
     if (!q) return rows
     return rows.filter((row) => {
-      const label = getCommercialRuleDescription(row.rule_key, row.rule_value)
-      const display = formatCommercialRuleDisplayValue(row.rule_value)
+      const label = row.rule_value?.label_pt ?? ''
       return (
         row.rule_key.toLowerCase().includes(q) ||
         label.toLowerCase().includes(q) ||
-        display.toLowerCase().includes(q)
+        String(row.rule_value?.value ?? '').toLowerCase().includes(q)
       )
     })
-  }, [data.rows, search, activeFilter])
+  }, [data.rows, search, activeFilter, categoryFilter, typeFilter])
+
+  const grouped = useMemo(
+    () => groupCommercialRulesByCategory(filteredRows),
+    [filteredRows],
+  )
+
+  const metrics = useMemo(() => {
+    const categories = new Set(
+      data.rows.map((row) => getCommercialRuleCategory(row.rule_key)),
+    )
+    const active = data.rows.filter((row) => row.active !== false).length
+    return {
+      total: data.rows.length,
+      active,
+      inactive: data.rows.length - active,
+      categories: categories.size,
+    }
+  }, [data.rows])
 
   const refresh = useCallback(async () => {
     setLoading(true)
@@ -116,6 +153,15 @@ export default function CommercialRulesDashboard({
     })
   }
 
+  function duplicateRule(row: CommercialRuleRow) {
+    setEditingId('new')
+    setDraft({
+      rule_key: `${row.rule_key}_copy`,
+      rule_value: row.rule_value ?? { ...EMPTY_RULE_VALUE },
+      active: true,
+    })
+  }
+
   function cancelEdit() {
     setEditingId(null)
     setDraft({ ...EMPTY_RULE, rule_value: { ...EMPTY_RULE_VALUE } })
@@ -127,9 +173,7 @@ export default function CommercialRulesDashboard({
       rule_value: {
         ...current.rule_value,
         value:
-          current.rule_value.type === 'number'
-            ? Number(value)
-            : value,
+          current.rule_value.type === 'number' ? Number(value) : value,
       },
     }))
   }
@@ -142,9 +186,7 @@ export default function CommercialRulesDashboard({
         method: editingId === 'new' ? 'POST' : 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(
-          editingId === 'new'
-            ? draft
-            : { id: editingId, ...draft },
+          editingId === 'new' ? draft : { id: editingId, ...draft },
         ),
       })
       const result = (await response.json()) as { error?: string }
@@ -200,52 +242,18 @@ export default function CommercialRulesDashboard({
     await refresh()
   }
 
-  function renderEditableField(
-    value: string,
-    onChange: (value: string) => void,
-    multiline = false,
-  ) {
-    const className =
-      'w-full min-w-[100px] rounded-lg border border-cdl-border bg-cdl-inset px-2 py-1.5 text-xs text-cdl-fg'
-    if (multiline) {
-      return (
-        <textarea
-          rows={2}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className={className}
-        />
-      )
-    }
-    return (
-      <input
-        type="text"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className={className}
-      />
-    )
-  }
-
-  function renderValueCell(row: CommercialRuleRow, editing: boolean) {
-    const ruleValue = editing ? draft.rule_value : row.rule_value
-    const displayValue = String(ruleValue?.value ?? '')
-    const multiline = isLongTextType(ruleValue?.type ?? 'text')
-
-    if (editing) {
-      return renderEditableField(displayValue, updateDraftValue, multiline)
-    }
-
-    return formatCommercialRuleDisplayValue(row.rule_value)
-  }
+  const categories = useMemo(
+    () => [...new Set(data.rows.map((row) => getCommercialRuleCategory(row.rule_key)))],
+    [data.rows],
+  )
 
   return (
     <BackofficeTableShell
       title="Regras comerciais"
-      subtitle="Parâmetros editáveis · Catering AI (fallback se tabela ausente)"
+      subtitle="Dashboard operacional · Catering AI"
       search={search}
       onSearchChange={setSearch}
-      searchPlaceholder="rule_key ou rótulo"
+      searchPlaceholder="rule_key, rótulo ou valor"
       activeFilter={activeFilter}
       onActiveFilterChange={setActiveFilter}
       onRefresh={() => void refresh()}
@@ -267,7 +275,7 @@ export default function CommercialRulesDashboard({
             type="button"
             onClick={startNew}
             disabled={!data.editable}
-            className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-cdl-border bg-cdl-surface px-5 py-3 text-sm font-bold disabled:opacity-50"
+            className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-neutral-200 bg-white px-5 py-3 text-sm font-bold text-neutral-800 shadow-sm disabled:opacity-50"
           >
             Nova regra
           </button>
@@ -275,205 +283,132 @@ export default function CommercialRulesDashboard({
       }
     >
       {!data.editable ? (
-        <div className="rounded-2xl border border-cdl-border bg-cdl-surface p-6 text-sm text-cdl-muted">
-          Tabela <code className="text-cdl-fg">commercial_rules</code> não encontrada.
-          Execute <code className="text-cdl-fg">scripts/sql/commercial-rules-key-value.sql</code> no
+        <div className="rounded-2xl border border-neutral-200 bg-white p-6 text-sm text-neutral-600 shadow-sm">
+          Tabela <code className="text-neutral-900">commercial_rules</code> não encontrada.
+          Execute <code className="text-neutral-900">scripts/sql/commercial-rules-key-value.sql</code> no
           Supabase. Valores atuais vêm do fallback em código.
         </div>
       ) : null}
 
-      <div className="overflow-x-auto rounded-2xl border border-cdl-border bg-cdl-surface shadow-cdl">
-        <table className="w-full min-w-[900px] border-collapse text-left">
-          <thead>
-            <tr className="border-b border-cdl-border bg-cdl-inset/50">
-              {['rule_key', 'valor', 'tipo', 'rótulo', 'Ações', 'Status'].map(
-                (h) => (
-                  <th
-                    key={h}
-                    className="px-3 py-3 text-xs font-bold uppercase tracking-wider text-cdl-muted"
-                  >
-                    {h}
-                  </th>
-                ),
-              )}
-            </tr>
-          </thead>
-          <tbody>
-            {editingId === 'new' ? (
-              <tr className="border-b border-cdl-border bg-[color-mix(in_srgb,var(--brand-accent)_8%,transparent)]">
-                <td className="px-3 py-2">
-                  {renderEditableField(draft.rule_key, (v) =>
-                    setDraft((c) => ({ ...c, rule_key: v })),
-                  )}
-                </td>
-                <td className="px-3 py-2">
-                  {renderEditableField(
-                    String(draft.rule_value.value ?? ''),
-                    updateDraftValue,
-                    isLongTextType(draft.rule_value.type),
-                  )}
-                </td>
-                <td className="px-3 py-2">
-                  <select
-                    value={draft.rule_value.type ?? 'text'}
-                    onChange={(e) =>
-                      setDraft((c) => ({
-                        ...c,
-                        rule_value: { ...c.rule_value, type: e.target.value },
-                      }))
-                    }
-                    className="rounded-lg border border-cdl-border bg-cdl-inset px-2 py-1.5 text-xs"
-                  >
-                    <option value="text">text</option>
-                    <option value="number">number</option>
-                    <option value="long_text">long_text</option>
-                    <option value="boolean">boolean</option>
-                  </select>
-                </td>
-                <td className="px-3 py-2">
-                  {renderEditableField(
-                    draft.rule_value.label_pt ?? '',
-                    (v) =>
-                      setDraft((c) => ({
-                        ...c,
-                        rule_value: { ...c.rule_value, label_pt: v },
-                      })),
-                  )}
-                </td>
-                <td className="px-3 py-2">
-                  <div className="flex gap-1">
-                    <button
-                      type="button"
-                      onClick={() => void saveRow()}
-                      disabled={saving}
-                      className="rounded-lg bg-[var(--brand-primary)] px-2 py-1 text-xs font-bold text-white"
-                    >
-                      Salvar
-                    </button>
-                    <button
-                      type="button"
-                      onClick={cancelEdit}
-                      className="rounded-lg border border-cdl-border px-2 py-1 text-xs font-bold"
-                    >
-                      Cancelar
-                    </button>
-                  </div>
-                </td>
-                <td className="px-3 py-2 text-xs">Novo</td>
-              </tr>
-            ) : null}
-
-            {filteredRows.length === 0 && editingId !== 'new' ? (
-              <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-cdl-muted">
-                  {loading ? 'Carregando…' : 'Nenhuma regra encontrada.'}
-                </td>
-              </tr>
-            ) : (
-              filteredRows.map((row) => (
-                <tr
-                  key={row.id}
-                  className={`border-b border-cdl-border ${row.active === false ? 'opacity-50' : ''}`}
-                >
-                  <td className="px-3 py-2 align-top text-sm font-mono text-cdl-fg">
-                    {editingId === row.id
-                      ? renderEditableField(draft.rule_key, (v) =>
-                          setDraft((c) => ({ ...c, rule_key: v })),
-                        )
-                      : row.rule_key}
-                  </td>
-                  <td className="px-3 py-2 align-top text-sm text-cdl-fg max-w-xs">
-                    {renderValueCell(row, editingId === row.id)}
-                  </td>
-                  <td className="px-3 py-2 align-top text-sm">
-                    {editingId === row.id ? (
-                      <select
-                        value={draft.rule_value.type ?? 'text'}
-                        onChange={(e) =>
-                          setDraft((c) => ({
-                            ...c,
-                            rule_value: { ...c.rule_value, type: e.target.value },
-                          }))
-                        }
-                        className="rounded-lg border border-cdl-border bg-cdl-inset px-2 py-1.5 text-xs"
-                      >
-                        <option value="text">text</option>
-                        <option value="number">number</option>
-                        <option value="long_text">long_text</option>
-                        <option value="boolean">boolean</option>
-                      </select>
-                    ) : (
-                      row.rule_value?.type ?? '—'
-                    )}
-                  </td>
-                  <td className="px-3 py-2 align-top text-sm text-cdl-muted">
-                    {editingId === row.id
-                      ? renderEditableField(
-                          draft.rule_value.label_pt ?? '',
-                          (v) =>
-                            setDraft((c) => ({
-                              ...c,
-                              rule_value: { ...c.rule_value, label_pt: v },
-                            })),
-                        )
-                      : getCommercialRuleDescription(row.rule_key, row.rule_value)}
-                  </td>
-                  <td className="px-3 py-2 align-top">
-                    <div className="flex flex-wrap gap-1">
-                      {editingId === row.id ? (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => void saveRow()}
-                            disabled={saving}
-                            className="rounded-lg bg-[var(--brand-primary)] px-2 py-1 text-xs font-bold text-white"
-                          >
-                            Salvar
-                          </button>
-                          <button
-                            type="button"
-                            onClick={cancelEdit}
-                            className="rounded-lg border border-cdl-border px-2 py-1 text-xs font-bold"
-                          >
-                            Cancelar
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => startEdit(row)}
-                            className="rounded-lg border border-cdl-border px-2 py-1 text-xs font-bold"
-                          >
-                            Editar
-                          </button>
-                          {row.active !== false ? (
-                            <button
-                              type="button"
-                              onClick={() => void deactivate(row)}
-                              className="rounded-lg border border-cdl-action px-2 py-1 text-xs font-bold text-cdl-action"
-                            >
-                              Inativar
-                            </button>
-                          ) : null}
-                        </>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-3 py-2 text-xs text-cdl-muted">
-                    {row.active === false ? 'Inativo' : 'Ativo'}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+      <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <PremiumMetricCard label="Total de regras" value={metrics.total} accent="red" />
+        <PremiumMetricCard label="Ativas" value={metrics.active} accent="green" />
+        <PremiumMetricCard label="Inativas" value={metrics.inactive} />
+        <PremiumMetricCard label="Categorias" value={metrics.categories} accent="gold" />
       </div>
 
-      <p className="text-xs text-cdl-muted">
-        Fonte do cálculo: {data.rules.source === 'supabase' ? 'Supabase' : 'fallback em código'} ·
-        Reserva {data.rules.reservationPercentage}% · Base {data.rules.mileageBaseLocation} ·{' '}
-        {data.rules.mileageFreeLimit} mi grátis · ${data.rules.mileageRate}/mi
+      <div className="mb-6 flex flex-wrap gap-2">
+        <select
+          value={categoryFilter}
+          onChange={(e) => setCategoryFilter(e.target.value)}
+          className="rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm font-semibold text-neutral-800"
+        >
+          <option value="all">Todas as categorias</option>
+          {categories.map((category) => (
+            <option key={category} value={category}>
+              {category}
+            </option>
+          ))}
+        </select>
+        <select
+          value={typeFilter}
+          onChange={(e) => setTypeFilter(e.target.value)}
+          className="rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm font-semibold text-neutral-800"
+        >
+          <option value="all">Todos os tipos</option>
+          <option value="text">text</option>
+          <option value="number">number</option>
+          <option value="long_text">long_text</option>
+          <option value="boolean">boolean</option>
+        </select>
+      </div>
+
+      {editingId === 'new' ? (
+        <div className="mb-6">
+          <BackofficeFormCard
+            title="Nova regra"
+            actions={
+              <>
+                <BackofficeBtnPrimary onClick={() => void saveRow()} disabled={saving}>
+                  {saving ? 'Salvando…' : 'Salvar'}
+                </BackofficeBtnPrimary>
+                <BackofficeBtnSecondary onClick={cancelEdit}>
+                  Cancelar
+                </BackofficeBtnSecondary>
+              </>
+            }
+          >
+            <input
+              value={draft.rule_key}
+              onChange={(e) => setDraft((c) => ({ ...c, rule_key: e.target.value }))}
+              className="col-span-full rounded-xl border border-neutral-200 px-3 py-2 text-sm font-mono"
+              placeholder="rule_key"
+            />
+            <textarea
+              rows={2}
+              value={String(draft.rule_value.value ?? '')}
+              onChange={(e) => updateDraftValue(e.target.value)}
+              className="col-span-full rounded-xl border border-neutral-200 px-3 py-2 text-sm"
+            />
+          </BackofficeFormCard>
+        </div>
+      ) : null}
+
+      <SectionHeader
+        title="Regras por categoria"
+        subtitle="Cards expansíveis para leitura e manutenção"
+      />
+
+      {filteredRows.length === 0 ? (
+        <p className="rounded-2xl border border-neutral-200 bg-white p-8 text-center text-sm text-neutral-500 shadow-sm">
+          {loading ? 'Carregando…' : 'Nenhuma regra encontrada.'}
+        </p>
+      ) : (
+        <div className="space-y-6">
+          {grouped.map(({ category, items }) => {
+            const open = expandedGroups[category] ?? true
+            return (
+              <RuleGroupAccordion
+                key={category}
+                category={category}
+                count={items.length}
+                open={open}
+                onToggle={() =>
+                  setExpandedGroups((current) => ({
+                    ...current,
+                    [category]: !open,
+                  }))
+                }
+              >
+                <div className="space-y-3">
+                  {items.map((row) => (
+                    <RuleCard
+                      key={row.id}
+                      row={row}
+                      editing={editingId === row.id}
+                      draft={draft}
+                      saving={saving}
+                      onStartEdit={() => startEdit(row)}
+                      onCancelEdit={cancelEdit}
+                      onSave={() => void saveRow()}
+                      onDeactivate={() => void deactivate(row)}
+                      onDuplicate={() => duplicateRule(row)}
+                      onDraftChange={(patch) =>
+                        setDraft((current) => ({ ...current, ...patch }))
+                      }
+                      onDraftValueChange={updateDraftValue}
+                    />
+                  ))}
+                </div>
+              </RuleGroupAccordion>
+            )
+          })}
+        </div>
+      )}
+
+      <p className="mt-6 text-xs text-neutral-500">
+        Fonte: {data.rules.source === 'supabase' ? 'Supabase' : 'fallback em código'} · Reserva{' '}
+        {data.rules.reservationPercentage}% · Base {data.rules.mileageBaseLocation}
       </p>
     </BackofficeTableShell>
   )

@@ -2,6 +2,7 @@
 
 import type { ReactNode } from 'react'
 import CatalogImageFrame from '@/components/CatalogImageFrame'
+import { SectionHeader } from '@/components/premium/PremiumPrimitives'
 import {
   formatCountOrDash,
   formatMoneyOrDash,
@@ -18,13 +19,13 @@ function PackageDetailLine({
 }) {
   return (
     <p className="quote-proposal-package-detail">
-      <span className="quote-proposal-package-detail-label">{label}</span>{' '}
+      <span className="quote-proposal-package-detail-label font-bold">{label}</span>{' '}
       {value}
     </p>
   )
 }
 
-function PackageSummaryHighlightCard({
+function PackageValueCard({
   label,
   value,
   subValue,
@@ -53,113 +54,6 @@ function PackageSummaryHighlightCard({
   )
 }
 
-function PackageSummaryCards({
-  summary,
-  fallback,
-}: {
-  summary: QuoteReviewPackageSummary | null | undefined
-  fallback: {
-    physicalGuestCount: number | null
-    billableGuestCount: number | null
-    packageTotal: number | null
-    packageUnitPrice: number | null
-  }
-}) {
-  if (summary) {
-    const garnishValue = summary.hasGarnish
-      ? formatMoneyOrDash(summary.garnishTotalPrice)
-      : '$0.00'
-
-    return (
-      <div className="quote-proposal-highlight-grid">
-        <PackageSummaryHighlightCard
-          label="Convidados físicos"
-          value={formatCountOrDash(fallback.physicalGuestCount)}
-        />
-        <PackageSummaryHighlightCard
-          label="Pessoas cobradas equivalentes"
-          value={formatCountOrDash(summary.chargedPeople)}
-        />
-        <PackageSummaryHighlightCard
-          label="Valor do pacote"
-          value={formatMoneyOrDash(summary.packageTotalPrice)}
-          subValue={
-            summary.chargedPeople > 0
-              ? `${formatCurrency(summary.packageUnitPrice)} × ${summary.chargedPeople}`
-              : undefined
-          }
-          variant="price"
-        />
-        <PackageSummaryHighlightCard
-          label="Valor das guarnições"
-          value={garnishValue}
-          subValue={
-            summary.hasGarnish && summary.chargedPeople > 0
-              ? `${formatCurrency(summary.garnishUnitPrice)} × ${summary.chargedPeople}`
-              : summary.hasGarnish
-                ? undefined
-                : 'Não'
-          }
-          variant="price"
-        />
-        <PackageSummaryHighlightCard
-          label="Valor total"
-          value={formatMoneyOrDash(summary.grandTotalPrice)}
-          subValue={
-            summary.chargedPeople > 0
-              ? `${formatCurrency(summary.totalUnitPrice)} × ${summary.chargedPeople}`
-              : undefined
-          }
-          variant="grand-total"
-        />
-      </div>
-    )
-  }
-
-  return (
-    <div className="quote-proposal-highlight-grid">
-      <PackageSummaryHighlightCard
-        label="Convidados físicos"
-        value={formatCountOrDash(fallback.physicalGuestCount)}
-      />
-      <PackageSummaryHighlightCard
-        label="Pessoas cobradas equivalentes"
-        value={formatCountOrDash(fallback.billableGuestCount)}
-      />
-      <PackageSummaryHighlightCard
-        label="Valor do pacote"
-        value={formatMoneyOrDash(fallback.packageTotal)}
-        subValue={
-          fallback.packageUnitPrice != null &&
-          fallback.billableGuestCount != null &&
-          fallback.billableGuestCount > 0
-            ? `${formatCurrency(fallback.packageUnitPrice)} × ${fallback.billableGuestCount}`
-            : undefined
-        }
-        variant="price"
-      />
-      <PackageSummaryHighlightCard
-        label="Valor das guarnições"
-        value="$0.00"
-        subValue="Não"
-        variant="price"
-      />
-      <PackageSummaryHighlightCard
-        label="Valor total"
-        value={formatMoneyOrDash(fallback.packageTotal)}
-        subValue={
-          fallback.packageUnitPrice != null &&
-          fallback.billableGuestCount != null &&
-          fallback.billableGuestCount > 0
-            ? `${formatCurrency(fallback.packageUnitPrice)} × ${fallback.billableGuestCount}`
-            : undefined
-        }
-        variant="grand-total"
-      />
-    </div>
-  )
-}
-
 export default function QuoteReviewPackageCdlSection({
   packageName,
   packageImageUrl,
@@ -177,10 +71,29 @@ export default function QuoteReviewPackageCdlSection({
   packageTotal: number | null
   packageUnitPrice: number | null
 }) {
+  const itemsText = packageSummary?.packageItemsDescription?.trim() || '—'
+  const garnishText = packageSummary?.garnishDescription?.trim() || 'Não inclusas'
+
+  const chargedPeople = packageSummary?.chargedPeople ?? billableGuestCount
+  const baseUnit = packageSummary?.packageUnitPrice ?? packageUnitPrice
+  const baseTotal =
+    packageSummary?.packageTotalPrice ??
+    (baseUnit != null && chargedPeople != null
+      ? baseUnit * chargedPeople
+      : packageTotal)
+  const garnishUnit = packageSummary?.hasGarnish
+    ? packageSummary.garnishUnitPrice
+    : 0
+  const garnishTotal = packageSummary?.hasGarnish
+    ? packageSummary.garnishTotalPrice
+    : 0
+  const totalUnit = packageSummary?.totalUnitPrice ?? packageUnitPrice
+  const grandTotal = packageSummary?.grandTotalPrice ?? packageTotal
+
   return (
-    <>
-      <p className="quote-proposal-package-name">{displayValue(packageName)}</p>
-      <div className="mt-5 flex w-full items-center justify-center overflow-hidden rounded-2xl border border-neutral-200 bg-white">
+    <div className="space-y-5">
+      <SectionHeader title="Pacote CDL" subtitle={displayValue(packageName)} />
+      <div className="flex w-full items-center justify-center overflow-hidden rounded-2xl border border-neutral-200 bg-white">
         <CatalogImageFrame
           src={packageImageUrl}
           alt={packageName ?? 'Pacote'}
@@ -190,25 +103,56 @@ export default function QuoteReviewPackageCdlSection({
           className="!aspect-square !min-h-0 !max-h-[min(85vw,20rem)] !w-full !bg-white sm:!aspect-[4/3] sm:!max-h-[18rem]"
         />
       </div>
-      {packageSummary?.packageItemsDescription ? (
-        <PackageDetailLine
-          label="Itens do pacote:"
-          value={packageSummary.packageItemsDescription}
+      <PackageDetailLine label="Itens do pacote:" value={itemsText} />
+      <PackageDetailLine label="Guarnições:" value={garnishText} />
+      <div className="quote-proposal-highlight-grid">
+        <PackageValueCard
+          label="Convidados físicos"
+          value={formatCountOrDash(physicalGuestCount)}
         />
-      ) : null}
-      <PackageDetailLine
-        label="Guarnições:"
-        value={packageSummary?.garnishDescription ?? 'Não'}
-      />
-      <PackageSummaryCards
-        summary={packageSummary}
-        fallback={{
-          physicalGuestCount,
-          billableGuestCount,
-          packageTotal,
-          packageUnitPrice,
-        }}
-      />
-    </>
+        <PackageValueCard
+          label="Pessoas cobradas"
+          value={formatCountOrDash(chargedPeople)}
+        />
+        <PackageValueCard
+          label="Valor pacote base"
+          value={formatMoneyOrDash(baseTotal)}
+          subValue={
+            baseUnit != null && chargedPeople != null && chargedPeople > 0
+              ? `${formatCurrency(baseUnit)} × ${chargedPeople}`
+              : undefined
+          }
+          variant="price"
+        />
+        <PackageValueCard
+          label="Valor guarnições"
+          value={
+            packageSummary?.hasGarnish
+              ? formatMoneyOrDash(garnishTotal)
+              : '$0.00'
+          }
+          subValue={
+            packageSummary?.hasGarnish
+              ? garnishUnit > 0 && chargedPeople != null && chargedPeople > 0
+                ? `${formatCurrency(garnishUnit)} × ${chargedPeople}`
+                : undefined
+              : 'Não'
+          }
+          variant="price"
+        />
+        <PackageValueCard
+          label="Total por pessoa"
+          value={
+            totalUnit != null ? `${formatCurrency(totalUnit)} / pessoa` : '—'
+          }
+          variant="price"
+        />
+        <PackageValueCard
+          label="Total pacote"
+          value={formatMoneyOrDash(grandTotal)}
+          variant="grand-total"
+        />
+      </div>
+    </div>
   )
 }
