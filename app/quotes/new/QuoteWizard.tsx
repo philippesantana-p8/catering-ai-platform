@@ -2439,8 +2439,8 @@ export default function QuoteWizard({
                 Etapa 3 — Pacote
               </h2>
               <p className="mt-1 text-sm text-cdl-muted">
-                Select the group, choose the code, and confirm the package
-                details before continuing
+                Selecione o tipo de pacote e confira os detalhes antes de
+                continuar
               </p>
             </section>
 

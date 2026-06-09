@@ -1,27 +1,102 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import {
-  BackofficeCascadeLayout,
-  BackofficeCascadePanel,
-} from '@/components/backoffice/BackofficeSectionPrimitives'
 import QuotePackageSummary from '@/components/quotes/QuotePackageSummary'
-import {
-  PackageCodeOption,
-  PremiumGroupBlock,
-  SectionHeader,
-} from '@/components/premium/PremiumPrimitives'
-import {
-  getPackageGroupSummaryCodes,
-  sortPackagesByCommercialTier,
-} from '@/Lib/packageDisplay'
+import { PackageCodeOption } from '@/components/premium/PremiumPrimitives'
+import { sortPackagesByCommercialTier } from '@/Lib/packageDisplay'
 import { getPackageHasGarnish } from '@/Lib/packageFieldAccess'
 import type { PackageCatalogFields } from '@/Lib/packageCatalogVisual'
 import type { QuoteLanguage } from '@/Lib/quoteWizardTypes'
 
 type PackageRow = PackageCatalogFields & { id: string }
 type GarnishGroup = 'with' | 'without'
-type MobilePanel = 'groups' | 'codes' | 'detail'
+
+function PackageGroupSection({
+  title,
+  badgeLabel,
+  packages,
+  expanded,
+  selectedPackageId,
+  allPackages,
+  language,
+  sidesPricePerPerson,
+  onToggle,
+  onSelectPackage,
+}: {
+  title: string
+  badgeLabel: string
+  packages: PackageRow[]
+  expanded: boolean
+  selectedPackageId: string | null
+  allPackages: PackageRow[]
+  language: QuoteLanguage
+  sidesPricePerPerson: number
+  onToggle: () => void
+  onSelectPackage: (id: string) => void
+}) {
+  const selectedInGroup = useMemo(
+    () => packages.find((pkg) => pkg.id === selectedPackageId) ?? null,
+    [packages, selectedPackageId],
+  )
+
+  return (
+    <section className="overflow-hidden rounded-2xl border border-cdl-border bg-cdl-surface shadow-cdl">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={expanded}
+        className="flex w-full items-center justify-between gap-4 p-5 text-left transition-colors hover:bg-cdl-hover sm:p-6"
+      >
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1">
+          <span className="text-lg font-extrabold text-cdl-title sm:text-xl">
+            {title}
+          </span>
+          <span className="text-sm text-cdl-muted">
+            {packages.length}{' '}
+            {packages.length === 1 ? 'pacote' : 'pacotes'}
+          </span>
+          <span className="rounded-full bg-cdl-inset px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-cdl-muted">
+            {badgeLabel}
+          </span>
+        </div>
+        <span
+          className={`shrink-0 text-sm text-cdl-accent transition-transform duration-200 ${
+            expanded ? 'rotate-180' : ''
+          }`}
+          aria-hidden
+        >
+          ▼
+        </span>
+      </button>
+
+      {expanded ? (
+        <div className="space-y-5 border-t border-cdl-border-subtle p-5 sm:p-6">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {packages.map((pkg) => (
+              <PackageCodeOption
+                key={pkg.id}
+                pkg={pkg}
+                active={selectedPackageId === pkg.id}
+                onClick={() => onSelectPackage(pkg.id)}
+              />
+            ))}
+          </div>
+
+          {selectedInGroup ? (
+            <QuotePackageSummary
+              pkg={selectedInGroup}
+              allPackages={allPackages}
+              language={language}
+              sidesPricePerPerson={sidesPricePerPerson}
+              selected
+              layout="stacked"
+            />
+          ) : null}
+        </div>
+      ) : null}
+    </section>
+  )
+}
 
 export default function QuotePackageStepExplorer({
   packagesWithoutSides,
@@ -40,19 +115,6 @@ export default function QuotePackageStepExplorer({
   sidesPricePerPerson?: number
   onSelect: (id: string) => void
 }) {
-  const [selectedGroup, setSelectedGroup] = useState<GarnishGroup | null>(() => {
-    if (!selectedPackageId) return null
-    const pkg = allPackages.find((row) => row.id === selectedPackageId)
-    if (!pkg) return null
-    return getPackageHasGarnish(pkg) ? 'with' : 'without'
-  })
-  const [showPackageDetail, setShowPackageDetail] = useState(
-    () => Boolean(selectedPackageId),
-  )
-  const [mobilePanel, setMobilePanel] = useState<MobilePanel>(() =>
-    selectedPackageId ? 'detail' : 'groups',
-  )
-
   const sortedWithSides = useMemo(
     () => sortPackagesByCommercialTier(packagesWithSides),
     [packagesWithSides],
@@ -63,51 +125,28 @@ export default function QuotePackageStepExplorer({
     [packagesWithoutSides],
   )
 
-  const groupPackages = useMemo(() => {
-    if (selectedGroup === 'with') return sortedWithSides
-    if (selectedGroup === 'without') return sortedWithoutSides
-    return []
-  }, [selectedGroup, sortedWithSides, sortedWithoutSides])
-
-  const selectedPackage = useMemo(
-    () => allPackages.find((pkg) => pkg.id === selectedPackageId) ?? null,
-    [allPackages, selectedPackageId],
-  )
+  const [expandedGroup, setExpandedGroup] = useState<GarnishGroup | null>(() => {
+    if (!selectedPackageId) return null
+    const pkg = allPackages.find((row) => row.id === selectedPackageId)
+    if (!pkg) return null
+    return getPackageHasGarnish(pkg) ? 'with' : 'without'
+  })
 
   useEffect(() => {
-    if (!selectedPackageId || !selectedPackage) return
-    setSelectedGroup(getPackageHasGarnish(selectedPackage) ? 'with' : 'without')
-  }, [selectedPackageId, selectedPackage])
+    if (!selectedPackageId) return
+    const pkg = allPackages.find((row) => row.id === selectedPackageId)
+    if (!pkg) return
+    setExpandedGroup(getPackageHasGarnish(pkg) ? 'with' : 'without')
+  }, [selectedPackageId, allPackages])
 
-  function selectGroup(group: GarnishGroup) {
-    setSelectedGroup(group)
-    setShowPackageDetail(false)
-    setMobilePanel('codes')
+  function toggleGroup(group: GarnishGroup) {
+    setExpandedGroup((current) => (current === group ? null : group))
   }
 
-  function selectPackage(id: string) {
+  function selectPackage(id: string, group: GarnishGroup) {
     onSelect(id)
-    setShowPackageDetail(true)
-    setMobilePanel('detail')
+    setExpandedGroup(group)
   }
-
-  function backFromDetail() {
-    setShowPackageDetail(false)
-    setMobilePanel('codes')
-  }
-
-  function backFromCodes() {
-    setShowPackageDetail(false)
-    setMobilePanel('groups')
-  }
-
-  const showGroupsMobile = mobilePanel === 'groups'
-  const showCodesMobile = mobilePanel === 'codes'
-  const showDetailMobile = mobilePanel === 'detail' && showPackageDetail
-
-  const showGroupsDesktop = true
-  const showCodesDesktop = Boolean(selectedGroup)
-  const showDetailDesktop = showPackageDetail && Boolean(selectedPackage)
 
   const totalCount = packagesWithoutSides.length + packagesWithSides.length
 
@@ -118,119 +157,36 @@ export default function QuotePackageStepExplorer({
   }
 
   return (
-    <div className="space-y-6">
-      <SectionHeader
-        title="Choose your package"
-        subtitle="Select the group, choose the code, and confirm the package details before continuing."
-      />
+    <div className="space-y-3">
+      {sortedWithSides.length > 0 ? (
+        <PackageGroupSection
+          title="Com guarnições"
+          badgeLabel="Com guarnições"
+          packages={sortedWithSides}
+          expanded={expandedGroup === 'with'}
+          selectedPackageId={selectedPackageId}
+          allPackages={allPackages}
+          language={language}
+          sidesPricePerPerson={sidesPricePerPerson}
+          onToggle={() => toggleGroup('with')}
+          onSelectPackage={(id) => selectPackage(id, 'with')}
+        />
+      ) : null}
 
-      <BackofficeCascadeLayout>
-        <div
-          className={
-            showGroupsMobile
-              ? 'block lg:col-span-3'
-              : 'hidden lg:block lg:col-span-3'
-          }
-        >
-          <BackofficeCascadePanel
-            title="Package group"
-            subtitle="With or without side dishes"
-          >
-            <div className="space-y-3">
-              {sortedWithSides.length > 0 ? (
-                <PremiumGroupBlock
-                  title="With side dishes"
-                  count={sortedWithSides.length}
-                  summary={getPackageGroupSummaryCodes(sortedWithSides)}
-                  active={selectedGroup === 'with'}
-                  onClick={() => selectGroup('with')}
-                />
-              ) : null}
-              {sortedWithoutSides.length > 0 ? (
-                <PremiumGroupBlock
-                  title="Without side dishes"
-                  count={sortedWithoutSides.length}
-                  summary={getPackageGroupSummaryCodes(sortedWithoutSides)}
-                  active={selectedGroup === 'without'}
-                  onClick={() => selectGroup('without')}
-                />
-              ) : null}
-            </div>
-          </BackofficeCascadePanel>
-        </div>
-
-        <div
-          className={
-            showCodesMobile
-              ? 'block lg:col-span-3'
-              : showCodesDesktop
-                ? 'hidden lg:block lg:col-span-3'
-                : 'hidden'
-          }
-        >
-          <BackofficeCascadePanel
-            title={
-              selectedGroup === 'with'
-                ? 'With side dishes'
-                : 'Without side dishes'
-            }
-            subtitle={`${groupPackages.length} packages`}
-            onBack={backFromCodes}
-          >
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {groupPackages.map((pkg) => (
-                <PackageCodeOption
-                  key={pkg.id}
-                  pkg={pkg}
-                  active={selectedPackageId === pkg.id}
-                  onClick={() => selectPackage(pkg.id)}
-                />
-              ))}
-            </div>
-          </BackofficeCascadePanel>
-        </div>
-
-        <div
-          className={
-            showDetailMobile
-              ? 'block lg:col-span-6'
-              : showDetailDesktop
-                ? 'hidden lg:block lg:col-span-6'
-                : 'hidden'
-          }
-        >
-          {selectedPackage && showPackageDetail ? (
-            <div>
-              <button
-                type="button"
-                onClick={backFromDetail}
-                className="mb-3 text-xs font-bold uppercase tracking-wider text-red-600 lg:hidden"
-              >
-                ← Back to codes
-              </button>
-              <QuotePackageSummary
-                pkg={selectedPackage}
-                allPackages={allPackages}
-                language={language}
-                sidesPricePerPerson={sidesPricePerPerson}
-                selected={selectedPackageId === selectedPackage.id}
-                layout="split"
-                englishLabels
-              />
-            </div>
-          ) : (
-            <BackofficeCascadePanel
-              title="Package details"
-              subtitle="Select a package code"
-              className="!col-span-full hidden lg:block"
-            >
-              <p className="text-sm text-neutral-500">
-                Choose a group and a package code to see the full details.
-              </p>
-            </BackofficeCascadePanel>
-          )}
-        </div>
-      </BackofficeCascadeLayout>
+      {sortedWithoutSides.length > 0 ? (
+        <PackageGroupSection
+          title="Sem guarnições"
+          badgeLabel="Sem guarnições"
+          packages={sortedWithoutSides}
+          expanded={expandedGroup === 'without'}
+          selectedPackageId={selectedPackageId}
+          allPackages={allPackages}
+          language={language}
+          sidesPricePerPerson={sidesPricePerPerson}
+          onToggle={() => toggleGroup('without')}
+          onSelectPackage={(id) => selectPackage(id, 'without')}
+        />
+      ) : null}
     </div>
   )
 }

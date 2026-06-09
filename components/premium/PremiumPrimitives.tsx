@@ -113,23 +113,23 @@ export function PackageCodeOption({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-2xl border p-3 text-left transition ${
+      className={`rounded-2xl border p-4 text-left transition ${
         active
           ? 'border-red-400 bg-red-50 shadow-sm ring-2 ring-red-200'
           : 'border-neutral-200 bg-white hover:border-neutral-300 hover:bg-neutral-50'
       }`}
     >
       <div className="flex flex-wrap items-center gap-2">
-        <span className="font-mono text-sm font-black text-neutral-900">
+        <span className="font-mono text-xs font-bold uppercase tracking-wider text-neutral-500">
           {code}
         </span>
         {withSides ? (
           <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-900">
-            + side dishes
+            + guarnições
           </span>
         ) : null}
       </div>
-      <p className="mt-1 text-sm font-semibold text-neutral-600">
+      <p className="mt-2 text-lg font-extrabold tracking-tight text-neutral-900">
         {friendlyLabel}
       </p>
     </button>

@@ -120,22 +120,23 @@ export function getPackageCommercialName(
   )
 }
 
-/** Segunda cascata: BBQ Prime, BBQ Choice, etc. */
+/** Segunda cascata: BBQ Prime, BBQ Choice, BBQ Personalizado, etc. */
 export function getPackageCascadeFriendlyLabel(
   pkg: PackageFieldSource | null | undefined,
 ): string {
   const tier = detectPackageTier(getPackageKey(pkg))
   if (!tier) return getPackageCommercialName(pkg)
+  if (tier === 'PERS') return 'BBQ Personalizado'
   return `BBQ ${PACKAGE_TIER_NAMES[tier]}`
 }
 
-/** Card de detalhe: Prime, Choice with Side Dishes, etc. */
+/** Card de detalhe na cotação: BBQ Choice com guarnições, etc. */
 export function getPackageDetailTitle(
   pkg: PackageFieldSource | null | undefined,
 ): string {
-  const name = getPackageCommercialName(pkg)
+  const friendly = getPackageCascadeFriendlyLabel(pkg)
   if (getPackageHasGarnish(pkg)) {
-    return `${name} with Side Dishes`
+    return `${friendly} com guarnições`
   }
-  return name
+  return friendly
 }
