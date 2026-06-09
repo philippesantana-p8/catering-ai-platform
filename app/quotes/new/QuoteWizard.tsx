@@ -4,8 +4,8 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import AppMainNav from '../../../components/AppMainNav'
-import CdlBrandLogo from '../../../components/CdlBrandLogo'
 import CatalogImageFrame from '../../../components/CatalogImageFrame'
+import QuoteHeaderCompact from '../../../components/quotes/QuoteHeaderCompact'
 import QuotePackageStepExplorer from '../../../components/quotes/QuotePackageStepExplorer'
 import {
   findDefaultQuotePackage,
@@ -2034,9 +2034,9 @@ export default function QuoteWizard({
   }
 
   return (
-    <main className="min-h-screen bg-cdl-bg px-4 py-8 text-cdl-fg sm:px-8 sm:py-10">
+    <main className="min-h-screen bg-cdl-bg px-4 py-4 text-cdl-fg sm:px-8 sm:py-6">
       <div className="mx-auto max-w-6xl">
-        <div className="mb-6 flex flex-col gap-4">
+        <div className="mb-3 flex flex-col gap-2">
           <AppMainNav />
           <Link
             href={isEditMode && quoteId ? `/quotes/${quoteId}` : '/quotes'}
@@ -2046,29 +2046,10 @@ export default function QuoteWizard({
           </Link>
         </div>
 
-        <header className="relative mb-8 overflow-hidden rounded-2xl border border-cdl-border bg-cdl-surface px-7 py-10 shadow-cdl sm:px-10 sm:py-12">
-          <div
-            className="pointer-events-none absolute inset-0 cdl-hero-glow"
-            aria-hidden
-          />
-          <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center">
-            <CdlBrandLogo size="md" />
-            <div className="min-w-0 flex-1">
-              <span className="cdl-hero-tag">
-                {isEditMode ? 'Editar cotação' : 'Nova cotação'}
-              </span>
-              <h1 className="mt-4 text-4xl font-black tracking-tight text-cdl-title sm:text-5xl lg:text-[3.25rem]">
-                BBQ AT HOME
-              </h1>
-              <p className="mt-3 max-w-2xl text-base text-cdl-text-secondary sm:text-lg">
-                Premium Brazilian BBQ Experience · Orlando, Florida
-              </p>
-            </div>
-          </div>
-        </header>
+        <QuoteHeaderCompact isEditMode={isEditMode} />
 
         <nav
-          className="mb-8 rounded-2xl border border-cdl-border bg-cdl-surface p-4 shadow-cdl sm:p-5"
+          className="mb-4 rounded-2xl border border-cdl-border bg-cdl-surface p-3 shadow-cdl sm:mb-5 sm:p-4"
           aria-label="Etapas do wizard"
         >
           <div className="mb-3 flex items-center justify-between gap-3 px-0.5">

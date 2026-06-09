@@ -30,12 +30,14 @@ export default function QuotePackageSummary({
   language = 'pt',
   sidesPricePerPerson = 13,
   selected = false,
+  compact = false,
 }: {
   pkg: PackageCatalogFields & { id?: string }
   allPackages?: ReadonlyArray<PackageCatalogFields>
   language?: QuoteLanguage
   sidesPricePerPerson?: number
   selected?: boolean
+  compact?: boolean
 }) {
   const image = getPackageCatalogImage(pkg, allPackages)
   const variant = getPackageCatalogVariant(pkg)
@@ -121,8 +123,14 @@ export default function QuotePackageSummary({
           : 'overflow-hidden'
       }
     >
-      <div className="bg-neutral-50 p-3 sm:p-4">
-        <div className="aspect-[4/3] w-full overflow-hidden rounded-xl sm:aspect-[16/10] lg:aspect-[5/4]">
+      <div className={compact ? 'bg-neutral-50 p-2.5' : 'bg-neutral-50 p-3 sm:p-4'}>
+        <div
+          className={`w-full overflow-hidden rounded-xl ${
+            compact
+              ? 'aspect-[3/2] max-h-52'
+              : 'aspect-[4/3] sm:aspect-[16/10] lg:aspect-[5/4]'
+          }`}
+        >
           <CatalogImageFrame
             src={image}
             alt={detailTitle}
@@ -134,7 +142,7 @@ export default function QuotePackageSummary({
         </div>
       </div>
 
-      <div className="space-y-4 p-5 sm:p-6">
+      <div className={compact ? 'space-y-3 p-4' : 'space-y-4 p-5 sm:p-6'}>
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-mono text-xs font-bold uppercase tracking-wider text-neutral-500">
             {pkg.package_key}

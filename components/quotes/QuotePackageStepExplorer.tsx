@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   BackofficeCascadeLayout,
   BackofficeCascadePanel,
@@ -66,6 +66,55 @@ function resolveGroupForPackage(
   return getPackageHasGarnish(pkg) ? 'with' : 'without'
 }
 
+function MobilePackageList({
+  packages,
+  selectedPackageId,
+  expandedPackageId,
+  allPackages,
+  language,
+  sidesPricePerPerson,
+  onPackageClick,
+}: {
+  packages: PackageRow[]
+  selectedPackageId: string | null
+  expandedPackageId: string | null
+  allPackages: PackageRow[]
+  language: QuoteLanguage
+  sidesPricePerPerson: number
+  onPackageClick: (pkg: PackageRow) => void
+}) {
+  return (
+    <div className="space-y-3">
+      {packages.map((pkg) => {
+        const isSelected = selectedPackageId === pkg.id
+        const isExpanded = expandedPackageId === pkg.id
+
+        return (
+          <div key={pkg.id}>
+            <PackageCodeOption
+              pkg={pkg}
+              active={isSelected}
+              onClick={() => onPackageClick(pkg)}
+            />
+            {isExpanded ? (
+              <div className="mt-2">
+                <QuotePackageSummary
+                  pkg={pkg}
+                  allPackages={allPackages}
+                  language={language}
+                  sidesPricePerPerson={sidesPricePerPerson}
+                  selected={isSelected}
+                  compact
+                />
+              </div>
+            ) : null}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 export default function QuotePackageStepExplorer({
   packagesWithoutSides,
   packagesWithSides,
@@ -107,19 +156,13 @@ export default function QuotePackageStepExplorer({
   const [mobileExpandedGroup, setMobileExpandedGroup] =
     useState<GarnishGroup>('with')
 
-  const [expandedPackageId, setExpandedPackageId] = useState<string | null>(
-    () => selectedPackageId,
-  )
+  const [expandedPackageId, setExpandedPackageId] = useState<string | null>(null)
+  const mobileExpandInitialized = useRef(false)
 
   useEffect(() => {
     if (!selectedPackage) return
     setSelectedGroup(resolveGroupForPackage(selectedPackage))
   }, [selectedPackage])
-
-  useEffect(() => {
-    if (!selectedPackageId) return
-    setExpandedPackageId((prev) => prev ?? selectedPackageId)
-  }, [selectedPackageId])
 
   const groupPackages =
     selectedGroup === 'with' ? sortedWithSides : sortedWithoutSides
@@ -127,22 +170,69 @@ export default function QuotePackageStepExplorer({
   const groupTitle =
     selectedGroup === 'with' ? 'Com guarnições' : 'Sem guarnições'
 
-  function selectGroup(group: GarnishGroup) {
-    setSelectedGroup(group)
-    setMobileExpandedGroup(group)
+  function selectPrimeForGroup(group: GarnishGroup) {
+    const list = group === 'with' ? sortedWithSides : sortedWithoutSides
+    const prime = list[0]
+    if (!prime) return null
+    onSelect(prime.id)
+    setExpandedPackageId(prime.id)
+    return prime.id
+  }
 
+  /** Desktop: só troca pacote se o atual não pertence ao grupo. */
+  function selectGroupDesktop(group: GarnishGroup) {
+    setSelectedGroup(group)
     const list = group === 'with' ? sortedWithSides : sortedWithoutSides
     const currentInGroup = list.find((pkg) => pkg.id === selectedPackageId)
     if (!currentInGroup && list.length > 0) {
       onSelect(list[0].id)
-      setExpandedPackageId(list[0].id)
     }
   }
 
-  function handlePackageClick(pkg: PackageRow) {
-    onSelect(pkg.id)
-    setExpandedPackageId((current) => (current === pkg.id ? null : pkg.id))
+  /** Mobile: sempre seleciona Prime e abre card inline abaixo dele. */
+  function openMobileGroup(group: GarnishGroup) {
+    setSelectedGroup(group)
+    setMobileExpandedGroup(group)
+    selectPrimeForGroup(group)
+    mobileExpandInitialized.current = true
   }
+
+  function handleMobilePackageClick(pkg: PackageRow) {
+    const isSamePackage = selectedPackageId === pkg.id
+    const isCurrentlyExpanded = expandedPackageId === pkg.id
+
+    onSelect(pkg.id)
+
+    if (isSamePackage && isCurrentlyExpanded) {
+      setExpandedPackageId(null)
+      return
+    }
+
+    setExpandedPackageId(pkg.id)
+  }
+
+  useEffect(() => {
+    if (mobileExpandInitialized.current) return
+    if (mobileExpandedGroup !== 'with') return
+
+    const prime = sortedWithSides[0]
+    if (!prime) return
+
+    if (!selectedPackageId) {
+      onSelect(prime.id)
+      setExpandedPackageId(prime.id)
+      mobileExpandInitialized.current = true
+      return
+    }
+
+    const selectedInWith = sortedWithSides.some(
+      (pkg) => pkg.id === selectedPackageId,
+    )
+    if (selectedInWith) {
+      setExpandedPackageId(selectedPackageId)
+      mobileExpandInitialized.current = true
+    }
+  }, [mobileExpandedGroup, selectedPackageId, sortedWithSides, onSelect])
 
   const totalCount = packagesWithoutSides.length + packagesWithSides.length
 
@@ -151,31 +241,6 @@ export default function QuotePackageStepExplorer({
       <p className="text-sm text-cdl-muted">Nenhum pacote disponível.</p>
     )
   }
-
-  const packageList = (packages: PackageRow[]) => (
-    <div className="space-y-3">
-      {packages.map((pkg) => (
-        <div key={pkg.id}>
-          <PackageCodeOption
-            pkg={pkg}
-            active={selectedPackageId === pkg.id}
-            onClick={() => handlePackageClick(pkg)}
-          />
-          {expandedPackageId === pkg.id ? (
-            <div className="mt-3">
-              <QuotePackageSummary
-                pkg={pkg}
-                allPackages={allPackages}
-                language={language}
-                sidesPricePerPerson={sidesPricePerPerson}
-                selected={selectedPackageId === pkg.id}
-              />
-            </div>
-          ) : null}
-        </div>
-      ))}
-    </div>
-  )
 
   const mobileGroupSection = (
     group: GarnishGroup,
@@ -191,13 +256,10 @@ export default function QuotePackageStepExplorer({
       >
         <button
           type="button"
-          onClick={() => {
-            selectGroup(group)
-            setMobileExpandedGroup(group)
-          }}
+          onClick={() => openMobileGroup(group)}
           className="flex w-full items-center justify-between gap-4 p-5 text-left transition-colors hover:bg-cdl-hover"
         >
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1">
             <span className="text-lg font-extrabold text-cdl-title">{title}</span>
             <span className="text-sm text-cdl-muted">
               {packages.length}{' '}
@@ -217,7 +279,15 @@ export default function QuotePackageStepExplorer({
         </button>
         {expanded ? (
           <div className="border-t border-cdl-border-subtle p-4">
-            {packageList(packages)}
+            <MobilePackageList
+              packages={packages}
+              selectedPackageId={selectedPackageId}
+              expandedPackageId={expandedPackageId}
+              allPackages={allPackages}
+              language={language}
+              sidesPricePerPerson={sidesPricePerPerson}
+              onPackageClick={handleMobilePackageClick}
+            />
           </div>
         ) : null}
       </section>
@@ -226,7 +296,7 @@ export default function QuotePackageStepExplorer({
 
   return (
     <div className="space-y-3">
-      {/* Desktop — 3 colunas sempre visíveis */}
+      {/* Desktop — 3 colunas (inalterado) */}
       <div className="hidden lg:block">
         <BackofficeCascadeLayout>
           <BackofficeCascadePanel
@@ -241,7 +311,7 @@ export default function QuotePackageStepExplorer({
                   count={sortedWithSides.length}
                   badgeLabel="Com guarnições"
                   active={selectedGroup === 'with'}
-                  onClick={() => selectGroup('with')}
+                  onClick={() => selectGroupDesktop('with')}
                 />
               ) : null}
               {sortedWithoutSides.length > 0 ? (
@@ -250,7 +320,7 @@ export default function QuotePackageStepExplorer({
                   count={sortedWithoutSides.length}
                   badgeLabel="Sem guarnições"
                   active={selectedGroup === 'without'}
-                  onClick={() => selectGroup('without')}
+                  onClick={() => selectGroupDesktop('without')}
                 />
               ) : null}
             </div>
@@ -291,7 +361,7 @@ export default function QuotePackageStepExplorer({
         </BackofficeCascadeLayout>
       </div>
 
-      {/* Mobile — card inline abaixo do item clicado */}
+      {/* Mobile — detalhe inline logo abaixo do pacote clicado */}
       {sortedWithSides.length > 0
         ? mobileGroupSection(
             'with',
