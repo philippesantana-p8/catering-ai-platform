@@ -2,6 +2,8 @@ import {
   getGrillPhotoDetailLabel,
 } from '@/Lib/grillPhotoStatus'
 import { getCustomerDisplayNameFromQuote } from '@/Lib/getCustomerDisplayName'
+import { buildQuoteReviewPackageSummaryFromQuote } from '@/components/quote-review/mapQuoteDetailToQuoteReview'
+import QuoteReviewPackageCdlSection from '@/components/quote-review/QuoteReviewPackageCdlSection'
 import {
   type QuoteDetail,
   displayValue,
@@ -12,7 +14,6 @@ import {
   getAdditionalImage,
   getAdditionalLabel,
   getDiscount,
-  getPackageDescription,
   getPackageName,
   getZipCode,
   groupAdditionalsByCategory,
@@ -26,7 +27,6 @@ import {
   RESERVATION_PERCENTAGE,
 } from '../../../Lib/cdlCommercialRules'
 import {
-  formatCountOrDash,
   formatMoneyOrDash,
   getChargedMilesFromSnapshot,
   readQuoteSnapshot,
@@ -161,7 +161,6 @@ function IconTeam() {
 export default function QuoteDetailView({ quote }: { quote: QuoteDetail }) {
   const lang = quote.language ?? 'pt'
   const packageName = getPackageName(quote)
-  const packageDescription = getPackageDescription(quote)
   const additionalItems = quote.additional_items ?? []
   const groupedAdditionals = groupAdditionalsByCategory(additionalItems, lang)
   const discount = getDiscount(quote)
@@ -173,6 +172,7 @@ export default function QuoteDetailView({ quote }: { quote: QuoteDetail }) {
     .join(' · ')
 
   const snapshot = readQuoteSnapshot(quote)
+  const packageSummary = buildQuoteReviewPackageSummaryFromQuote(quote, snapshot)
   const guestCounts = snapshot.guestCounts
   const chargedMiles = getChargedMilesFromSnapshot(
     snapshot.mileageDistance,
@@ -302,39 +302,15 @@ export default function QuoteDetailView({ quote }: { quote: QuoteDetail }) {
 
         <div className="quote-proposal-grid-2">
           <ProposalSection title="Pacote CDL">
-            <p className="quote-proposal-package-name">
-              {displayValue(packageName)}
-            </p>
-            {packageDescription && (
-              <p className="quote-proposal-package-desc">{packageDescription}</p>
-            )}
-            <div className="quote-proposal-highlight-grid">
-              <div className="quote-proposal-highlight-card">
-                <span className="quote-proposal-label">Convidados físicos</span>
-                <p className="quote-proposal-highlight-value">
-                  {formatCountOrDash(snapshot.physicalGuestCount)}
-                </p>
-              </div>
-              <div className="quote-proposal-highlight-card">
-                <span className="quote-proposal-label">Pessoas cobradas equivalentes</span>
-                <p className="quote-proposal-highlight-value">
-                  {formatCountOrDash(snapshot.billableGuestCount)}
-                </p>
-              </div>
-              <div className="quote-proposal-highlight-card quote-proposal-highlight-card--price">
-                <span className="quote-proposal-label">Valor do pacote</span>
-                <p className="quote-proposal-highlight-value">
-                  {formatMoneyOrDash(snapshot.packageTotal)}
-                </p>
-                {snapshot.packageUnitPrice != null &&
-                  snapshot.billableGuestCount != null &&
-                  snapshot.billableGuestCount > 0 && (
-                  <p className="quote-proposal-muted mt-1 text-xs">
-                    {formatCurrency(snapshot.packageUnitPrice)} × {snapshot.billableGuestCount}
-                  </p>
-                )}
-              </div>
-            </div>
+            <QuoteReviewPackageCdlSection
+              packageName={packageName ?? null}
+              packageImageUrl={quote.package_image_url}
+              packageSummary={packageSummary}
+              physicalGuestCount={snapshot.physicalGuestCount}
+              billableGuestCount={snapshot.billableGuestCount}
+              packageTotal={snapshot.packageTotal}
+              packageUnitPrice={snapshot.packageUnitPrice}
+            />
           </ProposalSection>
 
           <ProposalSection title="Convidados e cobrança">

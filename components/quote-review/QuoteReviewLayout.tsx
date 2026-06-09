@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react'
 import CatalogImageFrame from '@/components/CatalogImageFrame'
 import CdlBrandLogo from '@/components/CdlBrandLogo'
+import QuoteReviewPackageCdlSection from '@/components/quote-review/QuoteReviewPackageCdlSection'
 import {
   CdlImportantRulesPanel,
   CdlPdfPoliciesSection,
@@ -13,10 +14,7 @@ import {
   RESERVATION_PAYMENT_TEXT,
   RESERVATION_PERCENTAGE,
 } from '@/Lib/cdlCommercialRules'
-import {
-  formatCountOrDash,
-  formatMoneyOrDash,
-} from '@/Lib/readQuoteSnapshot'
+import { formatMoneyOrDash } from '@/Lib/readQuoteSnapshot'
 import {
   displayValue,
   formatBool,
@@ -25,7 +23,6 @@ import {
   formatTime,
 } from '@/app/quotes/[id]/quoteDetailTypes'
 import { IconCalendar, IconClock, IconLocation } from './QuoteReviewIcons'
-import type { QuoteReviewPackageSummary } from './quoteReviewPackageSummary'
 import type { QuoteReviewAdditional, QuoteReviewData } from './quoteReviewTypes'
 
 function ProposalSection({
@@ -88,139 +85,6 @@ function getChargedMiles(
 ): number | null {
   if (distance == null || freeLimit == null) return null
   return Math.max(0, distance - freeLimit)
-}
-
-function PackageDetailLine({
-  label,
-  value,
-}: {
-  label: string
-  value: ReactNode
-}) {
-  return (
-    <p className="quote-proposal-package-detail">
-      <span className="quote-proposal-package-detail-label">{label}</span>{' '}
-      {value}
-    </p>
-  )
-}
-
-function PackageSummaryHighlightCard({
-  label,
-  value,
-  subValue,
-  variant = 'default',
-}: {
-  label: string
-  value: ReactNode
-  subValue?: ReactNode
-  variant?: 'default' | 'price' | 'grand-total'
-}) {
-  const variantClass =
-    variant === 'grand-total'
-      ? ' quote-proposal-highlight-card--grand-total'
-      : variant === 'price'
-        ? ' quote-proposal-highlight-card--price'
-        : ''
-
-  return (
-    <div className={`quote-proposal-highlight-card${variantClass}`}>
-      <span className="quote-proposal-label">{label}</span>
-      <p className="quote-proposal-highlight-value">{value}</p>
-      {subValue ? (
-        <p className="quote-proposal-muted mt-1 text-xs">{subValue}</p>
-      ) : null}
-    </div>
-  )
-}
-
-function PackageSummaryCards({
-  summary,
-  fallback,
-}: {
-  summary: QuoteReviewPackageSummary | null | undefined
-  fallback: {
-    physicalGuestCount: number | null
-    billableGuestCount: number | null
-    packageTotal: number | null
-    packageUnitPrice: number | null
-  }
-}) {
-  if (summary) {
-    const garnishValue = summary.hasGarnish
-      ? formatMoneyOrDash(summary.garnishTotalPrice)
-      : '$0.00'
-
-    return (
-      <div className="quote-proposal-highlight-grid">
-        <PackageSummaryHighlightCard
-          label="Convidados físicos"
-          value={formatCountOrDash(fallback.physicalGuestCount)}
-        />
-        <PackageSummaryHighlightCard
-          label="Pessoas cobradas equivalentes"
-          value={formatCountOrDash(summary.chargedPeople)}
-        />
-        <PackageSummaryHighlightCard
-          label="Valor do pacote"
-          value={formatMoneyOrDash(summary.packageTotalPrice)}
-          subValue={
-            summary.chargedPeople > 0
-              ? `${formatCurrency(summary.packageUnitPrice)} × ${summary.chargedPeople}`
-              : undefined
-          }
-          variant="price"
-        />
-        <PackageSummaryHighlightCard
-          label="Valor das guarnições"
-          value={garnishValue}
-          subValue={
-            summary.hasGarnish && summary.chargedPeople > 0
-              ? `${formatCurrency(summary.garnishUnitPrice)} × ${summary.chargedPeople}`
-              : summary.hasGarnish
-                ? undefined
-                : 'Não'
-          }
-          variant="price"
-        />
-        <PackageSummaryHighlightCard
-          label="Valor total"
-          value={formatMoneyOrDash(summary.grandTotalPrice)}
-          subValue={
-            summary.chargedPeople > 0
-              ? `${formatCurrency(summary.totalUnitPrice)} × ${summary.chargedPeople}`
-              : undefined
-          }
-          variant="grand-total"
-        />
-      </div>
-    )
-  }
-
-  return (
-    <div className="quote-proposal-highlight-grid">
-      <PackageSummaryHighlightCard
-        label="Convidados físicos"
-        value={formatCountOrDash(fallback.physicalGuestCount)}
-      />
-      <PackageSummaryHighlightCard
-        label="Pessoas cobradas equivalentes"
-        value={formatCountOrDash(fallback.billableGuestCount)}
-      />
-      <PackageSummaryHighlightCard
-        label="Valor do pacote"
-        value={formatMoneyOrDash(fallback.packageTotal)}
-        subValue={
-          fallback.packageUnitPrice != null &&
-          fallback.billableGuestCount != null &&
-          fallback.billableGuestCount > 0
-            ? `${formatCurrency(fallback.packageUnitPrice)} × ${fallback.billableGuestCount}`
-            : undefined
-        }
-        variant="price"
-      />
-    </div>
-  )
 }
 
 export default function QuoteReviewLayout({
@@ -350,37 +214,14 @@ export default function QuoteReviewLayout({
 
         <div className="quote-proposal-grid-2">
           <ProposalSection title="Pacote CDL">
-            <p className="quote-proposal-package-name">
-              {displayValue(data.packageName)}
-            </p>
-            <div className="mt-4 w-full overflow-hidden rounded-2xl border border-neutral-200 bg-white">
-              <CatalogImageFrame
-                src={data.packageImageUrl}
-                alt={data.packageName ?? 'Pacote'}
-                variant="package"
-                fallbackLabel="Imagem do pacote não cadastrada"
-                rounded="none"
-                className="!aspect-square !min-h-0 !max-h-[min(85vw,20rem)] !bg-white sm:!aspect-[4/3] sm:!max-h-[18rem]"
-              />
-            </div>
-            {data.packageSummary?.packageItemsDescription ? (
-              <PackageDetailLine
-                label="Itens do pacote:"
-                value={data.packageSummary.packageItemsDescription}
-              />
-            ) : null}
-            <PackageDetailLine
-              label="Guarnições:"
-              value={data.packageSummary?.garnishDescription ?? 'Não'}
-            />
-            <PackageSummaryCards
-              summary={data.packageSummary}
-              fallback={{
-                physicalGuestCount: data.physicalGuestCount,
-                billableGuestCount: data.billableGuestCount,
-                packageTotal: data.packageTotal,
-                packageUnitPrice: data.packageUnitPrice,
-              }}
+            <QuoteReviewPackageCdlSection
+              packageName={data.packageName}
+              packageImageUrl={data.packageImageUrl}
+              packageSummary={data.packageSummary}
+              physicalGuestCount={data.physicalGuestCount}
+              billableGuestCount={data.billableGuestCount}
+              packageTotal={data.packageTotal}
+              packageUnitPrice={data.packageUnitPrice}
             />
           </ProposalSection>
 

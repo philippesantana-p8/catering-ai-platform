@@ -5,6 +5,8 @@ import {
 } from '@/Lib/cdlCommercialRules'
 import {
   findBasePackage,
+  getBasePackageKey,
+  getPackageCatalogName,
   getPackageCatalogPrice,
   getPackageCatalogVariant,
   getPackageSidesDescription,
@@ -121,6 +123,41 @@ function getCdlPackageDefinition(packageKey: string | null | undefined) {
   return CDL_PACKAGES.find((pkg) => pkg.package_key === normalizedKey) ?? null
 }
 
+function getCdlBasePackageDefinition(packageKey: string | null | undefined) {
+  const baseKey = getBasePackageKey((packageKey ?? '').trim())
+  if (!baseKey) return null
+  return CDL_PACKAGES.find((pkg) => pkg.package_key === baseKey) ?? null
+}
+
+function getCdlBaseUnitPrice(packageKey: string | null | undefined): number | null {
+  const definition = getCdlBasePackageDefinition(packageKey)
+  return definition?.price_per_person ?? null
+}
+
+function packageNameIndicatesGarnish(
+  pkg: QuoteReviewPackageFields,
+  language: QuoteLanguage = 'pt',
+): boolean {
+  const name = getPackageCatalogName(pkg, language).toLowerCase()
+  return (
+    name.includes('guarni') ||
+    name.includes('guarnicion') ||
+    name.includes('side dish')
+  )
+}
+
+function packageLikelyHasGarnish(
+  pkg: QuoteReviewPackageFields,
+  language: QuoteLanguage = 'pt',
+): boolean {
+  const packageKey = (pkg.package_key ?? '').trim()
+  return (
+    packageKey.endsWith('+') ||
+    packageNameIndicatesGarnish(pkg, language) ||
+    getPackageCatalogVariant(pkg) === 'with_sides'
+  )
+}
+
 export function packageItemsDescription(
   pkg: QuoteReviewPackageFields | null,
   language: QuoteLanguage = 'pt',
@@ -202,6 +239,7 @@ export function totalUnitPrice(pkg: QuoteReviewPackageFields | null): number {
   return getPackageCatalogPrice(pkg)
 }
 
+/** Preço base do pacote sem guarnições. */
 export function packageUnitPrice(
   pkg: QuoteReviewPackageFields | null,
   allPackages: ReadonlyArray<PackageCatalogFields> = [],
@@ -210,25 +248,49 @@ export function packageUnitPrice(
   if (!pkg) return 0
 
   const registered = getPackageCatalogPrice(pkg)
+  const packageKey = (pkg.package_key ?? '').trim()
+  const likelyHasGarnish = packageLikelyHasGarnish(pkg)
   const basePackage = findBasePackage(pkg, allPackages)
-  const sidesPricing =
-    getPackageCatalogVariant(pkg) === 'with_sides'
-      ? resolvePackageSidesPricing(pkg, basePackage, sidesPricePerPerson)
-      : null
+  const catalogBasePrice = getCdlBaseUnitPrice(packageKey)
+  const sidesPricing = likelyHasGarnish
+    ? resolvePackageSidesPricing(
+        pkg,
+        basePackage ??
+          (catalogBasePrice != null
+            ? { package_key: getBasePackageKey(packageKey), price_per_person: catalogBasePrice }
+            : null),
+        sidesPricePerPerson,
+      )
+    : null
 
-  if (sidesPricing?.basePricePerPerson != null) {
-    if (sidesPricing.mode === 'breakdown') {
-      return sidesPricing.basePricePerPerson
-    }
+  if (sidesPricing?.mode === 'breakdown' && sidesPricing.basePricePerPerson != null) {
     return sidesPricing.basePricePerPerson
   }
 
-  if ((pkg.package_key ?? '').trim().endsWith('+') && sidesPricePerPerson > 0) {
-    return Math.max(0, registered - sidesPricePerPerson)
+  if (basePackage) {
+    return getPackageCatalogPrice(basePackage)
+  }
+
+  if (catalogBasePrice != null) {
+    return catalogBasePrice
+  }
+
+  if (likelyHasGarnish && sidesPricePerPerson > 0) {
+    const derivedBase = registered - sidesPricePerPerson
+    if (derivedBase > 0 && derivedBase < registered) {
+      return roundMoney(derivedBase)
+    }
+  }
+
+  if (sidesPricing?.basePricePerPerson != null) {
+    return sidesPricing.basePricePerPerson
   }
 
   return registered
 }
+
+/** Alias semântico para o preço base sem guarnições. */
+export const packageBaseUnitPrice = packageUnitPrice
 
 export function garnishUnitPrice(
   pkg: QuoteReviewPackageFields | null,
@@ -239,17 +301,38 @@ export function garnishUnitPrice(
 
   const registered = getPackageCatalogPrice(pkg)
   const base = packageUnitPrice(pkg, allPackages, sidesPricePerPerson)
+  const packageKey = (pkg.package_key ?? '').trim()
+  const likelyHasGarnish = packageLikelyHasGarnish(pkg)
+
+  if (!likelyHasGarnish) {
+    return 0
+  }
+
   const basePackage = findBasePackage(pkg, allPackages)
-  const sidesPricing =
-    getPackageCatalogVariant(pkg) === 'with_sides'
-      ? resolvePackageSidesPricing(pkg, basePackage, sidesPricePerPerson)
-      : null
+  const catalogBasePrice = getCdlBaseUnitPrice(packageKey)
+  const sidesPricing = resolvePackageSidesPricing(
+    pkg,
+    basePackage ??
+      (catalogBasePrice != null
+        ? { package_key: getBasePackageKey(packageKey), price_per_person: catalogBasePrice }
+        : null),
+    sidesPricePerPerson,
+  )
 
   if (sidesPricing?.mode === 'breakdown') {
     return sidesPricing.sidesPricePerPerson
   }
 
-  return Math.max(0, roundMoney(registered - base))
+  const diff = roundMoney(registered - base)
+  if (diff > 0) {
+    return diff
+  }
+
+  if (sidesPricePerPerson > 0) {
+    return sidesPricePerPerson
+  }
+
+  return 0
 }
 
 export function chargedPeople(count: number | null | undefined): number {
@@ -282,11 +365,17 @@ export function hasGarnish(input: {
   fromWithSidesSection?: boolean
   garnishUnitPrice: number
   garnishDescription: string | null
+  language?: QuoteLanguage
 }): boolean {
-  const packageKey = (input.pkg?.package_key ?? '').trim()
+  if (!input.pkg) return false
+
+  const packageKey = (input.pkg.package_key ?? '').trim()
+  const language = input.language ?? 'pt'
+
   return (
     Boolean(input.fromWithSidesSection) ||
     packageKey.endsWith('+') ||
+    packageNameIndicatesGarnish(input.pkg, language) ||
     input.garnishUnitPrice > 0 ||
     Boolean(input.garnishDescription?.trim())
   )
@@ -310,6 +399,7 @@ export function buildQuoteReviewPackageSummary(
     fromWithSidesSection: input.fromWithSidesSection,
     garnishUnitPrice: garnishPerPerson,
     garnishDescription: garnishItems,
+    language,
   })
   const basePerPerson = packageUnitPrice(
     input.pkg,
