@@ -157,14 +157,14 @@ export function BackofficeInput({
   disabled,
 }: {
   type?: string
-  value: string | number
+  value: string | number | boolean | null | undefined
   onChange: (value: string) => void
   disabled?: boolean
 }) {
   return (
     <input
       type={type}
-      value={value}
+      value={value == null ? '' : String(value)}
       disabled={disabled}
       onChange={(e) => onChange(e.target.value)}
       className={inputClass}
