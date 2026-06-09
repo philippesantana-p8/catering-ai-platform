@@ -3,6 +3,23 @@
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import BackofficeTableShell from '@/components/BackofficeTableShell'
+import {
+  BackofficeAccentBadge,
+  BackofficeBtnDanger,
+  BackofficeBtnOutline,
+  BackofficeBtnPrimary,
+  BackofficeBtnSecondary,
+  BackofficeCardGrid,
+  BackofficeCardImage,
+  BackofficeEmptyState,
+  BackofficeEntityCard,
+  BackofficeField,
+  BackofficeFormCard,
+  BackofficeInput,
+  BackofficeMetaRow,
+  BackofficeSelect,
+  BackofficeStatusBadge,
+} from '@/components/backoffice/BackofficeCardPrimitives'
 import CatalogImageFrame from '@/components/CatalogImageFrame'
 import type { PackageListItem } from '@/Lib/fetchPackages'
 import type { PackagesInsertPayload } from '@/Lib/packagesTableSchema'
@@ -21,23 +38,6 @@ const EMPTY_ROW: PackagesInsertPayload = {
   image_url: '',
   active: true,
 }
-
-const TABLE_COLUMNS: Array<{
-  key: keyof PackagesInsertPayload | 'actions'
-  label: string
-  type?: 'text' | 'number'
-}> = [
-  { key: 'package_key', label: 'Chave', type: 'text' },
-  { key: 'package_name', label: 'Nome', type: 'text' },
-  { key: 'label_pt', label: 'PT', type: 'text' },
-  { key: 'label_en', label: 'EN', type: 'text' },
-  { key: 'label_es', label: 'ES', type: 'text' },
-  { key: 'price_per_person', label: 'Preço/pessoa', type: 'number' },
-  { key: 'currency_code', label: 'Moeda', type: 'text' },
-  { key: 'display_order', label: 'Ordem', type: 'number' },
-  { key: 'image_url', label: 'Imagem URL', type: 'text' },
-  { key: 'actions', label: 'Ações' },
-]
 
 async function fetchPackagesFromApi(
   query: string,
@@ -59,6 +59,93 @@ async function fetchPackagesFromApi(
     throw new Error(result.error ?? 'Não foi possível buscar pacotes.')
   }
   return result.data ?? []
+}
+
+function formatPrice(value: number | null | undefined, currency = 'USD') {
+  const amount = Number(value ?? 0)
+  return `${currency === 'USD' ? '$' : ''}${amount.toFixed(2)}`
+}
+
+function PackageEditFields({
+  draft,
+  setDraft,
+}: {
+  draft: PackagesInsertPayload
+  setDraft: React.Dispatch<React.SetStateAction<PackagesInsertPayload>>
+}) {
+  return (
+    <>
+      <BackofficeField label="Chave">
+        <BackofficeInput
+          value={draft.package_key ?? ''}
+          onChange={(v) => setDraft((c) => ({ ...c, package_key: v }))}
+        />
+      </BackofficeField>
+      <BackofficeField label="Nome">
+        <BackofficeInput
+          value={draft.package_name ?? ''}
+          onChange={(v) => setDraft((c) => ({ ...c, package_name: v }))}
+        />
+      </BackofficeField>
+      <BackofficeField label="PT">
+        <BackofficeInput
+          value={draft.label_pt ?? ''}
+          onChange={(v) => setDraft((c) => ({ ...c, label_pt: v }))}
+        />
+      </BackofficeField>
+      <BackofficeField label="EN">
+        <BackofficeInput
+          value={draft.label_en ?? ''}
+          onChange={(v) => setDraft((c) => ({ ...c, label_en: v }))}
+        />
+      </BackofficeField>
+      <BackofficeField label="ES">
+        <BackofficeInput
+          value={draft.label_es ?? ''}
+          onChange={(v) => setDraft((c) => ({ ...c, label_es: v }))}
+        />
+      </BackofficeField>
+      <BackofficeField label="Preço / pessoa">
+        <BackofficeInput
+          type="number"
+          value={draft.price_per_person ?? 0}
+          onChange={(v) =>
+            setDraft((c) => ({ ...c, price_per_person: Number(v) }))
+          }
+        />
+      </BackofficeField>
+      <BackofficeField label="Moeda">
+        <BackofficeInput
+          value={draft.currency_code ?? 'USD'}
+          onChange={(v) => setDraft((c) => ({ ...c, currency_code: v }))}
+        />
+      </BackofficeField>
+      <BackofficeField label="Ordem">
+        <BackofficeInput
+          type="number"
+          value={draft.display_order ?? 0}
+          onChange={(v) =>
+            setDraft((c) => ({ ...c, display_order: Number(v) }))
+          }
+        />
+      </BackofficeField>
+      <BackofficeField label="Imagem URL" className="sm:col-span-2 lg:col-span-3">
+        <BackofficeInput
+          value={draft.image_url ?? ''}
+          onChange={(v) => setDraft((c) => ({ ...c, image_url: v }))}
+        />
+      </BackofficeField>
+      <BackofficeField label="Status">
+        <BackofficeSelect
+          value={draft.active === false ? 'false' : 'true'}
+          onChange={(v) => setDraft((c) => ({ ...c, active: v === 'true' }))}
+        >
+          <option value="true">Ativo</option>
+          <option value="false">Inativo</option>
+        </BackofficeSelect>
+      </BackofficeField>
+    </>
+  )
 }
 
 export default function PackagesDashboard({
@@ -223,59 +310,112 @@ export default function PackagesDashboard({
     }
   }
 
-  function renderCell(
-    pkg: PackageListItem,
-    key: keyof PackagesInsertPayload,
-    type: 'text' | 'number' = 'text',
-  ) {
-    if (key === 'image_url') {
-      const url =
-        editingId === pkg.id
-          ? String(draft.image_url ?? '').trim() || null
-          : pkg.image_url?.trim() || null
-      const label = pkg.package_key ?? pkg.label_pt ?? 'Pacote'
+  function renderPackageCard(pkg: PackageListItem) {
+    const isEditing = editingId === pkg.id
+    const packageKey = pkg.package_key ?? '—'
+    const displayName = pkg.label_pt ?? pkg.package_name ?? packageKey
+    const withSides = packageKey.trim().endsWith('+')
+    const imageUrl = isEditing
+      ? String(draft.image_url ?? '').trim() || null
+      : pkg.image_url?.trim() || null
+    const currency = pkg.currency_code ?? 'USD'
+
+    if (isEditing) {
       return (
-        <div className="flex max-w-[10rem] flex-col gap-2">
-          <CatalogImageFrame
-            src={url}
-            alt={label}
-            variant="package"
-            size="thumbnail"
-            rounded="all"
-          />
-          {editingId === pkg.id ? (
-            <input
-              type="text"
-              value={String(draft.image_url ?? '')}
-              onChange={(e) =>
-                setDraft((current) => ({ ...current, image_url: e.target.value }))
-              }
-              className="w-full rounded-lg border border-cdl-border bg-cdl-inset px-2 py-1.5 text-xs text-cdl-fg"
+        <BackofficeFormCard
+          key={pkg.id}
+          title={`Editar pacote · ${packageKey}`}
+          actions={
+            <>
+              <BackofficeBtnPrimary
+                onClick={() => void saveRow()}
+                disabled={saving}
+              >
+                {saving ? 'Salvando…' : 'Salvar'}
+              </BackofficeBtnPrimary>
+              <BackofficeBtnSecondary onClick={cancelEdit}>Cancelar</BackofficeBtnSecondary>
+              <BackofficeBtnOutline
+                accent
+                onClick={() => triggerUpload(pkg.id)}
+                disabled={uploadingId === pkg.id}
+              >
+                {uploadingId === pkg.id ? 'Enviando…' : 'Enviar foto'}
+              </BackofficeBtnOutline>
+            </>
+          }
+        >
+          <div className="col-span-full mb-2 max-w-xs">
+            <CatalogImageFrame
+              src={imageUrl}
+              alt={displayName}
+              variant="package"
+              fallbackLabel="Sem imagem cadastrada"
+              rounded="all"
+              className="!aspect-[4/3] !min-h-0 !max-h-none"
             />
-          ) : (
-            <span className="line-clamp-2 text-xs text-cdl-muted">{url ?? '—'}</span>
-          )}
-        </div>
+          </div>
+          <PackageEditFields draft={draft} setDraft={setDraft} />
+        </BackofficeFormCard>
       )
     }
 
-    if (editingId === pkg.id) {
-      return (
-        <input
-          type={type}
-          value={String(draft[key] ?? '')}
-          onChange={(e) =>
-            setDraft((current) => ({
-              ...current,
-              [key]: type === 'number' ? Number(e.target.value) : e.target.value,
-            }))
-          }
-          className="w-full min-w-[80px] rounded-lg border border-cdl-border bg-cdl-inset px-2 py-1.5 text-xs text-cdl-fg"
-        />
-      )
-    }
-    const value = pkg[key as keyof PackageListItem]
-    return <span className="text-sm text-cdl-fg">{String(value ?? '—')}</span>
+    return (
+      <BackofficeEntityCard
+        key={pkg.id}
+        inactive={pkg.active === false}
+        image={
+          <BackofficeCardImage>
+            <CatalogImageFrame
+              src={imageUrl}
+              alt={displayName}
+              variant="package"
+              fallbackLabel="Sem imagem cadastrada"
+              rounded="none"
+              className="!h-full !min-h-0 !max-h-none !w-full !rounded-none"
+            />
+          </BackofficeCardImage>
+        }
+        actions={
+          <>
+            <BackofficeBtnSecondary onClick={() => startEdit(pkg)}>
+              Editar
+            </BackofficeBtnSecondary>
+            <BackofficeBtnOutline
+              accent
+              onClick={() => triggerUpload(pkg.id)}
+              disabled={uploadingId === pkg.id}
+            >
+              {uploadingId === pkg.id ? 'Enviando…' : 'Foto'}
+            </BackofficeBtnOutline>
+            {pkg.active !== false ? (
+              <BackofficeBtnDanger onClick={() => void deactivate(pkg)}>
+                Inativar
+              </BackofficeBtnDanger>
+            ) : null}
+          </>
+        }
+      >
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-bold uppercase tracking-wider text-neutral-500">
+            {packageKey}
+          </span>
+          {withSides ? <BackofficeAccentBadge>Com guarnições</BackofficeAccentBadge> : null}
+          <BackofficeStatusBadge active={pkg.active !== false} />
+        </div>
+        <h3 className="text-xl font-bold text-neutral-900">{displayName}</h3>
+        <p className="text-2xl font-black text-red-600">
+          {formatPrice(pkg.price_per_person, currency)}
+          <span className="ml-1 text-sm font-semibold text-neutral-500">
+            / pessoa
+          </span>
+        </p>
+        <BackofficeMetaRow label="Moeda" value={currency} />
+        <BackofficeMetaRow label="Ordem" value={pkg.display_order ?? 0} />
+        {pkg.label_en ? (
+          <BackofficeMetaRow label="EN" value={pkg.label_en} />
+        ) : null}
+      </BackofficeEntityCard>
+    )
   }
 
   return (
@@ -301,7 +441,7 @@ export default function PackagesDashboard({
           </button>
           <Link
             href="/packages/images#pacotes"
-            className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-cdl-border bg-cdl-surface px-5 py-3 text-sm font-bold uppercase tracking-wider text-cdl-fg"
+            className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-neutral-200 bg-white px-5 py-3 text-sm font-bold text-neutral-800 shadow-sm"
           >
             Imagens
           </Link>
@@ -316,146 +456,34 @@ export default function PackagesDashboard({
         onChange={(e) => void handleFileSelected(e.target.files?.[0])}
       />
 
-      <div className="overflow-x-auto rounded-2xl border border-cdl-border bg-cdl-surface shadow-cdl">
-        <table className="w-full min-w-[1100px] border-collapse text-left">
-          <thead>
-            <tr className="border-b border-cdl-border bg-cdl-inset/50">
-              {TABLE_COLUMNS.map((col) => (
-                <th
-                  key={col.key}
-                  className="px-3 py-3 text-xs font-bold uppercase tracking-wider text-cdl-muted"
+      <BackofficeCardGrid>
+        {editingId === 'new' ? (
+          <BackofficeFormCard
+            title="Novo pacote"
+            actions={
+              <>
+                <BackofficeBtnPrimary
+                  onClick={() => void saveRow()}
+                  disabled={saving}
                 >
-                  {col.label}
-                </th>
-              ))}
-              <th className="px-3 py-3 text-xs font-bold uppercase tracking-wider text-cdl-muted">
-                Status
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {editingId === 'new' ? (
-              <tr className="border-b border-cdl-border bg-[color-mix(in_srgb,var(--brand-accent)_8%,transparent)]">
-                {TABLE_COLUMNS.filter((c) => c.key !== 'actions').map((col) => (
-                  <td key={col.key} className="px-3 py-2">
-                    <input
-                      type={col.type ?? 'text'}
-                      value={String(draft[col.key as keyof PackagesInsertPayload] ?? '')}
-                      onChange={(e) =>
-                        setDraft((current) => ({
-                          ...current,
-                          [col.key as keyof PackagesInsertPayload]:
-                            col.type === 'number'
-                              ? Number(e.target.value)
-                              : e.target.value,
-                        }))
-                      }
-                      className="w-full min-w-[80px] rounded-lg border border-cdl-border bg-cdl-inset px-2 py-1.5 text-xs"
-                    />
-                  </td>
-                ))}
-                <td className="px-3 py-2">
-                  <div className="flex flex-wrap gap-1">
-                    <button
-                      type="button"
-                      onClick={() => void saveRow()}
-                      disabled={saving}
-                      className="rounded-lg bg-[var(--brand-primary)] px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50"
-                    >
-                      Salvar
-                    </button>
-                    <button
-                      type="button"
-                      onClick={cancelEdit}
-                      className="rounded-lg border border-cdl-border px-3 py-1.5 text-xs font-bold"
-                    >
-                      Cancelar
-                    </button>
-                  </div>
-                </td>
-                <td className="px-3 py-2 text-xs text-cdl-muted">Novo</td>
-              </tr>
-            ) : null}
+                  {saving ? 'Salvando…' : 'Salvar'}
+                </BackofficeBtnPrimary>
+                <BackofficeBtnSecondary onClick={cancelEdit}>
+                  Cancelar
+                </BackofficeBtnSecondary>
+              </>
+            }
+          >
+            <PackageEditFields draft={draft} setDraft={setDraft} />
+          </BackofficeFormCard>
+        ) : null}
 
-            {filteredPackages.length === 0 && editingId !== 'new' ? (
-              <tr>
-                <td
-                  colSpan={TABLE_COLUMNS.length + 1}
-                  className="px-4 py-10 text-center text-cdl-muted"
-                >
-                  {loading ? 'Carregando…' : 'Nenhum pacote encontrado.'}
-                </td>
-              </tr>
-            ) : (
-              filteredPackages.map((pkg) => (
-                <tr
-                  key={pkg.id}
-                  className={`border-b border-cdl-border ${pkg.active === false ? 'opacity-50' : ''}`}
-                >
-                  {TABLE_COLUMNS.filter((c) => c.key !== 'actions').map((col) => (
-                    <td key={col.key} className="px-3 py-2 align-top">
-                      {renderCell(pkg, col.key as keyof PackagesInsertPayload, col.type)}
-                    </td>
-                  ))}
-                  <td className="px-3 py-2 align-top">
-                    <div className="flex flex-wrap gap-1">
-                      {editingId === pkg.id ? (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => void saveRow()}
-                            disabled={saving}
-                            className="rounded-lg bg-[var(--brand-primary)] px-2 py-1 text-xs font-bold text-white disabled:opacity-50"
-                          >
-                            Salvar
-                          </button>
-                          <button
-                            type="button"
-                            onClick={cancelEdit}
-                            className="rounded-lg border border-cdl-border px-2 py-1 text-xs font-bold"
-                          >
-                            Cancelar
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => startEdit(pkg)}
-                            className="rounded-lg border border-cdl-border px-2 py-1 text-xs font-bold"
-                          >
-                            Editar
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => triggerUpload(pkg.id)}
-                            disabled={uploadingId === pkg.id}
-                            className="rounded-lg border border-[var(--brand-accent)] px-2 py-1 text-xs font-bold text-[var(--brand-accent)] disabled:opacity-50"
-                          >
-                            {uploadingId === pkg.id ? '…' : 'Foto'}
-                          </button>
-                          {pkg.active !== false ? (
-                            <button
-                              type="button"
-                              onClick={() => void deactivate(pkg)}
-                              className="rounded-lg border border-cdl-action px-2 py-1 text-xs font-bold text-cdl-action"
-                            >
-                              Inativar
-                            </button>
-                          ) : null}
-                        </>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-3 py-2 text-xs text-cdl-muted">
-                    {pkg.active === false ? 'Inativo' : 'Ativo'}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+        {filteredPackages.length === 0 && editingId !== 'new' ? (
+          <BackofficeEmptyState loading={loading} message="Nenhum pacote encontrado." />
+        ) : (
+          filteredPackages.map((pkg) => renderPackageCard(pkg))
+        )}
+      </BackofficeCardGrid>
     </BackofficeTableShell>
   )
 }

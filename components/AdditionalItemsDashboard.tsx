@@ -3,15 +3,28 @@
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import BackofficeTableShell from '@/components/BackofficeTableShell'
+import {
+  BackofficeBtnDanger,
+  BackofficeBtnOutline,
+  BackofficeBtnPrimary,
+  BackofficeBtnSecondary,
+  BackofficeCardGrid,
+  BackofficeCardImage,
+  BackofficeEmptyState,
+  BackofficeEntityCard,
+  BackofficeField,
+  BackofficeFormCard,
+  BackofficeInput,
+  BackofficeMetaRow,
+  BackofficeSelect,
+  BackofficeStatusBadge,
+} from '@/components/backoffice/BackofficeCardPrimitives'
 import CatalogImageFrame from '@/components/CatalogImageFrame'
 import type { AdditionalItemListItem } from '@/Lib/fetchAdditionalItems'
 import { getAdditionalItemPrice } from '@/Lib/getAdditionalItemPrice'
 import type { AdditionalItemsInsertPayload } from '@/Lib/additionalItemsTableSchema'
 
 type ActiveFilter = 'active' | 'all'
-
-type DataColumnKey = keyof AdditionalItemsInsertPayload
-type TableColumnKey = DataColumnKey | 'actions'
 
 const ACCEPTED_IMAGE_TYPES = new Set([
   'image/png',
@@ -35,25 +48,6 @@ const EMPTY_ROW: AdditionalItemsInsertPayload = {
   active: true,
 }
 
-const TABLE_COLUMNS: Array<{
-  key: TableColumnKey
-  label: string
-  type?: 'text' | 'number'
-}> = [
-  { key: 'item_key', label: 'Chave', type: 'text' },
-  { key: 'item_name', label: 'Nome', type: 'text' },
-  { key: 'label_pt', label: 'PT', type: 'text' },
-  { key: 'category_pt', label: 'Categoria', type: 'text' },
-  { key: 'price', label: 'Preço', type: 'number' },
-  { key: 'charge_type', label: 'charge_type', type: 'text' },
-  { key: 'pricing_type', label: 'pricing_type', type: 'text' },
-  { key: 'unit_label', label: 'unit_label', type: 'text' },
-  { key: 'currency_code', label: 'Moeda', type: 'text' },
-  { key: 'display_order', label: 'Ordem', type: 'number' },
-  { key: 'image_url', label: 'IMAGE_URL', type: 'text' },
-  { key: 'actions', label: 'Ações' },
-]
-
 async function fetchItemsFromApi(
   query: string,
   activeFilter: ActiveFilter,
@@ -76,21 +70,106 @@ async function fetchItemsFromApi(
   return result.data ?? []
 }
 
-function getImageStatusLabel(
-  item: AdditionalItemListItem,
-  uploadError?: string | null,
-) {
-  if (uploadError) return 'Erro no upload'
-  if (item.image_url?.trim() || item.image_status === 'uploaded') {
-    return 'Imagem enviada'
+function chargeLabel(item: AdditionalItemListItem | AdditionalItemsInsertPayload) {
+  if (item.pricing_type === 'PER_PERSON' || item.charge_type === 'PERSON') {
+    return 'por pessoa'
   }
-  return 'Sem imagem'
+  return 'por unidade'
 }
 
-function imageStatusClass(label: string) {
-  if (label === 'Imagem enviada') return 'text-cdl-success'
-  if (label === 'Erro no upload') return 'text-cdl-action'
-  return 'text-cdl-muted'
+function ItemEditFields({
+  draft,
+  setDraft,
+}: {
+  draft: AdditionalItemsInsertPayload
+  setDraft: React.Dispatch<React.SetStateAction<AdditionalItemsInsertPayload>>
+}) {
+  return (
+    <>
+      <BackofficeField label="Chave">
+        <BackofficeInput
+          value={draft.item_key ?? ''}
+          onChange={(v) => setDraft((c) => ({ ...c, item_key: v }))}
+        />
+      </BackofficeField>
+      <BackofficeField label="Nome">
+        <BackofficeInput
+          value={draft.item_name ?? ''}
+          onChange={(v) => setDraft((c) => ({ ...c, item_name: v }))}
+        />
+      </BackofficeField>
+      <BackofficeField label="PT">
+        <BackofficeInput
+          value={draft.label_pt ?? ''}
+          onChange={(v) => setDraft((c) => ({ ...c, label_pt: v }))}
+        />
+      </BackofficeField>
+      <BackofficeField label="Categoria">
+        <BackofficeInput
+          value={draft.category_pt ?? ''}
+          onChange={(v) => setDraft((c) => ({ ...c, category_pt: v }))}
+        />
+      </BackofficeField>
+      <BackofficeField label="Preço">
+        <BackofficeInput
+          type="number"
+          value={draft.price ?? 0}
+          onChange={(v) => setDraft((c) => ({ ...c, price: Number(v) }))}
+        />
+      </BackofficeField>
+      <BackofficeField label="Tipo de precificação">
+        <BackofficeSelect
+          value={String(draft.pricing_type ?? 'PER_UNIT')}
+          onChange={(v) => setDraft((c) => ({ ...c, pricing_type: v }))}
+        >
+          <option value="PER_UNIT">Por unidade</option>
+          <option value="PER_PERSON">Por pessoa</option>
+        </BackofficeSelect>
+      </BackofficeField>
+      <BackofficeField label="charge_type">
+        <BackofficeInput
+          value={draft.charge_type ?? 'UNIT'}
+          onChange={(v) => setDraft((c) => ({ ...c, charge_type: v }))}
+        />
+      </BackofficeField>
+      <BackofficeField label="unit_label">
+        <BackofficeInput
+          value={draft.unit_label ?? 'UN'}
+          onChange={(v) => setDraft((c) => ({ ...c, unit_label: v }))}
+        />
+      </BackofficeField>
+      <BackofficeField label="Moeda">
+        <BackofficeInput
+          value={draft.currency_code ?? 'USD'}
+          onChange={(v) => setDraft((c) => ({ ...c, currency_code: v }))}
+        />
+      </BackofficeField>
+      <BackofficeField label="Ordem">
+        <BackofficeInput
+          type="number"
+          value={draft.display_order ?? 0}
+          onChange={(v) =>
+            setDraft((c) => ({ ...c, display_order: Number(v) }))
+          }
+        />
+      </BackofficeField>
+      <BackofficeField label="Imagem URL" className="sm:col-span-2">
+        <BackofficeInput
+          value={draft.image_url ?? ''}
+          onChange={(v) => setDraft((c) => ({ ...c, image_url: v }))}
+        />
+      </BackofficeField>
+      <BackofficeField label="Status">
+        <BackofficeSelect
+          value={draft.active === false ? 'false' : 'true'}
+          onChange={(v) => setDraft((c) => ({ ...c, active: v === 'true' }))}
+        >
+          <option value="true">Ativo</option>
+          <option value="false">Inativo</option>
+        </BackofficeSelect>
+      </BackofficeField>
+    </>
+  )
 }
 
 export default function AdditionalItemsDashboard({
@@ -294,141 +373,108 @@ export default function AdditionalItemsDashboard({
     setItems((current) => current.filter((row) => row.id !== item.id))
   }
 
-  function renderActions(item: AdditionalItemListItem) {
-    if (editingId === item.id) {
+  function renderItemCard(item: AdditionalItemListItem) {
+    const isEditing = editingId === item.id
+    const itemKey = item.item_key ?? '—'
+    const displayName = item.item_name ?? item.label_pt ?? itemKey
+    const imageUrl = isEditing
+      ? String(draft.image_url ?? '').trim() || null
+      : item.image_url?.trim() || null
+    const uploadError = uploadErrors[item.id]
+
+    if (isEditing) {
       return (
-        <div className="flex flex-col gap-1">
-          <button
-            type="button"
-            onClick={() => void saveRow()}
-            disabled={saving}
-            className="rounded-lg bg-[var(--brand-primary)] px-2 py-1 text-xs font-bold text-white disabled:opacity-50"
-          >
-            Salvar
-          </button>
-          <button
-            type="button"
-            onClick={cancelEdit}
-            className="rounded-lg border border-cdl-border px-2 py-1 text-xs font-bold"
-          >
-            Cancelar
-          </button>
-        </div>
+        <BackofficeFormCard
+          key={item.id}
+          title={`Editar item · ${itemKey}`}
+          actions={
+            <>
+              <BackofficeBtnPrimary
+                onClick={() => void saveRow()}
+                disabled={saving}
+              >
+                {saving ? 'Salvando…' : 'Salvar'}
+              </BackofficeBtnPrimary>
+              <BackofficeBtnSecondary onClick={cancelEdit}>Cancelar</BackofficeBtnSecondary>
+              <BackofficeBtnOutline
+                accent
+                onClick={() => triggerUpload(item.id)}
+                disabled={uploadingId === item.id}
+              >
+                {uploadingId === item.id ? 'Enviando…' : 'Enviar imagem'}
+              </BackofficeBtnOutline>
+            </>
+          }
+        >
+          <div className="col-span-full mb-2 max-w-xs">
+            <CatalogImageFrame
+              src={imageUrl}
+              alt={displayName}
+              variant="additionalItem"
+              fallbackLabel="Sem imagem cadastrada"
+              rounded="all"
+              className="!aspect-[4/3] !min-h-0 !max-h-none"
+            />
+          </div>
+          <ItemEditFields draft={draft} setDraft={setDraft} />
+        </BackofficeFormCard>
       )
     }
 
     return (
-      <div className="flex flex-col gap-1">
-        <button
-          type="button"
-          onClick={() => startEdit(item)}
-          className="rounded-lg border border-cdl-border px-2 py-1 text-xs font-bold"
-        >
-          Editar
-        </button>
-        <button
-          type="button"
-          onClick={() => triggerUpload(item.id)}
-          disabled={uploadingId === item.id}
-          className="rounded-lg border border-cdl-border px-2 py-1 text-xs font-bold disabled:opacity-50"
-        >
-          {uploadingId === item.id ? 'Enviando...' : 'Imagem'}
-        </button>
-        {item.active !== false ? (
-          <button
-            type="button"
-            onClick={() => void deactivate(item)}
-            className="rounded-lg border border-cdl-action px-2 py-1 text-xs font-bold text-cdl-action"
-          >
-            Inativar
-          </button>
-        ) : null}
-      </div>
-    )
-  }
-
-  function renderCell(
-    item: AdditionalItemListItem,
-    key: DataColumnKey,
-    type: 'text' | 'number' = 'text',
-  ) {
-    if (key === 'image_url') {
-      const url =
-        editingId === item.id
-          ? String(draft.image_url ?? '').trim() || null
-          : item.image_url?.trim() || null
-      const label = item.item_name ?? item.label_pt ?? item.item_key ?? 'Item'
-      const statusLabel = getImageStatusLabel(item, uploadErrors[item.id])
-      return (
-        <div className="flex max-w-[10rem] flex-col gap-2">
-          <CatalogImageFrame
-            src={url}
-            alt={label}
-            variant="additionalItem"
-            size="thumbnail"
-            rounded="all"
-          />
-          <span
-            className={`text-[10px] font-bold uppercase tracking-wide ${imageStatusClass(statusLabel)}`}
-          >
-            {statusLabel}
-          </span>
-          {uploadErrors[item.id] ? (
-            <span className="text-[10px] leading-snug text-cdl-action">
-              {uploadErrors[item.id]}
-            </span>
-          ) : null}
-          {editingId === item.id ? (
-            <input
-              type="text"
-              value={String(draft.image_url ?? '')}
-              onChange={(e) =>
-                setDraft((c) => ({ ...c, image_url: e.target.value }))
-              }
-              className="w-full rounded-lg border border-cdl-border bg-cdl-inset px-2 py-1.5 text-xs"
+      <BackofficeEntityCard
+        key={item.id}
+        inactive={item.active === false}
+        image={
+          <BackofficeCardImage>
+            <CatalogImageFrame
+              src={imageUrl}
+              alt={displayName}
+              variant="additionalItem"
+              fallbackLabel="Sem imagem cadastrada"
+              rounded="none"
+              className="!h-full !min-h-0 !max-h-none !w-full !rounded-none"
             />
-          ) : (
-            <span className="line-clamp-2 text-xs text-cdl-muted">{url ?? '—'}</span>
-          )}
+          </BackofficeCardImage>
+        }
+        actions={
+          <>
+            <BackofficeBtnSecondary onClick={() => startEdit(item)}>
+              Editar
+            </BackofficeBtnSecondary>
+            <BackofficeBtnOutline
+              accent
+              onClick={() => triggerUpload(item.id)}
+              disabled={uploadingId === item.id}
+            >
+              {uploadingId === item.id ? 'Enviando…' : 'Imagem'}
+            </BackofficeBtnOutline>
+            {item.active !== false ? (
+              <BackofficeBtnDanger onClick={() => void deactivate(item)}>
+                Inativar
+              </BackofficeBtnDanger>
+            ) : null}
+          </>
+        }
+      >
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-bold uppercase tracking-wider text-neutral-500">
+            {itemKey}
+          </span>
+          <BackofficeStatusBadge active={item.active !== false} />
         </div>
-      )
-    }
-
-    if (editingId === item.id) {
-      if (key === 'pricing_type') {
-        return (
-          <select
-            value={String(draft.pricing_type ?? 'PER_UNIT')}
-            onChange={(e) =>
-              setDraft((c) => ({ ...c, pricing_type: e.target.value }))
-            }
-            className="w-full rounded-lg border border-cdl-border bg-cdl-inset px-2 py-1.5 text-xs"
-          >
-            <option value="PER_UNIT">PER_UNIT</option>
-            <option value="PER_PERSON">PER_PERSON</option>
-          </select>
-        )
-      }
-      const draftKey = key as keyof AdditionalItemsInsertPayload
-      return (
-        <input
-          type={type}
-          value={String(draft[draftKey] ?? '')}
-          onChange={(e) =>
-            setDraft((c) => ({
-              ...c,
-              [draftKey]:
-                type === 'number' ? Number(e.target.value) : e.target.value,
-            }))
-          }
-          className="w-full min-w-[70px] rounded-lg border border-cdl-border bg-cdl-inset px-2 py-1.5 text-xs"
+        <h3 className="text-xl font-bold text-neutral-900">{displayName}</h3>
+        <BackofficeMetaRow label="Categoria" value={item.category_pt ?? '—'} />
+        <BackofficeMetaRow
+          label="Preço"
+          value={`$${getAdditionalItemPrice(item).toFixed(2)}`}
         />
-      )
-    }
-    if (key === 'price') {
-      return String(getAdditionalItemPrice(item))
-    }
-    return String(item[key as keyof AdditionalItemListItem] ?? '—')
+        <BackofficeMetaRow label="Cobrança" value={chargeLabel(item)} />
+        {uploadError ? (
+          <p className="text-xs text-red-600">{uploadError}</p>
+        ) : null}
+      </BackofficeEntityCard>
+    )
   }
 
   return (
@@ -454,7 +500,7 @@ export default function AdditionalItemsDashboard({
           </button>
           <Link
             href="/packages/images#adicionais"
-            className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-cdl-border bg-cdl-surface px-5 py-3 text-sm font-bold uppercase tracking-wider text-cdl-fg"
+            className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-neutral-200 bg-white px-5 py-3 text-sm font-bold text-neutral-800 shadow-sm"
           >
             Imagens
           </Link>
@@ -469,150 +515,34 @@ export default function AdditionalItemsDashboard({
         onChange={(e) => void handleFileSelected(e.target.files?.[0])}
       />
 
-      <div className="overflow-x-auto rounded-2xl border border-cdl-border bg-cdl-surface shadow-cdl">
-        <table className="w-full min-w-[1200px] border-collapse text-left">
-          <thead>
-            <tr className="border-b border-cdl-border bg-cdl-inset/50">
-              {TABLE_COLUMNS.map((col) => (
-                <th
-                  key={col.key}
-                  className="px-3 py-3 text-xs font-bold uppercase tracking-wider text-cdl-muted"
+      <BackofficeCardGrid>
+        {editingId === 'new' ? (
+          <BackofficeFormCard
+            title="Novo item adicional"
+            actions={
+              <>
+                <BackofficeBtnPrimary
+                  onClick={() => void saveRow()}
+                  disabled={saving}
                 >
-                  {col.label}
-                </th>
-              ))}
-              <th className="px-3 py-3 text-xs font-bold uppercase tracking-wider text-cdl-muted">
-                Status
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {editingId === 'new' ? (
-              <tr className="border-b border-cdl-border bg-[color-mix(in_srgb,var(--brand-accent)_8%,transparent)]">
-                {TABLE_COLUMNS.filter((c) => c.key !== 'actions').map((col) => (
-                  <td key={col.key} className="px-3 py-2">
-                    {col.key === 'pricing_type' ? (
-                      <select
-                        value={String(draft.pricing_type ?? 'PER_UNIT')}
-                        onChange={(e) =>
-                          setDraft((c) => ({ ...c, pricing_type: e.target.value }))
-                        }
-                        className="w-full rounded-lg border border-cdl-border bg-cdl-inset px-2 py-1.5 text-xs"
-                      >
-                        <option value="PER_UNIT">PER_UNIT</option>
-                        <option value="PER_PERSON">PER_PERSON</option>
-                      </select>
-                    ) : (
-                      <input
-                        type={col.type ?? 'text'}
-                        value={String(
-                          draft[col.key as keyof AdditionalItemsInsertPayload] ?? '',
-                        )}
-                        onChange={(e) =>
-                          setDraft((c) => ({
-                            ...c,
-                            [col.key]:
-                              col.type === 'number'
-                                ? Number(e.target.value)
-                                : e.target.value,
-                          }))
-                        }
-                        className="w-full rounded-lg border border-cdl-border bg-cdl-inset px-2 py-1.5 text-xs"
-                      />
-                    )}
-                  </td>
-                ))}
-                <td className="px-3 py-2">
-                  <div className="flex flex-col gap-1">
-                    <button
-                      type="button"
-                      onClick={() => void saveRow()}
-                      disabled={saving}
-                      className="rounded-lg bg-[var(--brand-primary)] px-2 py-1 text-xs font-bold text-white"
-                    >
-                      Salvar
-                    </button>
-                    <button
-                      type="button"
-                      onClick={cancelEdit}
-                      className="rounded-lg border border-cdl-border px-2 py-1 text-xs font-bold"
-                    >
-                      Cancelar
-                    </button>
-                  </div>
-                </td>
-                <td className="px-3 py-2">
-                  <select
-                    value={draft.active === false ? 'false' : 'true'}
-                    onChange={(e) =>
-                      setDraft((c) => ({
-                        ...c,
-                        active: e.target.value === 'true',
-                      }))
-                    }
-                    className="w-full rounded-lg border border-cdl-border bg-cdl-inset px-2 py-1.5 text-xs"
-                  >
-                    <option value="true">Ativo</option>
-                    <option value="false">Inativo</option>
-                  </select>
-                </td>
-              </tr>
-            ) : null}
+                  {saving ? 'Salvando…' : 'Salvar'}
+                </BackofficeBtnPrimary>
+                <BackofficeBtnSecondary onClick={cancelEdit}>
+                  Cancelar
+                </BackofficeBtnSecondary>
+              </>
+            }
+          >
+            <ItemEditFields draft={draft} setDraft={setDraft} />
+          </BackofficeFormCard>
+        ) : null}
 
-            {filteredItems.length === 0 && editingId !== 'new' ? (
-              <tr>
-                <td
-                  colSpan={TABLE_COLUMNS.length + 1}
-                  className="px-4 py-10 text-center text-cdl-muted"
-                >
-                  {loading ? 'Carregando…' : 'Nenhum item encontrado.'}
-                </td>
-              </tr>
-            ) : (
-              filteredItems.map((item) => (
-                <tr
-                  key={item.id}
-                  className={`border-b border-cdl-border ${item.active === false ? 'opacity-50' : ''}`}
-                >
-                  {TABLE_COLUMNS.filter((c) => c.key !== 'actions').map((col) => (
-                    <td key={col.key} className="px-3 py-2 align-top text-sm">
-                      {renderCell(
-                        item,
-                        col.key as DataColumnKey,
-                        col.type,
-                      )}
-                    </td>
-                  ))}
-                  <td className="px-3 py-2 align-top">
-                    {renderActions(item)}
-                  </td>
-                  <td className="px-3 py-2 align-top text-xs text-cdl-muted">
-                    {editingId === item.id ? (
-                      <select
-                        value={draft.active === false ? 'false' : 'true'}
-                        onChange={(e) =>
-                          setDraft((c) => ({
-                            ...c,
-                            active: e.target.value === 'true',
-                          }))
-                        }
-                        className="w-full rounded-lg border border-cdl-border bg-cdl-inset px-2 py-1.5 text-xs"
-                      >
-                        <option value="true">Ativo</option>
-                        <option value="false">Inativo</option>
-                      </select>
-                    ) : item.active === false ? (
-                      'Inativo'
-                    ) : (
-                      'Ativo'
-                    )}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+        {filteredItems.length === 0 && editingId !== 'new' ? (
+          <BackofficeEmptyState loading={loading} message="Nenhum item encontrado." />
+        ) : (
+          filteredItems.map((item) => renderItemCard(item))
+        )}
+      </BackofficeCardGrid>
     </BackofficeTableShell>
   )
 }

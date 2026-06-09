@@ -35,19 +35,19 @@ export default function BackofficeTableShell({
   children: ReactNode
 }) {
   return (
-    <main className="min-h-screen bg-cdl-bg px-4 py-6 sm:px-6 sm:py-10">
-      <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-6">
+    <main className="min-h-screen bg-cdl-bg px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
         <AppMainNav />
 
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mb-2 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-2xl font-black text-cdl-title sm:text-3xl">{title}</h1>
-            <p className="mt-1 text-sm text-cdl-muted">{subtitle}</p>
+            <h1 className="text-3xl font-bold text-red-600 sm:text-4xl">{title}</h1>
+            <p className="mt-1 text-sm text-neutral-500">{subtitle}</p>
           </div>
           <div className="flex flex-wrap gap-2">{actions}</div>
         </div>
 
-        <div className="rounded-2xl border border-cdl-border bg-cdl-surface p-4 sm:p-6">
+        <div className="mb-2 rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm sm:p-5">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
             <label className="flex flex-1 flex-col gap-2">
               <span className="cdl-eyebrow">Buscar</span>
@@ -56,7 +56,7 @@ export default function BackofficeTableShell({
                 value={search}
                 onChange={(e) => onSearchChange(e.target.value)}
                 placeholder={searchPlaceholder}
-                className="rounded-xl border border-cdl-border bg-cdl-inset px-4 py-3 text-sm text-cdl-fg outline-none focus:border-cdl-accent-border"
+                className="rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-red-300 focus:bg-white focus:ring-2 focus:ring-red-100"
               />
             </label>
             {showActiveFilter && onActiveFilterChange ? (
@@ -67,7 +67,7 @@ export default function BackofficeTableShell({
                   onChange={(e) =>
                     onActiveFilterChange(e.target.value as ActiveFilter)
                   }
-                  className="rounded-xl border border-cdl-border bg-cdl-inset px-4 py-3 text-sm text-cdl-fg outline-none focus:border-cdl-accent-border"
+                  className="rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-red-300 focus:bg-white focus:ring-2 focus:ring-red-100"
                 >
                   <option value="active">Ativos</option>
                   <option value="all">Todos</option>
@@ -78,7 +78,7 @@ export default function BackofficeTableShell({
               type="button"
               onClick={onRefresh}
               disabled={loading}
-              className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-cdl-border bg-cdl-surface px-5 py-3 text-sm font-bold uppercase tracking-wider text-cdl-fg disabled:opacity-50"
+              className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-neutral-200 bg-white px-5 py-3 text-sm font-bold text-neutral-800 shadow-sm transition hover:border-neutral-300 disabled:opacity-50"
             >
               {loading ? 'Atualizando…' : 'Atualizar'}
             </button>
