@@ -7,7 +7,10 @@ import AppMainNav from '../../../components/AppMainNav'
 import CdlBrandLogo from '../../../components/CdlBrandLogo'
 import CatalogImageFrame from '../../../components/CatalogImageFrame'
 import QuotePackageStepExplorer from '../../../components/quotes/QuotePackageStepExplorer'
-import { getPackageCommercialName } from '../../../Lib/packageDisplay'
+import {
+  getPackageDetailTitle,
+  sortPackagesByCommercialTier,
+} from '../../../Lib/packageDisplay'
 import QuoteWizardSummaryStep from '../../../components/quote-review/QuoteWizardSummaryStep'
 import { RESERVATION_PAYMENT_TEXT } from '../../../Lib/cdlCommercialRules'
 import { resolvePackageCatalogImageUrl } from '../../../Lib/packageCatalogVisual'
@@ -763,30 +766,14 @@ function getAdditionalImage(item: AdditionalItem) {
   return item.image_url ?? null
 }
 
-function sortPackages(list: Package[]) {
-  return [...list].sort(
-    (a, b) =>
-      (a.display_order ?? 0) - (b.display_order ?? 0) ||
-      (a.package_key ?? '').localeCompare(b.package_key ?? ''),
-  )
-}
-
 const ADDITIONAL_CATEGORY_ORDER = [
   'Bovino Tradicional',
   'Bovino Nobre',
   'Frango',
   'Porco',
   'Linguiças',
-  'Cordeiro',
-  'Peixes',
   'Frutos do Mar',
-  'Frutas',
   'Legumes e Saladas',
-  'Acompanhamentos',
-  'Guarnições',
-  'Equipamentos',
-  'Alumínio',
-  'Barbecue',
 ] as const
 
 function normalizeCategory(value: string) {
@@ -798,8 +785,15 @@ function normalizeCategory(value: string) {
 }
 
 const ADDITIONAL_CATEGORY_ALIASES: Record<string, string> = {
+  'beef traditional': 'bovino tradicional',
+  'premium beef': 'bovino nobre',
+  chicken: 'frango',
+  pork: 'porco',
+  sausages: 'linguiças',
+  seafood: 'frutos do mar',
+  vegetables: 'legumes e saladas',
   bovino: 'bovino tradicional',
-  peixe: 'peixes',
+  legumes: 'legumes e saladas',
 }
 
 function getAdditionalCategorySortIndex(category: string) {
@@ -810,8 +804,7 @@ function getAdditionalCategorySortIndex(category: string) {
     (name) => normalizeCategory(name) === normalized,
   )
   if (index !== -1) return index
-  // Categorias não mapeadas ficam antes de Barbecue (última da seção)
-  return ADDITIONAL_CATEGORY_ORDER.length - 1 - 0.5
+  return ADDITIONAL_CATEGORY_ORDER.length
 }
 
 function compareAdditionalCategories(a: string, b: string) {
@@ -1474,40 +1467,24 @@ export default function QuoteWizard({
 
   const packagesWithoutSides = useMemo(
     () =>
-      sortPackages(
-        packages.filter(
-          (p) =>
-            !p.package_key?.endsWith('+') && !p.package_key?.includes('PERS'),
-        ),
+      sortPackagesByCommercialTier(
+        packages.filter((p) => !p.package_key?.trim().endsWith('+')),
       ),
     [packages],
   )
 
   const packagesWithSides = useMemo(
     () =>
-      sortPackages(
-        packages.filter(
-          (p) =>
-            p.package_key?.endsWith('+') && !p.package_key?.includes('PERS'),
-        ),
+      sortPackagesByCommercialTier(
+        packages.filter((p) => p.package_key?.trim().endsWith('+')),
       ),
-    [packages],
-  )
-
-  const customPackages = useMemo(
-    () =>
-      sortPackages(packages.filter((p) => p.package_key?.includes('PERS'))),
     [packages],
   )
 
   const fromWithSidesSection = useMemo(
     () =>
-      packagesWithSides.some((pkg) => pkg.id === state.packageId) ||
-      customPackages.some(
-        (pkg) =>
-          pkg.id === state.packageId && pkg.package_key?.trim().endsWith('+'),
-      ),
-    [packagesWithSides, customPackages, state.packageId],
+      packagesWithSides.some((pkg) => pkg.id === state.packageId),
+    [packagesWithSides, state.packageId],
   )
 
   const additionalItemsByCategory = useMemo(() => {
@@ -1525,14 +1502,15 @@ export default function QuoteWizard({
       .sort(([a], [b]) => compareAdditionalCategories(a, b))
       .map(([category, items]) => ({
         category,
-        items: [...items].sort(
-          (a, b) =>
-            (a.display_order ?? 0) - (b.display_order ?? 0) ||
-            getAdditionalLabel(a).localeCompare(
-              getAdditionalLabel(b),
-              'pt-BR',
-            ),
-        ),
+        items: [...items].sort((a, b) => {
+          const priceDiff =
+            getAdditionalUnitPrice(b) - getAdditionalUnitPrice(a)
+          if (priceDiff !== 0) return priceDiff
+          return getAdditionalLabel(a).localeCompare(
+            getAdditionalLabel(b),
+            'pt-BR',
+          )
+        }),
       }))
   }, [additionalItems])
 
@@ -2461,14 +2439,14 @@ export default function QuoteWizard({
                 Etapa 3 — Pacote
               </h2>
               <p className="mt-1 text-sm text-cdl-muted">
-                Escolha o grupo, o código e confira o pacote antes de avançar
+                Select the group, choose the code, and confirm the package
+                details before continuing
               </p>
             </section>
 
             <QuotePackageStepExplorer
               packagesWithoutSides={packagesWithoutSides}
               packagesWithSides={packagesWithSides}
-              customPackages={customPackages}
               allPackages={packages}
               selectedPackageId={state.packageId}
               language={state.language}
@@ -2781,7 +2759,7 @@ export default function QuoteWizard({
             <p className="text-center text-sm text-cdl-muted sm:text-right">
               Pacote selecionado:{' '}
               <span className="font-semibold text-cdl-fg">
-                {getPackageCommercialName(selectedPackage)}
+                {getPackageDetailTitle(selectedPackage)}
               </span>
               {' — '}
               <span className="font-semibold text-cdl-price">

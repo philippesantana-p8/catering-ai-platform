@@ -7,22 +7,25 @@ import {
 } from '@/components/backoffice/BackofficeSectionPrimitives'
 import QuotePackageSummary from '@/components/quotes/QuotePackageSummary'
 import {
-  PremiumChip,
+  PackageCodeOption,
   PremiumGroupBlock,
   SectionHeader,
 } from '@/components/premium/PremiumPrimitives'
-import { getPackageGroupSummaryCodes } from '@/Lib/packageDisplay'
+import {
+  getPackageGroupSummaryCodes,
+  sortPackagesByCommercialTier,
+} from '@/Lib/packageDisplay'
+import { getPackageHasGarnish } from '@/Lib/packageFieldAccess'
 import type { PackageCatalogFields } from '@/Lib/packageCatalogVisual'
 import type { QuoteLanguage } from '@/Lib/quoteWizardTypes'
 
 type PackageRow = PackageCatalogFields & { id: string }
-type GarnishGroup = 'without' | 'with' | 'custom'
-type MobileStep = 'groups' | 'codes' | 'detail'
+type GarnishGroup = 'with' | 'without'
+type MobilePanel = 'groups' | 'codes' | 'detail'
 
 export default function QuotePackageStepExplorer({
   packagesWithoutSides,
   packagesWithSides,
-  customPackages,
   allPackages,
   selectedPackageId,
   language = 'pt',
@@ -31,22 +34,40 @@ export default function QuotePackageStepExplorer({
 }: {
   packagesWithoutSides: PackageRow[]
   packagesWithSides: PackageRow[]
-  customPackages: PackageRow[]
   allPackages: PackageRow[]
   selectedPackageId: string | null
   language?: QuoteLanguage
   sidesPricePerPerson?: number
   onSelect: (id: string) => void
 }) {
-  const [selectedGroup, setSelectedGroup] = useState<GarnishGroup | null>(null)
-  const [mobileStep, setMobileStep] = useState<MobileStep>('groups')
+  const [selectedGroup, setSelectedGroup] = useState<GarnishGroup | null>(() => {
+    if (!selectedPackageId) return null
+    const pkg = allPackages.find((row) => row.id === selectedPackageId)
+    if (!pkg) return null
+    return getPackageHasGarnish(pkg) ? 'with' : 'without'
+  })
+  const [showPackageDetail, setShowPackageDetail] = useState(
+    () => Boolean(selectedPackageId),
+  )
+  const [mobilePanel, setMobilePanel] = useState<MobilePanel>(() =>
+    selectedPackageId ? 'detail' : 'groups',
+  )
+
+  const sortedWithSides = useMemo(
+    () => sortPackagesByCommercialTier(packagesWithSides),
+    [packagesWithSides],
+  )
+
+  const sortedWithoutSides = useMemo(
+    () => sortPackagesByCommercialTier(packagesWithoutSides),
+    [packagesWithoutSides],
+  )
 
   const groupPackages = useMemo(() => {
-    if (selectedGroup === 'with') return packagesWithSides
-    if (selectedGroup === 'custom') return customPackages
-    if (selectedGroup === 'without') return packagesWithoutSides
+    if (selectedGroup === 'with') return sortedWithSides
+    if (selectedGroup === 'without') return sortedWithoutSides
     return []
-  }, [selectedGroup, packagesWithSides, packagesWithoutSides, customPackages])
+  }, [selectedGroup, sortedWithSides, sortedWithoutSides])
 
   const selectedPackage = useMemo(
     () => allPackages.find((pkg) => pkg.id === selectedPackageId) ?? null,
@@ -54,47 +75,41 @@ export default function QuotePackageStepExplorer({
   )
 
   useEffect(() => {
-    if (!selectedGroup) {
-      if (packagesWithoutSides.length > 0) setSelectedGroup('without')
-      else if (packagesWithSides.length > 0) setSelectedGroup('with')
-      else if (customPackages.length > 0) setSelectedGroup('custom')
-    }
-  }, [selectedGroup, packagesWithoutSides.length, packagesWithSides.length, customPackages.length])
-
-  useEffect(() => {
     if (!selectedPackageId || !selectedPackage) return
-    if (packagesWithSides.some((pkg) => pkg.id === selectedPackageId)) {
-      setSelectedGroup('with')
-    } else if (customPackages.some((pkg) => pkg.id === selectedPackageId)) {
-      setSelectedGroup('custom')
-    } else if (packagesWithoutSides.some((pkg) => pkg.id === selectedPackageId)) {
-      setSelectedGroup('without')
-    }
-    setMobileStep('detail')
-  }, [
-    selectedPackageId,
-    selectedPackage,
-    packagesWithSides,
-    packagesWithoutSides,
-    customPackages,
-  ])
+    setSelectedGroup(getPackageHasGarnish(selectedPackage) ? 'with' : 'without')
+  }, [selectedPackageId, selectedPackage])
 
   function selectGroup(group: GarnishGroup) {
     setSelectedGroup(group)
-    setMobileStep('codes')
+    setShowPackageDetail(false)
+    setMobilePanel('codes')
   }
 
   function selectPackage(id: string) {
     onSelect(id)
-    setMobileStep('detail')
+    setShowPackageDetail(true)
+    setMobilePanel('detail')
   }
 
-  const showGroups = mobileStep === 'groups'
-  const showCodes = mobileStep === 'codes'
-  const showDetail = mobileStep === 'detail' || Boolean(selectedPackage)
+  function backFromDetail() {
+    setShowPackageDetail(false)
+    setMobilePanel('codes')
+  }
 
-  const totalCount =
-    packagesWithoutSides.length + packagesWithSides.length + customPackages.length
+  function backFromCodes() {
+    setShowPackageDetail(false)
+    setMobilePanel('groups')
+  }
+
+  const showGroupsMobile = mobilePanel === 'groups'
+  const showCodesMobile = mobilePanel === 'codes'
+  const showDetailMobile = mobilePanel === 'detail' && showPackageDetail
+
+  const showGroupsDesktop = true
+  const showCodesDesktop = Boolean(selectedGroup)
+  const showDetailDesktop = showPackageDetail && Boolean(selectedPackage)
+
+  const totalCount = packagesWithoutSides.length + packagesWithSides.length
 
   if (totalCount === 0) {
     return (
@@ -105,43 +120,39 @@ export default function QuotePackageStepExplorer({
   return (
     <div className="space-y-6">
       <SectionHeader
-        title="Escolha o pacote"
-        subtitle="Grupo → código → confira foto, itens e valores antes de avançar"
+        title="Choose your package"
+        subtitle="Select the group, choose the code, and confirm the package details before continuing."
       />
 
       <BackofficeCascadeLayout>
         <div
           className={
-            showGroups ? 'block lg:col-span-3' : 'hidden lg:block lg:col-span-3'
+            showGroupsMobile
+              ? 'block lg:col-span-3'
+              : 'hidden lg:block lg:col-span-3'
           }
         >
-          <BackofficeCascadePanel title="Grupo" subtitle="Sem ou com guarnições">
+          <BackofficeCascadePanel
+            title="Package group"
+            subtitle="With or without side dishes"
+          >
             <div className="space-y-3">
-              {packagesWithoutSides.length > 0 ? (
+              {sortedWithSides.length > 0 ? (
                 <PremiumGroupBlock
-                  title="Sem guarnições"
-                  count={packagesWithoutSides.length}
-                  summary={getPackageGroupSummaryCodes(packagesWithoutSides)}
-                  active={selectedGroup === 'without'}
-                  onClick={() => selectGroup('without')}
-                />
-              ) : null}
-              {packagesWithSides.length > 0 ? (
-                <PremiumGroupBlock
-                  title="Com guarnições"
-                  count={packagesWithSides.length}
-                  summary={getPackageGroupSummaryCodes(packagesWithSides)}
+                  title="With side dishes"
+                  count={sortedWithSides.length}
+                  summary={getPackageGroupSummaryCodes(sortedWithSides)}
                   active={selectedGroup === 'with'}
                   onClick={() => selectGroup('with')}
                 />
               ) : null}
-              {customPackages.length > 0 ? (
+              {sortedWithoutSides.length > 0 ? (
                 <PremiumGroupBlock
-                  title="Personalizado"
-                  count={customPackages.length}
-                  summary={getPackageGroupSummaryCodes(customPackages)}
-                  active={selectedGroup === 'custom'}
-                  onClick={() => selectGroup('custom')}
+                  title="Without side dishes"
+                  count={sortedWithoutSides.length}
+                  summary={getPackageGroupSummaryCodes(sortedWithoutSides)}
+                  active={selectedGroup === 'without'}
+                  onClick={() => selectGroup('without')}
                 />
               ) : null}
             </div>
@@ -150,59 +161,52 @@ export default function QuotePackageStepExplorer({
 
         <div
           className={
-            showCodes ? 'block lg:col-span-3' : 'hidden lg:block lg:col-span-3'
+            showCodesMobile
+              ? 'block lg:col-span-3'
+              : showCodesDesktop
+                ? 'hidden lg:block lg:col-span-3'
+                : 'hidden'
           }
         >
           <BackofficeCascadePanel
             title={
               selectedGroup === 'with'
-                ? 'Com guarnições'
-                : selectedGroup === 'custom'
-                  ? 'Personalizado'
-                  : 'Sem guarnições'
+                ? 'With side dishes'
+                : 'Without side dishes'
             }
-            subtitle={`${groupPackages.length} códigos`}
-            onBack={() => setMobileStep('groups')}
+            subtitle={`${groupPackages.length} packages`}
+            onBack={backFromCodes}
           >
-            <div className="flex flex-wrap gap-2">
-              {groupPackages.map((pkg) => {
-                const code = pkg.package_key ?? '—'
-                const active = selectedPackageId === pkg.id
-                const withGarnish = code.endsWith('+')
-                return (
-                  <PremiumChip
-                    key={pkg.id}
-                    active={active}
-                    onClick={() => selectPackage(pkg.id)}
-                    badge={
-                      withGarnish ? (
-                        <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-800">
-                          + guarnições
-                        </span>
-                      ) : undefined
-                    }
-                  >
-                    {code}
-                  </PremiumChip>
-                )
-              })}
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {groupPackages.map((pkg) => (
+                <PackageCodeOption
+                  key={pkg.id}
+                  pkg={pkg}
+                  active={selectedPackageId === pkg.id}
+                  onClick={() => selectPackage(pkg.id)}
+                />
+              ))}
             </div>
           </BackofficeCascadePanel>
         </div>
 
         <div
           className={
-            showDetail ? 'block lg:col-span-6' : 'hidden lg:block lg:col-span-6'
+            showDetailMobile
+              ? 'block lg:col-span-6'
+              : showDetailDesktop
+                ? 'hidden lg:block lg:col-span-6'
+                : 'hidden'
           }
         >
-          {selectedPackage ? (
+          {selectedPackage && showPackageDetail ? (
             <div>
               <button
                 type="button"
-                onClick={() => setMobileStep('codes')}
+                onClick={backFromDetail}
                 className="mb-3 text-xs font-bold uppercase tracking-wider text-red-600 lg:hidden"
               >
-                ← Voltar aos códigos
+                ← Back to codes
               </button>
               <QuotePackageSummary
                 pkg={selectedPackage}
@@ -211,17 +215,17 @@ export default function QuotePackageStepExplorer({
                 sidesPricePerPerson={sidesPricePerPerson}
                 selected={selectedPackageId === selectedPackage.id}
                 layout="split"
+                englishLabels
               />
             </div>
           ) : (
             <BackofficeCascadePanel
-              title="Detalhe do pacote"
-              subtitle="Selecione um código"
-              className="!col-span-full"
-              onBack={() => setMobileStep('codes')}
+              title="Package details"
+              subtitle="Select a package code"
+              className="!col-span-full hidden lg:block"
             >
               <p className="text-sm text-neutral-500">
-                Escolha um grupo e um código para ver foto, itens e valores.
+                Choose a group and a package code to see the full details.
               </p>
             </BackofficeCascadePanel>
           )}

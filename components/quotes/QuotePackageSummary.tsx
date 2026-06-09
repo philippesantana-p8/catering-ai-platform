@@ -15,7 +15,7 @@ import {
 } from '@/Lib/packageCatalogVisual'
 import {
   formatPackageBulletText,
-  getPackageCommercialName,
+  getPackageDetailTitle,
   getPackageGarnishDisplayText,
   getPackageItemsDisplayText,
 } from '@/Lib/packageDisplay'
@@ -25,13 +25,18 @@ function formatCurrency(value: number) {
   return `$${value.toFixed(2)}`
 }
 
-function perPersonSuffix(language: QuoteLanguage): string {
+function perPersonSuffix(language: QuoteLanguage, englishLabels: boolean): string {
+  if (englishLabels) return 'person'
   if (language === 'en') return 'person'
   if (language === 'es') return 'persona'
   return 'pessoa'
 }
 
-function itemsNotRegisteredLabel(language: QuoteLanguage): string {
+function itemsNotRegisteredLabel(
+  language: QuoteLanguage,
+  englishLabels: boolean,
+): string {
+  if (englishLabels) return 'Description not registered'
   if (language === 'en') return 'Description not registered'
   if (language === 'es') return 'Descripción no registrada'
   return 'Descrição não cadastrada'
@@ -44,6 +49,7 @@ export default function QuotePackageSummary({
   sidesPricePerPerson = 13,
   selected = false,
   layout = 'stacked',
+  englishLabels = false,
 }: {
   pkg: PackageCatalogFields & { id?: string }
   allPackages?: ReadonlyArray<PackageCatalogFields>
@@ -51,72 +57,99 @@ export default function QuotePackageSummary({
   sidesPricePerPerson?: number
   selected?: boolean
   layout?: 'stacked' | 'split'
+  englishLabels?: boolean
 }) {
   const image = getPackageCatalogImage(pkg, allPackages)
   const variant = getPackageCatalogVariant(pkg)
-  const commercialName = getPackageCommercialName(pkg)
+  const detailTitle = getPackageDetailTitle(pkg)
   const priceOnRequest = isPackageCatalogPriceOnRequest(pkg)
-  const perPerson = perPersonSuffix(language)
+  const perPerson = perPersonSuffix(language, englishLabels)
   const basePackage = findBasePackage(pkg, allPackages)
   const sidesPricing =
     variant === 'with_sides'
       ? resolvePackageSidesPricing(pkg, basePackage, sidesPricePerPerson)
       : null
 
-  const rawItems = getPackageItemsDisplayText(pkg, language)
+  const itemsLang = englishLabels ? 'en' : language
+  const rawItems = getPackageItemsDisplayText(pkg, itemsLang)
   const itemsText = rawItems
     ? formatPackageBulletText(rawItems)
-    : itemsNotRegisteredLabel(language)
+    : itemsNotRegisteredLabel(language, englishLabels)
 
   const garnishText =
     variant === 'with_sides'
-      ? formatPackageBulletText(getPackageGarnishDisplayText(pkg, language))
-      : language === 'en'
+      ? formatPackageBulletText(getPackageGarnishDisplayText(pkg, itemsLang))
+      : englishLabels
         ? 'Not included'
-        : language === 'es'
-          ? 'No incluidas'
-          : 'Não inclusas'
+        : language === 'en'
+          ? 'Not included'
+          : language === 'es'
+            ? 'No incluidas'
+            : 'Não inclusas'
 
-  const sidesNotIncludedLabel =
-    language === 'en'
+  const sidesNotIncludedLabel = englishLabels
+    ? 'Not included'
+    : language === 'en'
       ? 'Not included'
       : language === 'es'
         ? 'No incluidas'
         : 'Não inclusas'
 
-  const basePackageLabel =
-    language === 'en'
-      ? 'Base package'
+  const packagePriceLabel = englishLabels
+    ? 'Package price'
+    : language === 'en'
+      ? 'Package price'
       : language === 'es'
-        ? 'Paquete base'
+        ? 'Precio del paquete'
         : 'Pacote base'
+
+  const sidesLabel = englishLabels
+    ? 'Side dishes'
+    : getPackagePriceLineLabel('sides', language)
+
+  const totalLabel = englishLabels
+    ? 'Total'
+    : getPackagePriceLineLabel('total', language)
+
+  const itemsLabel = englishLabels ? 'Items in package:' : 'Itens do pacote:'
+  const garnishLabel = englishLabels ? 'Side dishes:' : 'Guarnições:'
+
+  const garnishBadge = englishLabels
+    ? variant === 'with_sides'
+      ? 'With side dishes'
+      : 'Without side dishes'
+    : variant === 'with_sides'
+      ? 'Com guarnições'
+      : 'Sem guarnições'
+
+  const selectedBadge = englishLabels ? 'Selected' : 'Selecionado'
 
   const packagePrice = getPackageCatalogPrice(pkg)
 
   const breakdownRows = priceOnRequest
     ? [
         {
-          label: getPackagePriceLineLabel('package', language),
+          label: packagePriceLabel,
           value: formatPackageCatalogPriceLabel(pkg, language, formatCurrency),
           emphasis: true,
         },
         {
-          label: getPackagePriceLineLabel('sides', language),
+          label: sidesLabel,
           value: sidesNotIncludedLabel,
         },
       ]
     : variant === 'without_sides'
       ? [
           {
-            label: basePackageLabel,
+            label: packagePriceLabel,
             value: `${formatCurrency(packagePrice)} / ${perPerson}`,
           },
           {
-            label: getPackagePriceLineLabel('sides', language),
+            label: sidesLabel,
             value: sidesNotIncludedLabel,
           },
           {
-            label: getPackagePriceLineLabel('total', language),
+            label: totalLabel,
             value: `${formatCurrency(packagePrice)} / ${perPerson}`,
             emphasis: true,
           },
@@ -125,29 +158,26 @@ export default function QuotePackageSummary({
           sidesPricing.basePricePerPerson != null
         ? [
             {
-              label: basePackageLabel,
+              label: packagePriceLabel,
               value: `${formatCurrency(sidesPricing.basePricePerPerson)} / ${perPerson}`,
             },
             {
-              label: getPackagePriceLineLabel('sides', language),
+              label: sidesLabel,
               value: `+ ${formatCurrency(sidesPricing.sidesPricePerPerson)} / ${perPerson}`,
             },
             {
-              label: getPackagePriceLineLabel('total', language),
+              label: totalLabel,
               value: `${formatCurrency(sidesPricing.totalPerPerson)} / ${perPerson}`,
               emphasis: true,
             },
           ]
         : [
             {
-              label: getPackagePriceLineLabel('total', language),
+              label: totalLabel,
               value: `${formatCurrency(sidesPricing?.totalPerPerson ?? packagePrice)} / ${perPerson}`,
               emphasis: true,
             },
           ]
-
-  const garnishBadge =
-    variant === 'with_sides' ? 'Com guarnições' : 'Sem guarnições'
 
   const imageBlock = (
     <div
@@ -160,9 +190,13 @@ export default function QuotePackageSummary({
       <div className="aspect-[4/3] w-full sm:aspect-[16/10] lg:aspect-square lg:min-h-[280px]">
         <CatalogImageFrame
           src={image}
-          alt={commercialName}
+          alt={detailTitle}
           variant="package"
-          fallbackLabel="Imagem do pacote não cadastrada"
+          fallbackLabel={
+            englishLabels
+              ? 'Package image not registered'
+              : 'Imagem do pacote não cadastrada'
+          }
           rounded="none"
           className="!h-full !min-h-0 !max-h-none !w-full !rounded-none"
         />
@@ -185,21 +219,21 @@ export default function QuotePackageSummary({
         >
           {garnishBadge}
         </span>
-        {selected ? <StatusBadge active label="Selecionado" /> : null}
+        {selected ? <StatusBadge active label={selectedBadge} /> : null}
       </div>
 
       <div>
         <h3 className="text-2xl font-black tracking-tight text-neutral-900 sm:text-3xl">
-          {commercialName}
+          {detailTitle}
         </h3>
       </div>
 
       <p className="text-sm leading-relaxed text-neutral-700">
-        <span className="font-bold text-neutral-900">Itens do pacote:</span>{' '}
+        <span className="font-bold text-neutral-900">{itemsLabel}</span>{' '}
         {itemsText}
       </p>
       <p className="text-sm leading-relaxed text-neutral-700">
-        <span className="font-bold text-neutral-900">Guarnições:</span>{' '}
+        <span className="font-bold text-neutral-900">{garnishLabel}</span>{' '}
         {garnishText}
       </p>
 

@@ -3,10 +3,55 @@ import {
   packageItemsDescription,
 } from '@/components/quote-review/quoteReviewPackageSummary'
 import type { PackageFieldSource } from '@/Lib/packageFieldAccess'
-import { getPackageHasGarnish, getPackageKey } from '@/Lib/packageFieldAccess'
+import {
+  getPackageHasGarnish,
+  getPackageKey,
+} from '@/Lib/packageFieldAccess'
 
 const DEFAULT_GARNISH_TEXT_PT =
   'Arroz branco, Feijão tropeiro, Vinagrete, Farofa e Mandioca.'
+
+const PACKAGE_TIER_ORDER = ['PRI', 'CHO', 'SEL', 'TRAD', 'PERS'] as const
+
+const PACKAGE_TIER_NAMES: Record<
+  (typeof PACKAGE_TIER_ORDER)[number],
+  string
+> = {
+  PRI: 'Prime',
+  CHO: 'Choice',
+  SEL: 'Select',
+  TRAD: 'Traditional',
+  PERS: 'Personalized',
+}
+
+function detectPackageTier(
+  packageKey: string,
+): (typeof PACKAGE_TIER_ORDER)[number] | null {
+  const key = packageKey.toUpperCase().replace(/\+$/, '')
+  for (const tier of PACKAGE_TIER_ORDER) {
+    if (key.includes(tier)) return tier
+  }
+  return null
+}
+
+export function getPackageTierSortIndex(
+  pkg: PackageFieldSource | null | undefined,
+): number {
+  const tier = detectPackageTier(getPackageKey(pkg))
+  if (!tier) return PACKAGE_TIER_ORDER.length
+  return PACKAGE_TIER_ORDER.indexOf(tier)
+}
+
+/** Prime → Choice → Select → Traditional → Personalized */
+export function sortPackagesByCommercialTier<
+  T extends PackageFieldSource,
+>(packages: ReadonlyArray<T>): T[] {
+  return [...packages].sort((a, b) => {
+    const rankDiff = getPackageTierSortIndex(a) - getPackageTierSortIndex(b)
+    if (rankDiff !== 0) return rankDiff
+    return getPackageKey(a).localeCompare(getPackageKey(b))
+  })
+}
 
 export function getPackageItemsDisplayText(
   pkg: PackageFieldSource | null | undefined,
@@ -39,7 +84,7 @@ export function getPackageGarnishDisplayText(
 export function getPackageGroupSummaryCodes(
   packages: ReadonlyArray<{ package_key?: string | null }>,
 ): string {
-  return packages
+  return sortPackagesByCommercialTier(packages)
     .map((pkg) => getPackageKey(pkg))
     .filter(Boolean)
     .join(' · ')
@@ -59,10 +104,13 @@ export function formatPackageBulletText(text: string | null | undefined): string
     .join(' • ')
 }
 
+/** Nome comercial genérico (label_en ou fallback). */
 export function getPackageCommercialName(
   pkg: PackageFieldSource | null | undefined,
 ): string {
   if (!pkg) return '—'
+  const tier = detectPackageTier(getPackageKey(pkg))
+  if (tier) return PACKAGE_TIER_NAMES[tier]
   return (
     pkg.label_en?.trim() ||
     pkg.package_name?.trim() ||
@@ -70,4 +118,24 @@ export function getPackageCommercialName(
     getPackageKey(pkg) ||
     '—'
   )
+}
+
+/** Segunda cascata: BBQ Prime, BBQ Choice, etc. */
+export function getPackageCascadeFriendlyLabel(
+  pkg: PackageFieldSource | null | undefined,
+): string {
+  const tier = detectPackageTier(getPackageKey(pkg))
+  if (!tier) return getPackageCommercialName(pkg)
+  return `BBQ ${PACKAGE_TIER_NAMES[tier]}`
+}
+
+/** Card de detalhe: Prime, Choice with Side Dishes, etc. */
+export function getPackageDetailTitle(
+  pkg: PackageFieldSource | null | undefined,
+): string {
+  const name = getPackageCommercialName(pkg)
+  if (getPackageHasGarnish(pkg)) {
+    return `${name} with Side Dishes`
+  }
+  return name
 }

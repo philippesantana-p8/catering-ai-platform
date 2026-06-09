@@ -1,6 +1,11 @@
 'use client'
 
 import type { ReactNode } from 'react'
+import { getPackageCascadeFriendlyLabel } from '@/Lib/packageDisplay'
+import {
+  getPackageKey,
+  type PackageFieldSource,
+} from '@/Lib/packageFieldAccess'
 
 export function SectionHeader({
   title,
@@ -91,6 +96,56 @@ export function PremiumChip({
   )
 }
 
+export function PackageCodeOption({
+  pkg,
+  active,
+  onClick,
+}: {
+  pkg: PackageFieldSource
+  active?: boolean
+  onClick: () => void
+}) {
+  const code = getPackageKey(pkg) || '—'
+  const withSides = code.endsWith('+')
+  const friendlyLabel = getPackageCascadeFriendlyLabel(pkg)
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-2xl border p-3 text-left transition ${
+        active
+          ? 'border-red-400 bg-red-50 shadow-sm ring-2 ring-red-200'
+          : 'border-neutral-200 bg-white hover:border-neutral-300 hover:bg-neutral-50'
+      }`}
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="font-mono text-sm font-black text-neutral-900">
+          {code}
+        </span>
+        {withSides ? (
+          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-900">
+            + side dishes
+          </span>
+        ) : null}
+      </div>
+      <p className="mt-1 text-sm font-semibold text-neutral-600">
+        {friendlyLabel}
+      </p>
+    </button>
+  )
+}
+
+function premiumGroupHasSides(title: string): boolean {
+  const normalized = title.toLowerCase()
+  return normalized.includes('with side') || normalized.includes('com guarni')
+}
+
+function premiumGroupUsesEnglish(title: string): boolean {
+  const normalized = title.toLowerCase()
+  return normalized.includes('with') || normalized.includes('without')
+}
+
 export function PremiumGroupBlock({
   title,
   count,
@@ -106,6 +161,23 @@ export function PremiumGroupBlock({
   onClick: () => void
   children?: ReactNode
 }) {
+  const withSides = premiumGroupHasSides(title)
+  const english = premiumGroupUsesEnglish(title)
+  const countLabel = english
+    ? count === 1
+      ? 'package'
+      : 'packages'
+    : count === 1
+      ? 'pacote'
+      : 'pacotes'
+  const badgeLabel = withSides
+    ? english
+      ? 'With sides'
+      : 'Com guarnições'
+    : english
+      ? 'Without sides'
+      : 'Sem guarnições'
+
   return (
     <button
       type="button"
@@ -120,7 +192,7 @@ export function PremiumGroupBlock({
         <div>
           <p className="text-lg font-bold text-neutral-900">{title}</p>
           <p className="mt-1 text-sm text-neutral-500">
-            {count} {count === 1 ? 'pacote' : 'pacotes'}
+            {count} {countLabel}
           </p>
           {summary ? (
             <p className="mt-2 line-clamp-2 text-xs text-neutral-400">{summary}</p>
@@ -128,12 +200,12 @@ export function PremiumGroupBlock({
         </div>
         <span
           className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${
-            title.toLowerCase().includes('com')
+            withSides
               ? 'bg-amber-50 text-amber-800'
               : 'bg-neutral-100 text-neutral-600'
           }`}
         >
-          {title.toLowerCase().includes('com') ? 'Com guarnições' : 'Sem guarnições'}
+          {badgeLabel}
         </span>
       </div>
       {children}
@@ -297,35 +369,4 @@ export function CategoryAccordion({
             <p className="mt-1 text-sm text-neutral-500">{subtitle}</p>
           ) : null}
         </div>
-        <span className="shrink-0 text-sm text-red-600">{open ? '▲' : '▼'}</span>
-      </button>
-      {open ? <div className="border-t border-neutral-100 p-4">{children}</div> : null}
-    </section>
-  )
-}
-
-export function RuleGroupAccordion({
-  category,
-  count,
-  open,
-  onToggle,
-  children,
-}: {
-  category: string
-  count: number
-  open: boolean
-  onToggle: () => void
-  children: ReactNode
-}) {
-  return (
-    <CategoryAccordion
-      title={category}
-      subtitle={`${count} ${count === 1 ? 'regra' : 'regras'}`}
-      count={count}
-      open={open}
-      onToggle={onToggle}
-    >
-      {children}
-    </CategoryAccordion>
-  )
-}
+        <span className="shrink-0 tex
