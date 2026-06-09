@@ -2877,8 +2877,8 @@ export default function QuoteWizard({
             packageName={
               selectedPackage ? getPackageName(selectedPackage) : null
             }
-            packageDescription={
-              selectedPackage ? getPackageDescription(selectedPackage) : null
+            packageImageUrl={
+              selectedPackage?.image_url?.trim() || null
             }
             packageUnitPrice={packageUnitPrice}
             billableGuestCount={billableGuestCount}

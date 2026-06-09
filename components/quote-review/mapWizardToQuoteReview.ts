@@ -20,7 +20,7 @@ export type MapWizardToQuoteReviewInput = {
   quoteTotals: QuoteTotals
   customerName: string
   packageName: string | null
-  packageDescription: string | null
+  packageImageUrl: string | null
   packageUnitPrice: number
   additionals: WizardSelectedAdditional[]
   billableGuestCount: number
@@ -56,7 +56,7 @@ export function mapWizardToQuoteReview(
     state: state.state || null,
     zipCode: state.zipCode || null,
     packageName: input.packageName,
-    packageDescription: input.packageDescription || null,
+    packageImageUrl: input.packageImageUrl?.trim() || null,
     packageUnitPrice: input.packageUnitPrice,
     packageTotal: quoteTotals.packageTotal,
     guestCounts: {

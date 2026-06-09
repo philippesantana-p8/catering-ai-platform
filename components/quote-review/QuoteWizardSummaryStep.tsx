@@ -22,7 +22,7 @@ export default function QuoteWizardSummaryStep({
   quoteTotals,
   customerName,
   packageName,
-  packageDescription,
+  packageImageUrl,
   packageUnitPrice,
   billableGuestCount,
   additionals,
@@ -42,7 +42,7 @@ export default function QuoteWizardSummaryStep({
   quoteTotals: QuoteTotals
   customerName: string
   packageName: string | null
-  packageDescription: string | null
+  packageImageUrl: string | null
   packageUnitPrice: number
   billableGuestCount: number
   additionals: WizardSelectedAdditional[]
@@ -65,7 +65,7 @@ export default function QuoteWizardSummaryStep({
         quoteTotals,
         customerName,
         packageName,
-        packageDescription,
+        packageImageUrl,
         packageUnitPrice,
         additionals,
         billableGuestCount,
@@ -76,7 +76,7 @@ export default function QuoteWizardSummaryStep({
       quoteTotals,
       customerName,
       packageName,
-      packageDescription,
+      packageImageUrl,
       packageUnitPrice,
       additionals,
       billableGuestCount,

@@ -219,9 +219,16 @@ export default function QuoteReviewLayout({
             <p className="quote-proposal-package-name">
               {displayValue(data.packageName)}
             </p>
-            {data.packageDescription ? (
-              <p className="quote-proposal-package-desc">{data.packageDescription}</p>
-            ) : null}
+            <div className="mt-4 w-full overflow-hidden rounded-2xl border border-neutral-200 bg-white">
+              <CatalogImageFrame
+                src={data.packageImageUrl}
+                alt={data.packageName ?? 'Pacote'}
+                variant="package"
+                fallbackLabel="Imagem do pacote não cadastrada"
+                rounded="none"
+                className="!aspect-square !min-h-0 !max-h-[min(85vw,20rem)] !bg-white sm:!aspect-[4/3] sm:!max-h-[18rem]"
+              />
+            </div>
             <div className="quote-proposal-highlight-grid">
               <div className="quote-proposal-highlight-card">
                 <span className="quote-proposal-label">Convidados físicos</span>

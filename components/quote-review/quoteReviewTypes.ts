@@ -24,7 +24,7 @@ export type QuoteReviewData = {
   state: string | null
   zipCode: string | null
   packageName: string | null
-  packageDescription: string | null
+  packageImageUrl?: string | null
   packageUnitPrice: number | null
   packageTotal: number | null
   guestCounts: GuestCounts
