@@ -136,8 +136,8 @@ export default function QuotePackageSummary({
             alt={detailTitle}
             variant="package"
             fallbackLabel="Imagem do pacote não cadastrada"
-            rounded="lg"
-            className="!h-full !min-h-0 !max-h-none !w-full"
+            rounded="all"
+            className="!h-full !min-h-0 !max-h-none !w-full !rounded-xl"
           />
         </div>
       </div>
