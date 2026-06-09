@@ -2,6 +2,10 @@ import type { QuoteTotals } from '@/Lib/calculateQuoteTotals'
 import type { WizardState } from '@/Lib/quoteWizardTypes'
 import type { CommercialRulesSnapshot } from '@/Lib/supabaseCommercialRules'
 import { getGrillPhotoStatusLabel } from '@/Lib/grillPhotoStatus'
+import {
+  buildQuoteReviewPackageSummary,
+  type QuoteReviewPackageFields,
+} from './quoteReviewPackageSummary'
 import type { QuoteReviewAdditional, QuoteReviewData } from './quoteReviewTypes'
 
 export type WizardSelectedAdditional = {
@@ -22,6 +26,9 @@ export type MapWizardToQuoteReviewInput = {
   packageName: string | null
   packageImageUrl: string | null
   packageUnitPrice: number
+  selectedPackage: QuoteReviewPackageFields | null
+  allPackages?: ReadonlyArray<QuoteReviewPackageFields>
+  fromWithSidesSection?: boolean
   additionals: WizardSelectedAdditional[]
   billableGuestCount: number
   commercialRules: CommercialRulesSnapshot
@@ -44,6 +51,15 @@ export function mapWizardToQuoteReview(
     }),
   )
 
+  const packageSummary = buildQuoteReviewPackageSummary({
+    pkg: input.selectedPackage,
+    allPackages: input.allPackages,
+    sidesPricePerPerson: commercialRules.sidesPricePerPerson,
+    chargedPeople: quoteTotals.billableGuestCount,
+    fromWithSidesSection: input.fromWithSidesSection,
+    language: state.language,
+  })
+
   return {
     preview: true,
     customerName: input.customerName,
@@ -59,6 +75,7 @@ export function mapWizardToQuoteReview(
     packageImageUrl: input.packageImageUrl?.trim() || null,
     packageUnitPrice: input.packageUnitPrice,
     packageTotal: quoteTotals.packageTotal,
+    packageSummary,
     guestCounts: {
       adultCount: state.adultCount,
       childrenUnder3Count: state.childrenUnder3Count,

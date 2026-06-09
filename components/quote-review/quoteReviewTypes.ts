@@ -1,4 +1,5 @@
 import type { GuestCounts } from '@/Lib/calculateQuoteTotals'
+import type { QuoteReviewPackageSummary } from './quoteReviewPackageSummary'
 
 export type QuoteReviewAdditional = {
   id: string
@@ -27,6 +28,7 @@ export type QuoteReviewData = {
   packageImageUrl?: string | null
   packageUnitPrice: number | null
   packageTotal: number | null
+  packageSummary?: QuoteReviewPackageSummary | null
   guestCounts: GuestCounts
   billableGuestCount: number | null
   physicalGuestCount: number | null

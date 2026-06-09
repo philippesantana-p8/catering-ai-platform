@@ -258,6 +258,18 @@
   color: var(--proposal-muted);
 }
 
+.quote-proposal-package-detail {
+  margin-top: 0.75rem;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--proposal-muted);
+}
+
+.quote-proposal-package-detail-label {
+  font-weight: 700;
+  color: var(--proposal-dark);
+}
+
 .quote-proposal-highlight-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -308,6 +320,17 @@
   color: var(--proposal-dark);
   font-size: clamp(0.875rem, 16cqi, 1.75rem);
   letter-spacing: -0.02em;
+}
+
+.quote-proposal-highlight-card--grand-total {
+  grid-column: 1 / -1;
+  border-color: rgba(214, 40, 40, 0.35);
+  background: linear-gradient(135deg, #fff0f0 0%, #ffffff 100%);
+}
+
+.quote-proposal-highlight-card--grand-total .quote-proposal-highlight-value {
+  color: var(--proposal-red);
+  font-size: clamp(1.1rem, 18cqi, 2rem);
 }
 
 .quote-proposal-event-name {

@@ -16,6 +16,7 @@ import {
   mapWizardToQuoteReview,
   type WizardSelectedAdditional,
 } from './mapWizardToQuoteReview'
+import type { QuoteReviewPackageFields } from './quoteReviewPackageSummary'
 
 export default function QuoteWizardSummaryStep({
   state,
@@ -24,6 +25,9 @@ export default function QuoteWizardSummaryStep({
   packageName,
   packageImageUrl,
   packageUnitPrice,
+  selectedPackage,
+  allPackages,
+  fromWithSidesSection,
   billableGuestCount,
   additionals,
   commercialRules,
@@ -44,6 +48,9 @@ export default function QuoteWizardSummaryStep({
   packageName: string | null
   packageImageUrl: string | null
   packageUnitPrice: number
+  selectedPackage: QuoteReviewPackageFields | null
+  allPackages: QuoteReviewPackageFields[]
+  fromWithSidesSection: boolean
   billableGuestCount: number
   additionals: WizardSelectedAdditional[]
   commercialRules: CommercialRulesSnapshot
@@ -67,6 +74,9 @@ export default function QuoteWizardSummaryStep({
         packageName,
         packageImageUrl,
         packageUnitPrice,
+        selectedPackage,
+        allPackages,
+        fromWithSidesSection,
         additionals,
         billableGuestCount,
         commercialRules,
@@ -78,6 +88,9 @@ export default function QuoteWizardSummaryStep({
       packageName,
       packageImageUrl,
       packageUnitPrice,
+      selectedPackage,
+      allPackages,
+      fromWithSidesSection,
       additionals,
       billableGuestCount,
       commercialRules,

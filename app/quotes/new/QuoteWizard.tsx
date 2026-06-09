@@ -1580,6 +1580,16 @@ export default function QuoteWizard({
     [packages],
   )
 
+  const fromWithSidesSection = useMemo(
+    () =>
+      packagesWithSides.some((pkg) => pkg.id === state.packageId) ||
+      customPackages.some(
+        (pkg) =>
+          pkg.id === state.packageId && pkg.package_key?.trim().endsWith('+'),
+      ),
+    [packagesWithSides, customPackages, state.packageId],
+  )
+
   const additionalItemsByCategory = useMemo(() => {
     const grouped = additionalItems.reduce(
       (acc, item) => {
@@ -2881,6 +2891,9 @@ export default function QuoteWizard({
               selectedPackage?.image_url?.trim() || null
             }
             packageUnitPrice={packageUnitPrice}
+            selectedPackage={selectedPackage}
+            allPackages={packages}
+            fromWithSidesSection={fromWithSidesSection}
             billableGuestCount={billableGuestCount}
             additionals={reviewAdditionals}
             commercialRules={commercialRules}
