@@ -369,4 +369,35 @@ export function CategoryAccordion({
             <p className="mt-1 text-sm text-neutral-500">{subtitle}</p>
           ) : null}
         </div>
-        <span className="shrink-0 tex
+        <span className="shrink-0 text-sm text-red-600">{open ? '▲' : '▼'}</span>
+      </button>
+      {open ? <div className="border-t border-neutral-100 p-4">{children}</div> : null}
+    </section>
+  )
+}
+
+export function RuleGroupAccordion({
+  category,
+  count,
+  open,
+  onToggle,
+  children,
+}: {
+  category: string
+  count: number
+  open: boolean
+  onToggle: () => void
+  children: ReactNode
+}) {
+  return (
+    <CategoryAccordion
+      title={category}
+      subtitle={`${count} ${count === 1 ? 'regra' : 'regras'}`}
+      count={count}
+      open={open}
+      onToggle={onToggle}
+    >
+      {children}
+    </CategoryAccordion>
+  )
+}
