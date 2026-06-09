@@ -1,8 +1,7 @@
 /**
- * Schema de `public.additional_items` — colunas **deployadas** no Supabase hoje.
- * Campos do upgrade premium ficam em ADDITIONAL_ITEMS_UPGRADE_COLUMNS (não usar em SELECT/INSERT até migration).
+ * Colunas reais de `public.additional_items` no Supabase.
  */
-export const ADDITIONAL_ITEMS_DEPLOYED_COLUMNS = [
+export const ADDITIONAL_ITEMS_TABLE_COLUMNS = [
   'id',
   'company_id',
   'item_name',
@@ -30,25 +29,6 @@ export const ADDITIONAL_ITEMS_DEPLOYED_COLUMNS = [
   'currency_code',
   'display_order',
   'updated_at',
-] as const
-
-/** Colunas do upgrade premium — executar scripts/sql/additional-items-catalog-upgrade.sql antes de usar. */
-export const ADDITIONAL_ITEMS_UPGRADE_COLUMNS = [
-  'category_group',
-  'description_pt',
-  'description_en',
-  'description_es',
-  'cost',
-  'margin_percent',
-  'inventory_enabled',
-  'inventory_item_id',
-  'supplier_name',
-  'internal_notes',
-] as const
-
-export const ADDITIONAL_ITEMS_TABLE_COLUMNS = [
-  ...ADDITIONAL_ITEMS_DEPLOYED_COLUMNS,
-  ...ADDITIONAL_ITEMS_UPGRADE_COLUMNS,
 ] as const
 
 export type AdditionalItemsTableColumn =
@@ -86,15 +66,8 @@ export type AdditionalItemsInsertColumn =
 
 export type AdditionalItemsInsertPayload = Partial<
   Record<AdditionalItemsInsertColumn, string | number | boolean | null>
-> &
-  Partial<
-    Record<
-      (typeof ADDITIONAL_ITEMS_UPGRADE_COLUMNS)[number],
-      string | number | boolean | null
-    >
-  >
+>
 
-/** SELECT seguro — apenas colunas existentes no banco. */
 export const ADDITIONAL_ITEMS_LIST_COLUMNS = [
   'id',
   'item_key',
@@ -102,6 +75,7 @@ export const ADDITIONAL_ITEMS_LIST_COLUMNS = [
   'label_pt',
   'label_en',
   'label_es',
+  'category_key',
   'category_pt',
   'category_en',
   'category_es',
@@ -143,15 +117,4 @@ export function pickAdditionalItemsUpdatePayload(
   const payload = pickAdditionalItemsInsertPayload(row)
   delete payload.company_id
   return payload
-}
-
-/** Remove campos de upgrade que ainda não existem no banco. */
-export function stripAdditionalItemsUpgradeFields<T extends Record<string, unknown>>(
-  row: T,
-): T {
-  const next = { ...row }
-  for (const key of ADDITIONAL_ITEMS_UPGRADE_COLUMNS) {
-    delete next[key]
-  }
-  return next
 }

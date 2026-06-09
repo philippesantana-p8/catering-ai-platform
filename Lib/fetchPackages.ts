@@ -4,34 +4,22 @@ import { supabase } from './supabase'
 
 export type PackageListItem = {
   id: string
+  company_id?: string | null
   package_key?: string | null
   package_name?: string | null
   label_pt?: string | null
   label_en?: string | null
   label_es?: string | null
+  description?: string | null
   description_pt?: string | null
   description_en?: string | null
   description_es?: string | null
-  items_description_pt?: string | null
-  items_description_en?: string | null
-  items_description_es?: string | null
-  garnish_description_pt?: string | null
-  garnish_description_en?: string | null
-  garnish_description_es?: string | null
-  card_description_pt?: string | null
-  card_description_en?: string | null
-  card_description_es?: string | null
-  package_type?: string | null
-  base_package_code?: string | null
-  has_garnish?: boolean | null
-  garnish_price_per_person?: number | null
-  cost_per_person?: number | null
-  margin_percent?: number | null
-  inventory_enabled?: boolean | null
   price_per_person?: number | null
   currency_code?: string | null
   display_order?: number | null
   image_url?: string | null
+  image_status?: string | null
+  image_notes?: string | null
   active?: boolean | null
   updated_at?: string | null
 }

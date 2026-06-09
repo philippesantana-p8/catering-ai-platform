@@ -5,17 +5,8 @@ import {
   BackofficeInput,
   BackofficeSelect,
 } from '@/components/backoffice/BackofficeCardPrimitives'
-import {
-  BackofficeFormSectionTitle,
-  BackofficeTextarea,
-} from '@/components/backoffice/BackofficeSectionPrimitives'
+import { BackofficeFormSectionTitle } from '@/components/backoffice/BackofficeSectionPrimitives'
 import { ADDITIONAL_ITEM_CATEGORY_ORDER } from '@/Lib/additionalItemCatalogAdmin'
-import {
-  getAdditionalItemCategory,
-  getAdditionalItemDescription,
-  type AdditionalItemFieldSource,
-} from '@/Lib/additionalItemFieldAccess'
-import { calcMarginPercent, calcProfit, formatUsd } from '@/Lib/backofficeFinance'
 import type { AdditionalItemsInsertPayload } from '@/Lib/additionalItemsTableSchema'
 
 export const EMPTY_ADDITIONAL_ITEM_ROW: AdditionalItemsInsertPayload = {
@@ -24,42 +15,40 @@ export const EMPTY_ADDITIONAL_ITEM_ROW: AdditionalItemsInsertPayload = {
   label_pt: '',
   label_en: '',
   label_es: '',
+  category_key: '',
   category_pt: '',
-  description_pt: '',
-  description_en: '',
-  description_es: '',
+  category_en: '',
+  category_es: '',
   price: 0,
-  cost: 0,
-  margin_percent: 0,
   charge_type: 'UNIT',
   pricing_type: 'PER_UNIT',
   unit_label: 'UN',
   currency_code: 'USD',
   display_order: 0,
   image_url: '',
-  inventory_enabled: false,
-  supplier_name: '',
-  internal_notes: '',
+  image_status: '',
+  image_notes: '',
+  quantity: 0,
+  unit: '',
+  quantity_2: 0,
+  uom_2: '',
   active: true,
 }
 
 export function additionalItemDraftFromListItem(
   item: Record<string, unknown>,
-): AdditionalItemsInsertPayload & AdditionalItemFieldSource {
-  const source = item as AdditionalItemFieldSource
+): AdditionalItemsInsertPayload {
   return {
     item_key: String(item.item_key ?? ''),
     item_name: String(item.item_name ?? ''),
     label_pt: String(item.label_pt ?? ''),
     label_en: String(item.label_en ?? ''),
     label_es: String(item.label_es ?? ''),
-    category_pt: getAdditionalItemCategory(source),
-    description_pt: getAdditionalItemDescription(source, 'pt'),
-    description_en: String(item.description_en ?? ''),
-    description_es: String(item.description_es ?? ''),
+    category_key: String(item.category_key ?? ''),
+    category_pt: String(item.category_pt ?? ''),
+    category_en: String(item.category_en ?? ''),
+    category_es: String(item.category_es ?? ''),
     price: Number(item.price ?? 0),
-    cost: Number(item.cost ?? 0),
-    margin_percent: Number(item.margin_percent ?? 0),
     charge_type: String(item.charge_type ?? 'UNIT'),
     pricing_type: String(item.pricing_type ?? 'PER_UNIT'),
     unit_label: String(item.unit_label ?? 'UN'),
@@ -68,9 +57,10 @@ export function additionalItemDraftFromListItem(
     image_url: String(item.image_url ?? ''),
     image_status: String(item.image_status ?? ''),
     image_notes: item.image_notes == null ? null : String(item.image_notes),
-    inventory_enabled: item.inventory_enabled === true,
-    supplier_name: String(item.supplier_name ?? ''),
-    internal_notes: String(item.internal_notes ?? ''),
+    quantity: Number(item.quantity ?? 0),
+    unit: String(item.unit ?? ''),
+    quantity_2: Number(item.quantity_2 ?? 0),
+    uom_2: String(item.uom_2 ?? ''),
     active: item.active !== false,
   }
 }
@@ -82,11 +72,6 @@ export function AdditionalItemAdminFormFields({
   draft: AdditionalItemsInsertPayload
   setDraft: React.Dispatch<React.SetStateAction<AdditionalItemsInsertPayload>>
 }) {
-  const price = Number(draft.price ?? 0)
-  const cost = Number(draft.cost ?? 0)
-  const margin = calcMarginPercent(price, cost)
-  const profit = calcProfit(price, cost)
-
   return (
     <>
       <BackofficeFormSectionTitle>Dados principais</BackofficeFormSectionTitle>
@@ -120,7 +105,13 @@ export function AdditionalItemAdminFormFields({
           onChange={(v) => setDraft((c) => ({ ...c, label_es: v }))}
         />
       </BackofficeField>
-      <BackofficeField label="Categoria">
+      <BackofficeField label="category_key">
+        <BackofficeInput
+          value={draft.category_key ?? ''}
+          onChange={(v) => setDraft((c) => ({ ...c, category_key: v }))}
+        />
+      </BackofficeField>
+      <BackofficeField label="Categoria PT">
         <BackofficeSelect
           value={String(draft.category_pt ?? '')}
           onChange={(v) => setDraft((c) => ({ ...c, category_pt: v }))}
@@ -132,6 +123,25 @@ export function AdditionalItemAdminFormFields({
             </option>
           ))}
         </BackofficeSelect>
+      </BackofficeField>
+      <BackofficeField label="Categoria EN">
+        <BackofficeInput
+          value={draft.category_en ?? ''}
+          onChange={(v) => setDraft((c) => ({ ...c, category_en: v }))}
+        />
+      </BackofficeField>
+      <BackofficeField label="Categoria ES">
+        <BackofficeInput
+          value={draft.category_es ?? ''}
+          onChange={(v) => setDraft((c) => ({ ...c, category_es: v }))}
+        />
+      </BackofficeField>
+      <BackofficeField label="Preço">
+        <BackofficeInput
+          type="number"
+          value={draft.price ?? 0}
+          onChange={(v) => setDraft((c) => ({ ...c, price: Number(v) }))}
+        />
       </BackofficeField>
       <BackofficeField label="Tipo de cobrança">
         <BackofficeSelect
@@ -184,70 +194,42 @@ export function AdditionalItemAdminFormFields({
           onChange={(v) => setDraft((c) => ({ ...c, image_url: v }))}
         />
       </BackofficeField>
-
-      <BackofficeFormSectionTitle>Descrições</BackofficeFormSectionTitle>
-      <BackofficeField label="Descrição PT" className="sm:col-span-2 lg:col-span-3">
-        <BackofficeTextarea
-          value={draft.description_pt ?? ''}
-          onChange={(v) => setDraft((c) => ({ ...c, description_pt: v }))}
+      <BackofficeField label="image_status">
+        <BackofficeInput
+          value={draft.image_status ?? ''}
+          onChange={(v) => setDraft((c) => ({ ...c, image_status: v }))}
         />
       </BackofficeField>
-      <BackofficeField label="Descrição EN" className="sm:col-span-2">
-        <BackofficeTextarea
-          value={draft.description_en ?? ''}
-          onChange={(v) => setDraft((c) => ({ ...c, description_en: v }))}
+      <BackofficeField label="image_notes" className="sm:col-span-2">
+        <BackofficeInput
+          value={draft.image_notes ?? ''}
+          onChange={(v) => setDraft((c) => ({ ...c, image_notes: v }))}
         />
       </BackofficeField>
-      <BackofficeField label="Descrição ES" className="sm:col-span-2">
-        <BackofficeTextarea
-          value={draft.description_es ?? ''}
-          onChange={(v) => setDraft((c) => ({ ...c, description_es: v }))}
-        />
-      </BackofficeField>
-
-      <BackofficeFormSectionTitle>Financeiro</BackofficeFormSectionTitle>
-      <BackofficeField label="Preço">
+      <BackofficeField label="quantity">
         <BackofficeInput
           type="number"
-          value={draft.price ?? 0}
-          onChange={(v) => setDraft((c) => ({ ...c, price: Number(v) }))}
+          value={draft.quantity ?? 0}
+          onChange={(v) => setDraft((c) => ({ ...c, quantity: Number(v) }))}
         />
       </BackofficeField>
-      <BackofficeField label="Custo">
+      <BackofficeField label="unit">
+        <BackofficeInput
+          value={draft.unit ?? ''}
+          onChange={(v) => setDraft((c) => ({ ...c, unit: v }))}
+        />
+      </BackofficeField>
+      <BackofficeField label="quantity_2">
         <BackofficeInput
           type="number"
-          value={draft.cost ?? 0}
-          onChange={(v) => setDraft((c) => ({ ...c, cost: Number(v) }))}
+          value={draft.quantity_2 ?? 0}
+          onChange={(v) => setDraft((c) => ({ ...c, quantity_2: Number(v) }))}
         />
       </BackofficeField>
-      <BackofficeField label="Margem estimada">
-        <div className="rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2.5 text-sm text-neutral-800">
-          {margin.toFixed(2)}% · Lucro {formatUsd(profit)}
-        </div>
-      </BackofficeField>
-
-      <BackofficeFormSectionTitle>Inventário e fornecedor</BackofficeFormSectionTitle>
-      <BackofficeField label="Habilitar inventário">
-        <BackofficeSelect
-          value={draft.inventory_enabled ? 'true' : 'false'}
-          onChange={(v) =>
-            setDraft((c) => ({ ...c, inventory_enabled: v === 'true' }))
-          }
-        >
-          <option value="false">Não</option>
-          <option value="true">Sim</option>
-        </BackofficeSelect>
-      </BackofficeField>
-      <BackofficeField label="Fornecedor">
+      <BackofficeField label="uom_2">
         <BackofficeInput
-          value={draft.supplier_name ?? ''}
-          onChange={(v) => setDraft((c) => ({ ...c, supplier_name: v }))}
-        />
-      </BackofficeField>
-      <BackofficeField label="Observações internas" className="sm:col-span-2 lg:col-span-3">
-        <BackofficeTextarea
-          value={draft.internal_notes ?? ''}
-          onChange={(v) => setDraft((c) => ({ ...c, internal_notes: v }))}
+          value={draft.uom_2 ?? ''}
+          onChange={(v) => setDraft((c) => ({ ...c, uom_2: v }))}
         />
       </BackofficeField>
     </>

@@ -24,19 +24,20 @@ import {
   BackofficeInventoryButton,
 } from '@/components/backoffice/BackofficeSectionPrimitives'
 import CatalogImageFrame from '@/components/CatalogImageFrame'
-import type { AdditionalItemListItem } from '@/Lib/fetchAdditionalItems'
 import {
   groupAdditionalItemsByCategory,
   normalizeAdditionalItemDraft,
 } from '@/Lib/additionalItemCatalogAdmin'
 import {
-  getAdditionalItemCategory,
-  getAdditionalItemCost,
-  getAdditionalItemDescription,
-  getAdditionalItemMarginPercent,
+  getAdditionalItemCategoryLabel,
+  getAdditionalItemCurrencyCode,
+  getAdditionalItemDisplayOrder,
+  getAdditionalItemImageUrl,
+  getAdditionalItemLabel,
   mapAdditionalItemDraftToDeployed,
 } from '@/Lib/additionalItemFieldAccess'
-import { calcMarginPercent, formatUsd } from '@/Lib/backofficeFinance'
+import type { AdditionalItemListItem } from '@/Lib/fetchAdditionalItems'
+import { formatUsd } from '@/Lib/backofficeFinance'
 import { getAdditionalItemPrice } from '@/Lib/getAdditionalItemPrice'
 import type { AdditionalItemsInsertPayload } from '@/Lib/additionalItemsTableSchema'
 
@@ -94,7 +95,7 @@ export default function AdditionalItemsDashboard({
   const [saving, setSaving] = useState(false)
   const [uploadingId, setUploadingId] = useState<string | null>(null)
   const [uploadErrors, setUploadErrors] = useState<Record<string, string>>({})
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  const [selectedCategoryKey, setSelectedCategoryKey] = useState<string | null>(null)
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
   const [mobileStep, setMobileStep] = useState<MobileStep>('categories')
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -109,7 +110,9 @@ export default function AdditionalItemsDashboard({
         item.item_name,
         item.label_pt,
         item.category_pt,
-        getAdditionalItemCategory(item),
+        item.category_key,
+        getAdditionalItemCategoryLabel(item),
+        getAdditionalItemLabel(item),
       ]
         .filter(Boolean)
         .join(' ')
@@ -123,10 +126,12 @@ export default function AdditionalItemsDashboard({
     [filteredItems],
   )
 
-  const categoryItems = useMemo(() => {
-    if (!selectedCategory) return []
-    return grouped.find((g) => g.category === selectedCategory)?.items ?? []
-  }, [grouped, selectedCategory])
+  const selectedGroup = useMemo(
+    () => grouped.find((g) => g.categoryKey === selectedCategoryKey) ?? null,
+    [grouped, selectedCategoryKey],
+  )
+
+  const categoryItems = selectedGroup?.items ?? []
 
   const selectedItem = useMemo(
     () => items.find((item) => item.id === selectedItemId) ?? null,
@@ -135,14 +140,17 @@ export default function AdditionalItemsDashboard({
 
   useEffect(() => {
     if (grouped.length === 0) {
-      setSelectedCategory(null)
+      setSelectedCategoryKey(null)
       setSelectedItemId(null)
       return
     }
-    if (!selectedCategory || !grouped.some((g) => g.category === selectedCategory)) {
-      setSelectedCategory(grouped[0].category)
+    if (
+      !selectedCategoryKey ||
+      !grouped.some((g) => g.categoryKey === selectedCategoryKey)
+    ) {
+      setSelectedCategoryKey(grouped[0].categoryKey)
     }
-  }, [grouped, selectedCategory])
+  }, [grouped, selectedCategoryKey])
 
   useEffect(() => {
     if (categoryItems.length === 0) {
@@ -174,10 +182,10 @@ export default function AdditionalItemsDashboard({
     void refreshItems()
   }, [activeFilter])
 
-  function selectCategory(category: string) {
-    setSelectedCategory(category)
+  function selectCategory(categoryKey: string) {
+    setSelectedCategoryKey(categoryKey)
     setMobileStep('items')
-    const first = grouped.find((g) => g.category === category)?.items[0]
+    const first = grouped.find((g) => g.categoryKey === categoryKey)?.items[0]
     setSelectedItemId(first?.id ?? null)
   }
 
@@ -199,7 +207,7 @@ export default function AdditionalItemsDashboard({
   function startEdit(item: AdditionalItemListItem) {
     setEditingId(item.id)
     setSelectedItemId(item.id)
-    setDraft(additionalItemDraftFromListItem(item as Record<string, unknown>))
+    setDraft(additionalItemDraftFromListItem(item))
     setMobileStep('detail')
   }
 
@@ -314,7 +322,7 @@ export default function AdditionalItemsDashboard({
   }
 
   async function deactivate(item: AdditionalItemListItem) {
-    const label = item.item_name ?? item.label_pt ?? item.item_key ?? 'Item'
+    const label = getAdditionalItemLabel(item)
     if (!window.confirm(`Inativar "${label}"?`)) return
     const response = await fetch(`/api/additional-items/${item.id}`, {
       method: 'PATCH',
@@ -380,18 +388,14 @@ export default function AdditionalItemsDashboard({
 
     const isEditing = editingId === selectedItem.id
     const itemKey = selectedItem.item_key ?? '—'
-    const displayName =
-      selectedItem.item_name ?? selectedItem.label_pt ?? itemKey
+    const displayName = getAdditionalItemLabel(selectedItem)
     const imageUrl = isEditing
       ? String(draft.image_url ?? '').trim() || null
-      : selectedItem.image_url?.trim() || null
+      : getAdditionalItemImageUrl(selectedItem)
     const price = getAdditionalItemPrice(isEditing ? draft : selectedItem)
-    const cost = isEditing ? Number(draft.cost ?? 0) : getAdditionalItemCost(selectedItem)
-    const margin = isEditing
-      ? calcMarginPercent(price, cost)
-      : getAdditionalItemMarginPercent(selectedItem) || calcMarginPercent(price, cost)
     const uploadError = uploadErrors[selectedItem.id]
-    const category = getAdditionalItemCategory(selectedItem)
+    const categoryLabel = getAdditionalItemCategoryLabel(selectedItem)
+    const currency = getAdditionalItemCurrencyCode(selectedItem)
 
     if (isEditing) {
       return (
@@ -445,11 +449,11 @@ export default function AdditionalItemsDashboard({
     return (
       <BackofficeCascadePanel
         title={displayName}
-        subtitle={category}
+        subtitle={categoryLabel}
         className="lg:col-span-5 overflow-hidden !p-0"
         onBack={() => setMobileStep('items')}
       >
-        <div className="w-full aspect-square bg-neutral-50 flex items-center justify-center">
+        <div className="flex aspect-square w-full items-center justify-center bg-neutral-50">
           <CatalogImageFrame
             src={imageUrl}
             alt={displayName}
@@ -467,20 +471,14 @@ export default function AdditionalItemsDashboard({
             <BackofficeStatusBadge active={selectedItem.active !== false} />
           </div>
           <h3 className="text-2xl font-bold text-neutral-900">{displayName}</h3>
-          <BackofficeMetaRow label="Categoria" value={category} />
+          <BackofficeMetaRow label="Categoria" value={categoryLabel} />
           <BackofficeMetaRow label="Preço" value={formatUsd(price)} />
           <BackofficeMetaRow label="Cobrança" value={chargeLabel(selectedItem)} />
-          {cost > 0 ? (
-            <BackofficeMetaRow label="Custo" value={formatUsd(cost)} />
-          ) : null}
-          {margin > 0 ? (
-            <BackofficeMetaRow label="Margem" value={`${margin.toFixed(2)}%`} />
-          ) : null}
-          {getAdditionalItemDescription(selectedItem) ? (
-            <p className="text-sm text-neutral-600">
-              {getAdditionalItemDescription(selectedItem)}
-            </p>
-          ) : null}
+          <BackofficeMetaRow label="pricing_type" value={selectedItem.pricing_type ?? '—'} />
+          <BackofficeMetaRow label="charge_type" value={selectedItem.charge_type ?? '—'} />
+          <BackofficeMetaRow label="unit_label" value={selectedItem.unit_label ?? '—'} />
+          <BackofficeMetaRow label="Moeda" value={currency} />
+          <BackofficeMetaRow label="Ordem" value={getAdditionalItemDisplayOrder(selectedItem)} />
           {uploadError ? (
             <p className="text-xs text-red-600">{uploadError}</p>
           ) : null}
@@ -570,13 +568,13 @@ export default function AdditionalItemsDashboard({
               subtitle={`${grouped.length} categorias`}
             >
               <div className="space-y-2">
-                {grouped.map(({ category, items: catItems }) => (
+                {grouped.map(({ categoryKey, categoryLabel, items: catItems }) => (
                   <BackofficeCascadeListButton
-                    key={category}
-                    active={selectedCategory === category}
-                    onClick={() => selectCategory(category)}
+                    key={categoryKey}
+                    active={selectedCategoryKey === categoryKey}
+                    onClick={() => selectCategory(categoryKey)}
                   >
-                    <span>{category}</span>
+                    <span>{categoryLabel}</span>
                     <span className="text-xs text-neutral-400">
                       {catItems.length}
                     </span>
@@ -592,30 +590,27 @@ export default function AdditionalItemsDashboard({
             }
           >
             <BackofficeCascadePanel
-              title={selectedCategory ?? 'Itens'}
+              title={selectedGroup?.categoryLabel ?? 'Itens'}
               subtitle={
-                selectedCategory
+                selectedGroup
                   ? `${categoryItems.length} itens`
                   : 'Selecione uma categoria'
               }
               onBack={() => setMobileStep('categories')}
             >
               <div className="space-y-2">
-                {categoryItems.map((item) => {
-                  const name = item.item_name ?? item.label_pt ?? item.item_key ?? '—'
-                  return (
-                    <BackofficeCascadeListButton
-                      key={item.id}
-                      active={selectedItemId === item.id}
-                      onClick={() => selectItem(item.id)}
-                    >
-                      <span>{name}</span>
-                      <span className="text-xs text-neutral-400">
-                        {formatUsd(getAdditionalItemPrice(item))}
-                      </span>
-                    </BackofficeCascadeListButton>
-                  )
-                })}
+                {categoryItems.map((item) => (
+                  <BackofficeCascadeListButton
+                    key={item.id}
+                    active={selectedItemId === item.id}
+                    onClick={() => selectItem(item.id)}
+                  >
+                    <span>{getAdditionalItemLabel(item)}</span>
+                    <span className="text-xs text-neutral-400">
+                      {formatUsd(getAdditionalItemPrice(item))}
+                    </span>
+                  </BackofficeCascadeListButton>
+                ))}
               </div>
             </BackofficeCascadePanel>
           </div>

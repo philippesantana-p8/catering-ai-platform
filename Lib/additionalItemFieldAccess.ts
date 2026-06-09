@@ -1,74 +1,84 @@
 import type { AdditionalItemsInsertPayload } from '@/Lib/additionalItemsTableSchema'
-import {
-  pickAdditionalItemsInsertPayload,
-  stripAdditionalItemsUpgradeFields,
-} from '@/Lib/additionalItemsTableSchema'
+import { pickAdditionalItemsInsertPayload } from '@/Lib/additionalItemsTableSchema'
 
 export type AdditionalItemFieldSource = {
+  item_key?: string | null
+  item_name?: string | null
+  label_pt?: string | null
+  label_en?: string | null
+  label_es?: string | null
+  category_key?: string | null
   category_pt?: string | null
   category_en?: string | null
   category_es?: string | null
-  category_group?: string | null
-  category?: string | null
-  category_name?: string | null
-  type?: string | null
-  description_pt?: string | null
-  description_en?: string | null
-  description_es?: string | null
-  cost?: number | null
-  margin_percent?: number | null
-  inventory_enabled?: boolean | null
-  supplier_name?: string | null
-  internal_notes?: string | null
+  price?: number | null
+  charge_type?: string | null
+  pricing_type?: string | null
+  unit_label?: string | null
+  currency_code?: string | null
+  display_order?: number | null
+  image_url?: string | null
+  active?: boolean | null
 }
 
-export function getAdditionalItemCategory(
+export function getAdditionalItemCategoryKey(
   item: AdditionalItemFieldSource | null | undefined,
 ): string {
-  const category =
-    item?.category_group?.trim() ||
+  return item?.category_key?.trim() || 'OUTROS'
+}
+
+export function getAdditionalItemCategoryLabel(
+  item: AdditionalItemFieldSource | null | undefined,
+): string {
+  return (
     item?.category_pt?.trim() ||
-    item?.category?.trim() ||
-    item?.category_name?.trim() ||
-    item?.type?.trim() ||
+    item?.category_en?.trim() ||
+    item?.category_es?.trim() ||
+    item?.category_key?.trim() ||
     'Outros'
-  return category || 'Outros'
+  )
 }
 
-export function getAdditionalItemDescription(
+export function getAdditionalItemLabel(
   item: AdditionalItemFieldSource | null | undefined,
-  language: 'pt' | 'en' | 'es' = 'pt',
 ): string {
-  if (!item) return ''
-  if (language === 'en') return item.description_en?.trim() || ''
-  if (language === 'es') return item.description_es?.trim() || ''
-  return item.description_pt?.trim() || ''
+  return (
+    item?.label_pt?.trim() ||
+    item?.item_name?.trim() ||
+    item?.label_en?.trim() ||
+    item?.label_es?.trim() ||
+    item?.item_key?.trim() ||
+    'Item adicional'
+  )
 }
 
-export function getAdditionalItemCost(
+export function getAdditionalItemPrice(
   item: AdditionalItemFieldSource | null | undefined,
 ): number {
-  return Number(item?.cost ?? 0)
+  return Number(item?.price ?? 0)
 }
 
-export function getAdditionalItemMarginPercent(
+export function getAdditionalItemImageUrl(
+  item: AdditionalItemFieldSource | null | undefined,
+): string | null {
+  const url = item?.image_url?.trim()
+  return url || null
+}
+
+export function getAdditionalItemCurrencyCode(
+  item: AdditionalItemFieldSource | null | undefined,
+): string {
+  return item?.currency_code?.trim() || 'USD'
+}
+
+export function getAdditionalItemDisplayOrder(
   item: AdditionalItemFieldSource | null | undefined,
 ): number {
-  return Number(item?.margin_percent ?? 0)
+  return Number(item?.display_order ?? 999)
 }
 
-/** Mapeia rascunho do formulário premium para colunas deployadas no Supabase. */
 export function mapAdditionalItemDraftToDeployed(
-  draft: Record<string, unknown>,
+  draft: AdditionalItemsInsertPayload,
 ): AdditionalItemsInsertPayload {
-  const category = getAdditionalItemCategory(draft as AdditionalItemFieldSource)
-
-  const deployed: AdditionalItemsInsertPayload = {
-    ...stripAdditionalItemsUpgradeFields(draft),
-    category_pt: draft.category_pt?.toString().trim() || category,
-    category_en: draft.category_en?.toString().trim() || undefined,
-    category_es: draft.category_es?.toString().trim() || undefined,
-  }
-
-  return pickAdditionalItemsInsertPayload(deployed)
+  return pickAdditionalItemsInsertPayload(draft)
 }

@@ -205,11 +205,23 @@ function garnishItemsFromDescription(
   return garnishSection ? parseBulletItems(garnishSection) : []
 }
 
+const DEFAULT_GARNISH_TEXT_PT =
+  'Arroz, feijão tropeiro, vinagrete, farofa e mandioca.'
+
 export function garnishDescription(
   pkg: QuoteReviewPackageFields | null,
   language: QuoteLanguage = 'pt',
 ): string | null {
   if (!pkg) return null
+
+  const packageKey = (pkg.package_key ?? '').trim()
+  if (packageKey.endsWith('+') && language === 'pt') {
+    const fromDescription = garnishItemsFromDescription(pkg, language)
+    if (fromDescription.length > 0) {
+      return formatItemsList(fromDescription)
+    }
+    return DEFAULT_GARNISH_TEXT_PT
+  }
 
   const fromDescription = garnishItemsFromDescription(pkg, language)
   if (fromDescription.length > 0) {

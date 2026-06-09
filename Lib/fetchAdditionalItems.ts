@@ -9,14 +9,11 @@ export type AdditionalItemListItem = {
   label_pt?: string | null
   label_en?: string | null
   label_es?: string | null
+  category_key?: string | null
   category_pt?: string | null
-  category_group?: string | null
-  description_pt?: string | null
-  description_en?: string | null
-  description_es?: string | null
+  category_en?: string | null
+  category_es?: string | null
   price?: number | null
-  cost?: number | null
-  margin_percent?: number | null
   charge_type?: string | null
   pricing_type?: string | null
   unit_label?: string | null
@@ -25,9 +22,6 @@ export type AdditionalItemListItem = {
   image_url?: string | null
   image_status?: string | null
   image_notes?: string | null
-  inventory_enabled?: boolean | null
-  supplier_name?: string | null
-  internal_notes?: string | null
   active?: boolean | null
 }
 
