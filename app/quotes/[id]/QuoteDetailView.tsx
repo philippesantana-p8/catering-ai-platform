@@ -6,6 +6,7 @@ import {
   buildQuoteReviewPackageSummaryFromQuote,
   resolveQuoteDetailPackageImageUrl,
 } from '@/components/quote-review/mapQuoteDetailToQuoteReview'
+import QuoteProposalOverviewCard from '@/components/quote-review/QuoteProposalOverviewCard'
 import QuoteReviewPackageCdlSection from '@/components/quote-review/QuoteReviewPackageCdlSection'
 import {
   type QuoteDetail,
@@ -279,30 +280,22 @@ export default function QuoteDetailView({ quote }: { quote: QuoteDetail }) {
       </header>
 
       <div className="quote-proposal-body mx-auto max-w-6xl px-4 pb-10 sm:px-8 sm:pb-12">
-        <div className="quote-proposal-overview">
-          <div className="quote-proposal-overview-item">
-            <span className="quote-proposal-label">Cliente</span>
-            <p className="quote-proposal-value">{displayValue(customerDisplayName)}</p>
-          </div>
-          <div className="quote-proposal-overview-item">
-            <span className="quote-proposal-label">Evento</span>
-            <p className="quote-proposal-value">
-              {formatDate(quote.event_date)}
-            </p>
-          </div>
-          <div className="quote-proposal-overview-item">
-            <span className="quote-proposal-label">Local</span>
-            <p className="quote-proposal-value">
-              {displayValue(cityState || quote.city)}
-            </p>
-          </div>
-          <div className="quote-proposal-overview-item quote-proposal-overview-item--total">
-            <span className="quote-proposal-label">Investimento</span>
-            <p className="quote-proposal-overview-total">
-              {formatMoneyOrDash(snapshot.quoteTotal)}
-            </p>
-          </div>
-        </div>
+        <QuoteProposalOverviewCard
+          customerName={displayValue(customerDisplayName)}
+          eventDate={quote.event_date ?? null}
+          addressLine={quote.address_line}
+          city={quote.city}
+          state={quote.state}
+          zipCode={getZipCode(quote)}
+          packageSummary={packageSummary}
+          packageTotal={snapshot.packageTotal}
+          additionalTotal={snapshot.additionalTotal}
+          mileageFee={snapshot.mileageFee}
+          reservationAmount={snapshot.reservationAmount}
+          quoteTotal={snapshot.quoteTotal}
+          additionalsCount={additionalItems.length}
+          grillRentalRequired={quote.grill_rental_required}
+        />
 
         <div className="quote-proposal-grid-2">
           <ProposalSection title="Pacote CDL">

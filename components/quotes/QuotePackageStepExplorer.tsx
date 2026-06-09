@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   BackofficeCascadeLayout,
   BackofficeCascadePanel,
@@ -59,11 +59,47 @@ function PackageGroupOption({
   )
 }
 
-function resolveGroupForPackage(
-  pkg: PackageRow | null | undefined,
-): GarnishGroup {
-  if (!pkg) return 'with'
-  return getPackageHasGarnish(pkg) ? 'with' : 'without'
+function MobileGroupButton({
+  title,
+  count,
+  badge,
+  active,
+  expanded,
+  onClick,
+}: {
+  title: string
+  count: number
+  badge: string
+  active: boolean
+  expanded: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex w-full items-center justify-between gap-4 p-5 text-left transition-colors ${
+        active ? 'bg-cdl-hover/60' : 'hover:bg-cdl-hover'
+      }`}
+    >
+      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1">
+        <span className="text-lg font-extrabold text-cdl-title">{title}</span>
+        <span className="text-sm text-cdl-muted">
+          {count} {count === 1 ? 'pacote' : 'pacotes'}
+        </span>
+        <span className="rounded-full bg-cdl-inset px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-cdl-muted">
+          {badge}
+        </span>
+      </div>
+      <span
+        className={`shrink-0 text-sm text-cdl-accent transition-transform ${
+          expanded ? 'rotate-180' : ''
+        }`}
+      >
+        ▼
+      </span>
+    </button>
+  )
 }
 
 function MobilePackageList({
@@ -84,7 +120,7 @@ function MobilePackageList({
   onPackageClick: (pkg: PackageRow) => void
 }) {
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 border-t border-cdl-border-subtle p-4">
       {packages.map((pkg) => {
         const code = getPackageKey(pkg)
         const isSelected = selectedPackageId === pkg.id
@@ -116,6 +152,13 @@ function MobilePackageList({
   )
 }
 
+function resolveGroupForPackage(
+  pkg: PackageRow | null | undefined,
+): GarnishGroup {
+  if (!pkg) return 'with'
+  return getPackageHasGarnish(pkg) ? 'with' : 'without'
+}
+
 export default function QuotePackageStepExplorer({
   packagesWithoutSides,
   packagesWithSides,
@@ -131,7 +174,7 @@ export default function QuotePackageStepExplorer({
   selectedPackageId: string | null
   language?: QuoteLanguage
   sidesPricePerPerson?: number
-  onSelect: (id: string) => void
+  onSelect: (id: string | null) => void
 }) {
   const sortedWithSides = useMemo(
     () => sortPackagesByCommercialTier(packagesWithSides),
@@ -149,18 +192,17 @@ export default function QuotePackageStepExplorer({
   )
 
   const [selectedGroup, setSelectedGroup] = useState<GarnishGroup>(() =>
-    resolveGroupForPackage(
-      allPackages.find((pkg) => pkg.id === selectedPackageId) ?? null,
-    ),
+    selectedPackage
+      ? resolveGroupForPackage(selectedPackage)
+      : 'with',
   )
 
   const [mobileExpandedGroup, setMobileExpandedGroup] =
-    useState<GarnishGroup>('with')
+    useState<GarnishGroup | null>(null)
 
   const [expandedPackageCode, setExpandedPackageCode] = useState<string | null>(
     null,
   )
-  const mobileExpandInitialized = useRef(false)
 
   useEffect(() => {
     if (!selectedPackage) return
@@ -173,70 +215,40 @@ export default function QuotePackageStepExplorer({
   const groupTitle =
     selectedGroup === 'with' ? 'Com guarnições' : 'Sem guarnições'
 
-  function selectPrimeForGroup(group: GarnishGroup) {
-    const list = group === 'with' ? sortedWithSides : sortedWithoutSides
-    const prime = list[0]
-    if (!prime) return null
-    onSelect(prime.id)
-    setExpandedPackageCode(getPackageKey(prime))
-    return prime.id
-  }
-
   function selectGroupDesktop(group: GarnishGroup) {
     setSelectedGroup(group)
     const list = group === 'with' ? sortedWithSides : sortedWithoutSides
     const currentInGroup = list.find((pkg) => pkg.id === selectedPackageId)
-    if (!currentInGroup && list.length > 0) {
+    if (!currentInGroup && list.length > 0 && selectedPackageId) {
       onSelect(list[0].id)
     }
   }
 
   function openMobileGroup(group: GarnishGroup) {
-    setSelectedGroup(group)
+    if (mobileExpandedGroup === group) {
+      setMobileExpandedGroup(null)
+      return
+    }
     setMobileExpandedGroup(group)
-    selectPrimeForGroup(group)
-    mobileExpandInitialized.current = true
+    setSelectedGroup(group)
+    onSelect(null)
+    setExpandedPackageCode(null)
   }
 
   function handleMobilePackageClick(pkg: PackageRow) {
     const code = getPackageKey(pkg)
-    const isCurrentlyExpanded = expandedPackageCode === code
+    const wasSelected = selectedPackageId === pkg.id
+    const wasExpanded = expandedPackageCode === code
 
     onSelect(pkg.id)
 
-    if (isCurrentlyExpanded) {
+    if (wasSelected && wasExpanded) {
       setExpandedPackageCode(null)
       return
     }
 
     setExpandedPackageCode(code)
   }
-
-  useEffect(() => {
-    if (mobileExpandInitialized.current) return
-    if (mobileExpandedGroup !== 'with') return
-
-    const prime = sortedWithSides[0]
-    if (!prime) return
-
-    if (!selectedPackageId) {
-      onSelect(prime.id)
-      setExpandedPackageCode(getPackageKey(prime))
-      mobileExpandInitialized.current = true
-      return
-    }
-
-    const selectedInWith = sortedWithSides.some(
-      (pkg) => pkg.id === selectedPackageId,
-    )
-    if (selectedInWith) {
-      const selected = sortedWithSides.find((pkg) => pkg.id === selectedPackageId)
-      setExpandedPackageCode(
-        selected ? getPackageKey(selected) : getPackageKey(prime),
-      )
-      mobileExpandInitialized.current = true
-    }
-  }, [mobileExpandedGroup, selectedPackageId, sortedWithSides, onSelect])
 
   const totalCount = packagesWithoutSides.length + packagesWithSides.length
 
@@ -246,61 +258,9 @@ export default function QuotePackageStepExplorer({
     )
   }
 
-  const mobileGroupSection = (
-    group: GarnishGroup,
-    title: string,
-    badge: string,
-    packages: PackageRow[],
-  ) => {
-    const expanded = mobileExpandedGroup === group
-    return (
-      <section
-        key={group}
-        className="overflow-hidden rounded-2xl border border-cdl-border bg-cdl-surface shadow-cdl md:hidden"
-      >
-        <button
-          type="button"
-          onClick={() => openMobileGroup(group)}
-          className="flex w-full items-center justify-between gap-4 p-5 text-left transition-colors hover:bg-cdl-hover"
-        >
-          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1">
-            <span className="text-lg font-extrabold text-cdl-title">{title}</span>
-            <span className="text-sm text-cdl-muted">
-              {packages.length}{' '}
-              {packages.length === 1 ? 'pacote' : 'pacotes'}
-            </span>
-            <span className="rounded-full bg-cdl-inset px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-cdl-muted">
-              {badge}
-            </span>
-          </div>
-          <span
-            className={`shrink-0 text-sm text-cdl-accent transition-transform ${
-              expanded ? 'rotate-180' : ''
-            }`}
-          >
-            ▼
-          </span>
-        </button>
-        {expanded ? (
-          <div className="border-t border-cdl-border-subtle p-4">
-            <MobilePackageList
-              packages={packages}
-              selectedPackageId={selectedPackageId}
-              expandedPackageCode={expandedPackageCode}
-              allPackages={allPackages}
-              language={language}
-              sidesPricePerPerson={sidesPricePerPerson}
-              onPackageClick={handleMobilePackageClick}
-            />
-          </div>
-        ) : null}
-      </section>
-    )
-  }
-
   return (
     <div className="space-y-3">
-      {/* Desktop — 3 colunas (md+) */}
+      {/* Desktop — 3 colunas */}
       <div className="hidden md:block">
         <BackofficeCascadeLayout>
           <BackofficeCascadePanel
@@ -365,23 +325,56 @@ export default function QuotePackageStepExplorer({
         </BackofficeCascadeLayout>
       </div>
 
-      {/* Mobile — detalhe inline abaixo do pacote clicado */}
-      {sortedWithSides.length > 0
-        ? mobileGroupSection(
-            'with',
-            'Com guarnições',
-            'Com guarnições',
-            sortedWithSides,
-          )
-        : null}
-      {sortedWithoutSides.length > 0
-        ? mobileGroupSection(
-            'without',
-            'Sem guarnições',
-            'Sem guarnições',
-            sortedWithoutSides,
-          )
-        : null}
+      {/* Mobile — grupos primeiro, pacotes só após escolher grupo */}
+      <div className="space-y-3 md:hidden">
+        {sortedWithSides.length > 0 ? (
+          <section className="overflow-hidden rounded-2xl border border-cdl-border bg-cdl-surface shadow-cdl">
+            <MobileGroupButton
+              title="Com guarnições"
+              count={sortedWithSides.length}
+              badge="Com guarnições"
+              active={mobileExpandedGroup === 'with'}
+              expanded={mobileExpandedGroup === 'with'}
+              onClick={() => openMobileGroup('with')}
+            />
+            {mobileExpandedGroup === 'with' ? (
+              <MobilePackageList
+                packages={sortedWithSides}
+                selectedPackageId={selectedPackageId}
+                expandedPackageCode={expandedPackageCode}
+                allPackages={allPackages}
+                language={language}
+                sidesPricePerPerson={sidesPricePerPerson}
+                onPackageClick={handleMobilePackageClick}
+              />
+            ) : null}
+          </section>
+        ) : null}
+
+        {sortedWithoutSides.length > 0 ? (
+          <section className="overflow-hidden rounded-2xl border border-cdl-border bg-cdl-surface shadow-cdl">
+            <MobileGroupButton
+              title="Sem guarnições"
+              count={sortedWithoutSides.length}
+              badge="Sem guarnições"
+              active={mobileExpandedGroup === 'without'}
+              expanded={mobileExpandedGroup === 'without'}
+              onClick={() => openMobileGroup('without')}
+            />
+            {mobileExpandedGroup === 'without' ? (
+              <MobilePackageList
+                packages={sortedWithoutSides}
+                selectedPackageId={selectedPackageId}
+                expandedPackageCode={expandedPackageCode}
+                allPackages={allPackages}
+                language={language}
+                sidesPricePerPerson={sidesPricePerPerson}
+                onPackageClick={handleMobilePackageClick}
+              />
+            ) : null}
+          </section>
+        ) : null}
+      </div>
     </div>
   )
 }

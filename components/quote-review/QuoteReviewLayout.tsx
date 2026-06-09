@@ -23,6 +23,7 @@ import {
   formatTime,
 } from '@/app/quotes/[id]/quoteDetailTypes'
 import { IconCalendar, IconClock, IconLocation } from './QuoteReviewIcons'
+import QuoteProposalOverviewCard from './QuoteProposalOverviewCard'
 import type { QuoteReviewAdditional, QuoteReviewData } from './quoteReviewTypes'
 
 function ProposalSection({
@@ -191,26 +192,22 @@ export default function QuoteReviewLayout({
       <div className="quote-proposal-body mx-auto max-w-6xl px-4 pb-10 sm:px-8 sm:pb-12">
         {beforeBody}
 
-        <div className="quote-proposal-overview">
-          <div className="quote-proposal-overview-item">
-            <span className="quote-proposal-label">Cliente</span>
-            <p className="quote-proposal-value">{displayValue(data.customerName)}</p>
-          </div>
-          <div className="quote-proposal-overview-item">
-            <span className="quote-proposal-label">Evento</span>
-            <p className="quote-proposal-value">{formatDate(data.eventDate)}</p>
-          </div>
-          <div className="quote-proposal-overview-item">
-            <span className="quote-proposal-label">Local</span>
-            <p className="quote-proposal-value">{displayValue(cityState || data.city)}</p>
-          </div>
-          <div className="quote-proposal-overview-item quote-proposal-overview-item--total">
-            <span className="quote-proposal-label">Investimento</span>
-            <p className="quote-proposal-overview-total">
-              {formatMoneyOrDash(data.quoteTotal)}
-            </p>
-          </div>
-        </div>
+        <QuoteProposalOverviewCard
+          customerName={displayValue(data.customerName)}
+          eventDate={data.eventDate}
+          addressLine={data.addressLine}
+          city={data.city}
+          state={data.state}
+          zipCode={data.zipCode}
+          packageSummary={data.packageSummary}
+          packageTotal={data.packageTotal}
+          additionalTotal={data.additionalTotal}
+          mileageFee={data.mileageFee}
+          reservationAmount={data.reservationAmount}
+          quoteTotal={data.quoteTotal}
+          additionalsCount={data.additionals.length}
+          grillRentalRequired={data.grillRentalRequired}
+        />
 
         <div className="quote-proposal-grid-2">
           <ProposalSection title="Pacote CDL">

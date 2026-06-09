@@ -190,6 +190,112 @@
   min-width: 0;
 }
 
+.quote-proposal-overview--enhanced {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.quote-proposal-overview-top {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.quote-proposal-overview-location {
+  width: 100%;
+  padding: 0.85rem 1rem;
+  border-radius: 0.85rem;
+  background: #fafafa;
+  border: 1px solid var(--proposal-border);
+}
+
+.quote-proposal-location-primary {
+  margin-top: 0.35rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--proposal-dark);
+  line-height: 1.35;
+}
+
+.quote-proposal-location-secondary {
+  margin-top: 0.25rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #525252;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.quote-proposal-overview-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.quote-proposal-overview-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  background: #fff7ed;
+  color: #9a3412;
+  border: 1px solid #fed7aa;
+  padding: 0.2rem 0.65rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.quote-proposal-overview-finance {
+  padding-top: 0.25rem;
+}
+
+.quote-proposal-finance-lines {
+  margin-top: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.quote-proposal-finance-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.9rem;
+  color: #404040;
+}
+
+.quote-proposal-finance-row span:last-child {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--proposal-dark);
+}
+
+.quote-proposal-finance-row--total {
+  margin-top: 0.25rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid var(--proposal-border);
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.quote-proposal-finance-row--total span:last-child {
+  color: var(--proposal-red);
+  font-size: 1.1rem;
+}
+
+.quote-proposal-finance-row--subtle {
+  font-size: 0.82rem;
+  color: #737373;
+}
+
+.quote-proposal-finance-row--subtle span:last-child {
+  font-weight: 600;
+  color: #525252;
+}
+
 .quote-proposal-overview-total {
   margin-top: 0.25rem;
   font-size: clamp(1rem, 3.5vw, 1.35rem);

@@ -70,7 +70,7 @@ export default function QuotePackageSummary({
           emphasis: true,
         },
         {
-          label: 'Guarnições',
+          label: 'Valor das guarnições',
           value: 'Não inclusas',
         },
       ]
@@ -81,7 +81,7 @@ export default function QuotePackageSummary({
             value: `${formatCurrency(packagePrice)} / ${perPerson}`,
           },
           {
-            label: 'Guarnições',
+            label: 'Valor das guarnições',
             value: 'Não inclusas',
           },
           {
@@ -98,7 +98,7 @@ export default function QuotePackageSummary({
               value: `${formatCurrency(sidesPricing.basePricePerPerson)} / ${perPerson}`,
             },
             {
-              label: 'Guarnições',
+              label: 'Valor das guarnições',
               value: `+ ${formatCurrency(sidesPricing.sidesPricePerPerson)} / ${perPerson}`,
             },
             {

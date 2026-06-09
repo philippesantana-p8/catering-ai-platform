@@ -10,7 +10,6 @@ import QuoteHeaderCompact from '../../../components/quotes/QuoteHeaderCompact'
 import QuoteHeroBanner from '../../../components/quotes/QuoteHeroBanner'
 import QuotePackageStepExplorer from '../../../components/quotes/QuotePackageStepExplorer'
 import {
-  findDefaultQuotePackage,
   getPackageDetailTitle,
   sortPackagesByCommercialTier,
 } from '../../../Lib/packageDisplay'
@@ -1389,8 +1388,10 @@ export default function QuoteWizard({
   const [packageStepMessage, setPackageStepMessage] = useState<string | null>(
     null,
   )
+  const [packageExplorerKey, setPackageExplorerKey] = useState(0)
   const router = useRouter()
   const distanceInputRef = useRef<HTMLInputElement>(null)
+  const previousStepRef = useRef(step)
 
   useEffect(() => {
     setLocalCustomers((current) => {
@@ -1892,12 +1893,13 @@ export default function QuoteWizard({
   }, [state.packageId])
 
   useEffect(() => {
-    if (step !== 2 || state.packageId) return
-    const defaultPkg = findDefaultQuotePackage(packages)
-    if (defaultPkg?.id) {
-      updateState({ packageId: defaultPkg.id })
+    const previousStep = previousStepRef.current
+    previousStepRef.current = step
+    if (step === 2 && previousStep === 1 && !isEditMode) {
+      updateState({ packageId: null })
+      setPackageExplorerKey((key) => key + 1)
     }
-  }, [step, state.packageId, packages])
+  }, [step, isEditMode])
 
   const mandatoryPendingSteps = useMemo(
     () => getMandatoryPendingSteps(stepStatusCtx),
@@ -2442,6 +2444,7 @@ export default function QuoteWizard({
             </section>
 
             <QuotePackageStepExplorer
+              key={packageExplorerKey}
               packagesWithoutSides={packagesWithoutSides}
               packagesWithSides={packagesWithSides}
               allPackages={packages}
