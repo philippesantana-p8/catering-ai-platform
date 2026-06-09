@@ -1,4 +1,8 @@
 import { calcMarginPercent } from '@/Lib/backofficeFinance'
+import {
+  getPackageHasGarnish,
+  type PackageFieldSource,
+} from '@/Lib/packageFieldAccess'
 import type { PackagesInsertPayload } from '@/Lib/packagesTableSchema'
 
 export type PackageCatalogRow = {
@@ -7,7 +11,7 @@ export type PackageCatalogRow = {
 }
 
 export function packageKeyHasGarnish(packageKey: string | null | undefined): boolean {
-  return (packageKey ?? '').trim().endsWith('+')
+  return getPackageHasGarnish({ package_key: packageKey })
 }
 
 export function getBasePackageCode(packageKey: string | null | undefined): string | null {
@@ -30,15 +34,15 @@ export function inferPackageType(
 }
 
 export function normalizePackageDraft(
-  draft: PackagesInsertPayload,
+  draft: Record<string, unknown>,
   allPackages: ReadonlyArray<PackageCatalogRow> = [],
-): PackagesInsertPayload {
+): Record<string, unknown> {
   const packageKey = String(draft.package_key ?? '').trim()
   const packageType = inferPackageType(packageKey, draft.package_type as string | null)
   const hasGarnish =
     packageType === 'with_garnish' ||
     draft.has_garnish === true ||
-    packageKeyHasGarnish(packageKey)
+    getPackageHasGarnish({ ...(draft as PackageFieldSource), package_key: packageKey })
   const basePackageCode =
     String(draft.base_package_code ?? '').trim() ||
     getBasePackageCode(packageKey) ||

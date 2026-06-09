@@ -10,6 +10,11 @@ import {
   BackofficeTextarea,
 } from '@/components/backoffice/BackofficeSectionPrimitives'
 import { ADDITIONAL_ITEM_CATEGORY_ORDER } from '@/Lib/additionalItemCatalogAdmin'
+import {
+  getAdditionalItemCategory,
+  getAdditionalItemDescription,
+  type AdditionalItemFieldSource,
+} from '@/Lib/additionalItemFieldAccess'
 import { calcMarginPercent, calcProfit, formatUsd } from '@/Lib/backofficeFinance'
 import type { AdditionalItemsInsertPayload } from '@/Lib/additionalItemsTableSchema'
 
@@ -20,7 +25,6 @@ export const EMPTY_ADDITIONAL_ITEM_ROW: AdditionalItemsInsertPayload = {
   label_en: '',
   label_es: '',
   category_pt: '',
-  category_group: '',
   description_pt: '',
   description_en: '',
   description_es: '',
@@ -41,16 +45,16 @@ export const EMPTY_ADDITIONAL_ITEM_ROW: AdditionalItemsInsertPayload = {
 
 export function additionalItemDraftFromListItem(
   item: Record<string, unknown>,
-): AdditionalItemsInsertPayload {
+): AdditionalItemsInsertPayload & AdditionalItemFieldSource {
+  const source = item as AdditionalItemFieldSource
   return {
     item_key: String(item.item_key ?? ''),
     item_name: String(item.item_name ?? ''),
     label_pt: String(item.label_pt ?? ''),
     label_en: String(item.label_en ?? ''),
     label_es: String(item.label_es ?? ''),
-    category_pt: String(item.category_pt ?? ''),
-    category_group: String(item.category_group ?? ''),
-    description_pt: String(item.description_pt ?? ''),
+    category_pt: getAdditionalItemCategory(source),
+    description_pt: getAdditionalItemDescription(source, 'pt'),
     description_en: String(item.description_en ?? ''),
     description_es: String(item.description_es ?? ''),
     price: Number(item.price ?? 0),
@@ -119,13 +123,7 @@ export function AdditionalItemAdminFormFields({
       <BackofficeField label="Categoria">
         <BackofficeSelect
           value={String(draft.category_pt ?? '')}
-          onChange={(v) =>
-            setDraft((c) => ({
-              ...c,
-              category_pt: v,
-              category_group: c.category_group || v,
-            }))
-          }
+          onChange={(v) => setDraft((c) => ({ ...c, category_pt: v }))}
         >
           <option value="">—</option>
           {ADDITIONAL_ITEM_CATEGORY_ORDER.map((cat) => (
@@ -134,12 +132,6 @@ export function AdditionalItemAdminFormFields({
             </option>
           ))}
         </BackofficeSelect>
-      </BackofficeField>
-      <BackofficeField label="Grupo de categoria">
-        <BackofficeInput
-          value={draft.category_group ?? ''}
-          onChange={(v) => setDraft((c) => ({ ...c, category_group: v }))}
-        />
       </BackofficeField>
       <BackofficeField label="Tipo de cobrança">
         <BackofficeSelect

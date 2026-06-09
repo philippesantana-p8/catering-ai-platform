@@ -28,13 +28,21 @@ import {
 } from '@/components/backoffice/BackofficeSectionPrimitives'
 import CatalogImageFrame from '@/components/CatalogImageFrame'
 import type { PackageListItem } from '@/Lib/fetchPackages'
+import { formatUsd } from '@/Lib/backofficeFinance'
+import {
+  getPackageCardDescription,
+  getPackageCostPerPerson,
+  getPackageGarnishPricePerPerson,
+  getPackageHasGarnish,
+  getPackageMarginPercent,
+  mapPackageDraftToDeployed,
+} from '@/Lib/packageFieldAccess'
 import {
   normalizePackageDraft,
   packageKeyHasGarnish,
   splitPackagesByGarnish,
 } from '@/Lib/packageCatalogAdmin'
 import type { PackagesInsertPayload } from '@/Lib/packagesTableSchema'
-import { formatUsd } from '@/Lib/backofficeFinance'
 
 type ActiveFilter = 'active' | 'all'
 
@@ -92,7 +100,7 @@ export default function PackagesDashboard({
         pkg.label_pt,
         pkg.label_en,
         pkg.label_es,
-        pkg.card_description_pt,
+        getPackageCardDescription(pkg),
       ]
         .filter(Boolean)
         .join(' ')
@@ -157,7 +165,9 @@ export default function PackagesDashboard({
     setSaving(true)
     setError(null)
     try {
-      const payload = normalizePackageDraft(draft, packages)
+      const payload = mapPackageDraftToDeployed(
+        normalizePackageDraft(draft, packages),
+      )
       const url =
         editingId && editingId !== 'new' ? `/api/packages/${editingId}` : '/api/packages'
       const method = editingId && editingId !== 'new' ? 'PATCH' : 'POST'
@@ -245,14 +255,14 @@ export default function PackagesDashboard({
     const isEditing = editingId === pkg.id
     const packageKey = pkg.package_key ?? '—'
     const displayName = pkg.label_pt ?? pkg.package_name ?? packageKey
-    const withSides =
-      pkg.has_garnish === true || packageKeyHasGarnish(packageKey)
+    const withSides = getPackageHasGarnish(pkg)
     const imageUrl = isEditing
       ? String(draft.image_url ?? '').trim() || null
       : pkg.image_url?.trim() || null
     const currency = pkg.currency_code ?? 'USD'
-    const cost = Number(pkg.cost_per_person ?? 0)
-    const margin = Number(pkg.margin_percent ?? 0)
+    const cost = getPackageCostPerPerson(pkg)
+    const margin = getPackageMarginPercent(pkg)
+    const cardDescription = getPackageCardDescription(pkg)
 
     if (isEditing) {
       return (
@@ -346,8 +356,8 @@ export default function PackagesDashboard({
           <BackofficeStatusBadge active={pkg.active !== false} />
         </div>
         <h3 className="text-xl font-bold text-neutral-900">{displayName}</h3>
-        {pkg.card_description_pt ? (
-          <p className="text-sm text-neutral-600">{pkg.card_description_pt}</p>
+        {cardDescription ? (
+          <p className="text-sm text-neutral-600 line-clamp-3">{cardDescription}</p>
         ) : null}
         <p className="text-2xl font-black text-red-600">
           {formatPrice(pkg.price_per_person, currency)}
@@ -363,10 +373,10 @@ export default function PackagesDashboard({
         {margin > 0 ? (
           <BackofficeMetaRow label="Margem" value={`${margin.toFixed(2)}%`} />
         ) : null}
-        {withSides && Number(pkg.garnish_price_per_person ?? 0) > 0 ? (
+        {withSides && getPackageGarnishPricePerPerson(pkg) > 0 ? (
           <BackofficeMetaRow
             label="Guarnição"
-            value={formatUsd(pkg.garnish_price_per_person)}
+            value={formatUsd(getPackageGarnishPricePerPerson(pkg))}
           />
         ) : null}
       </BackofficeEntityCard>

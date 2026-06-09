@@ -10,6 +10,11 @@ import {
   BackofficeTextarea,
 } from '@/components/backoffice/BackofficeSectionPrimitives'
 import { calcMarginPercent, calcProfit, formatUsd } from '@/Lib/backofficeFinance'
+import {
+  getPackageGarnishDescription,
+  getPackageItemsDescription,
+  type PackageFieldSource,
+} from '@/Lib/packageFieldAccess'
 import type { PackagesInsertPayload } from '@/Lib/packagesTableSchema'
 
 export const EMPTY_PACKAGE_ROW: PackagesInsertPayload = {
@@ -43,7 +48,8 @@ export const EMPTY_PACKAGE_ROW: PackagesInsertPayload = {
 
 export function packageDraftFromListItem(
   pkg: Record<string, unknown>,
-): PackagesInsertPayload {
+): PackagesInsertPayload & PackageFieldSource {
+  const source = pkg as PackageFieldSource
   return {
     package_key: String(pkg.package_key ?? ''),
     package_name: String(pkg.package_name ?? ''),
@@ -53,10 +59,10 @@ export function packageDraftFromListItem(
     description_pt: String(pkg.description_pt ?? ''),
     description_en: String(pkg.description_en ?? ''),
     description_es: String(pkg.description_es ?? ''),
-    items_description_pt: String(pkg.items_description_pt ?? ''),
-    items_description_en: String(pkg.items_description_en ?? ''),
-    items_description_es: String(pkg.items_description_es ?? ''),
-    garnish_description_pt: String(pkg.garnish_description_pt ?? ''),
+    items_description_pt: getPackageItemsDescription(source, 'pt'),
+    items_description_en: getPackageItemsDescription(source, 'en'),
+    items_description_es: getPackageItemsDescription(source, 'es'),
+    garnish_description_pt: getPackageGarnishDescription(source),
     garnish_description_en: String(pkg.garnish_description_en ?? ''),
     garnish_description_es: String(pkg.garnish_description_es ?? ''),
     card_description_pt: String(pkg.card_description_pt ?? ''),

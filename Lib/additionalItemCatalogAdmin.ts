@@ -1,4 +1,5 @@
 import { calcMarginPercent } from '@/Lib/backofficeFinance'
+import { getAdditionalItemCategory } from '@/Lib/additionalItemFieldAccess'
 import type { AdditionalItemsInsertPayload } from '@/Lib/additionalItemsTableSchema'
 
 export const ADDITIONAL_ITEM_CATEGORY_ORDER = [
@@ -19,11 +20,11 @@ export function normalizeAdditionalItemDraft(
 ): AdditionalItemsInsertPayload {
   const price = Number(draft.price ?? 0)
   const cost = Number(draft.cost ?? 0)
-  const category = String(draft.category_pt ?? '').trim()
+  const category = getAdditionalItemCategory(draft)
 
   return {
     ...draft,
-    category_group: String(draft.category_group ?? '').trim() || category || 'Outros',
+    category_pt: String(draft.category_pt ?? '').trim() || category,
     margin_percent: calcMarginPercent(price, cost),
     charge_type:
       draft.pricing_type === 'PER_PERSON' ? 'PERSON' : draft.charge_type ?? 'UNIT',
@@ -46,16 +47,13 @@ export function sortAdditionalCategories(categories: string[]): string[] {
   })
 }
 
-export function groupAdditionalItemsByCategory<
-  T extends { category_pt?: string | null; category_group?: string | null },
->(items: T[]) {
+export function groupAdditionalItemsByCategory<T extends Record<string, unknown>>(
+  items: T[],
+) {
   const groups = new Map<string, T[]>()
 
   for (const item of items) {
-    const category =
-      item.category_group?.trim() ||
-      item.category_pt?.trim() ||
-      'Outros'
+    const category = getAdditionalItemCategory(item)
     const list = groups.get(category) ?? []
     list.push(item)
     groups.set(category, list)

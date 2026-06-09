@@ -29,6 +29,13 @@ import {
   groupAdditionalItemsByCategory,
   normalizeAdditionalItemDraft,
 } from '@/Lib/additionalItemCatalogAdmin'
+import {
+  getAdditionalItemCategory,
+  getAdditionalItemCost,
+  getAdditionalItemDescription,
+  getAdditionalItemMarginPercent,
+  mapAdditionalItemDraftToDeployed,
+} from '@/Lib/additionalItemFieldAccess'
 import { calcMarginPercent, formatUsd } from '@/Lib/backofficeFinance'
 import { getAdditionalItemPrice } from '@/Lib/getAdditionalItemPrice'
 import type { AdditionalItemsInsertPayload } from '@/Lib/additionalItemsTableSchema'
@@ -102,7 +109,7 @@ export default function AdditionalItemsDashboard({
         item.item_name,
         item.label_pt,
         item.category_pt,
-        item.category_group,
+        getAdditionalItemCategory(item),
       ]
         .filter(Boolean)
         .join(' ')
@@ -274,10 +281,12 @@ export default function AdditionalItemsDashboard({
   async function saveRow() {
     setSaving(true)
     setError(null)
-    const payload = normalizeAdditionalItemDraft({
-      ...draft,
-      price: getAdditionalItemPrice(draft),
-    })
+    const payload = mapAdditionalItemDraftToDeployed(
+      normalizeAdditionalItemDraft({
+        ...draft,
+        price: getAdditionalItemPrice(draft),
+      }),
+    )
     try {
       const url =
         editingId && editingId !== 'new'
@@ -377,17 +386,12 @@ export default function AdditionalItemsDashboard({
       ? String(draft.image_url ?? '').trim() || null
       : selectedItem.image_url?.trim() || null
     const price = getAdditionalItemPrice(isEditing ? draft : selectedItem)
-    const cost = Number(
-      isEditing ? draft.cost ?? 0 : selectedItem.cost ?? 0,
-    )
+    const cost = isEditing ? Number(draft.cost ?? 0) : getAdditionalItemCost(selectedItem)
     const margin = isEditing
       ? calcMarginPercent(price, cost)
-      : Number(selectedItem.margin_percent ?? calcMarginPercent(price, cost))
+      : getAdditionalItemMarginPercent(selectedItem) || calcMarginPercent(price, cost)
     const uploadError = uploadErrors[selectedItem.id]
-    const category =
-      selectedItem.category_group ??
-      selectedItem.category_pt ??
-      'Outros'
+    const category = getAdditionalItemCategory(selectedItem)
 
     if (isEditing) {
       return (
@@ -472,8 +476,10 @@ export default function AdditionalItemsDashboard({
           {margin > 0 ? (
             <BackofficeMetaRow label="Margem" value={`${margin.toFixed(2)}%`} />
           ) : null}
-          {selectedItem.description_pt ? (
-            <p className="text-sm text-neutral-600">{selectedItem.description_pt}</p>
+          {getAdditionalItemDescription(selectedItem) ? (
+            <p className="text-sm text-neutral-600">
+              {getAdditionalItemDescription(selectedItem)}
+            </p>
           ) : null}
           {uploadError ? (
             <p className="text-xs text-red-600">{uploadError}</p>

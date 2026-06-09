@@ -1,8 +1,8 @@
 /**
- * Colunas reais de `public.additional_items` (schema-safe).
- * Não inclui: unit_price, price_per_person, photo_url, name.
+ * Schema de `public.additional_items` — colunas **deployadas** no Supabase hoje.
+ * Campos do upgrade premium ficam em ADDITIONAL_ITEMS_UPGRADE_COLUMNS (não usar em SELECT/INSERT até migration).
  */
-export const ADDITIONAL_ITEMS_TABLE_COLUMNS = [
+export const ADDITIONAL_ITEMS_DEPLOYED_COLUMNS = [
   'id',
   'company_id',
   'item_name',
@@ -19,16 +19,6 @@ export const ADDITIONAL_ITEMS_TABLE_COLUMNS = [
   'category_pt',
   'category_en',
   'category_es',
-  'category_group',
-  'description_pt',
-  'description_en',
-  'description_es',
-  'cost',
-  'margin_percent',
-  'inventory_enabled',
-  'inventory_item_id',
-  'supplier_name',
-  'internal_notes',
   'quantity',
   'unit',
   'quantity_2',
@@ -40,6 +30,25 @@ export const ADDITIONAL_ITEMS_TABLE_COLUMNS = [
   'currency_code',
   'display_order',
   'updated_at',
+] as const
+
+/** Colunas do upgrade premium — executar scripts/sql/additional-items-catalog-upgrade.sql antes de usar. */
+export const ADDITIONAL_ITEMS_UPGRADE_COLUMNS = [
+  'category_group',
+  'description_pt',
+  'description_en',
+  'description_es',
+  'cost',
+  'margin_percent',
+  'inventory_enabled',
+  'inventory_item_id',
+  'supplier_name',
+  'internal_notes',
+] as const
+
+export const ADDITIONAL_ITEMS_TABLE_COLUMNS = [
+  ...ADDITIONAL_ITEMS_DEPLOYED_COLUMNS,
+  ...ADDITIONAL_ITEMS_UPGRADE_COLUMNS,
 ] as const
 
 export type AdditionalItemsTableColumn =
@@ -60,16 +69,6 @@ export const ADDITIONAL_ITEMS_INSERT_COLUMNS = [
   'category_pt',
   'category_en',
   'category_es',
-  'category_group',
-  'description_pt',
-  'description_en',
-  'description_es',
-  'cost',
-  'margin_percent',
-  'inventory_enabled',
-  'inventory_item_id',
-  'supplier_name',
-  'internal_notes',
   'quantity',
   'unit',
   'quantity_2',
@@ -87,9 +86,15 @@ export type AdditionalItemsInsertColumn =
 
 export type AdditionalItemsInsertPayload = Partial<
   Record<AdditionalItemsInsertColumn, string | number | boolean | null>
->
+> &
+  Partial<
+    Record<
+      (typeof ADDITIONAL_ITEMS_UPGRADE_COLUMNS)[number],
+      string | number | boolean | null
+    >
+  >
 
-/** Colunas para listagem no backoffice e selects do app. */
+/** SELECT seguro — apenas colunas existentes no banco. */
 export const ADDITIONAL_ITEMS_LIST_COLUMNS = [
   'id',
   'item_key',
@@ -98,13 +103,9 @@ export const ADDITIONAL_ITEMS_LIST_COLUMNS = [
   'label_en',
   'label_es',
   'category_pt',
-  'category_group',
-  'description_pt',
-  'description_en',
-  'description_es',
+  'category_en',
+  'category_es',
   'price',
-  'cost',
-  'margin_percent',
   'charge_type',
   'pricing_type',
   'unit_label',
@@ -113,9 +114,6 @@ export const ADDITIONAL_ITEMS_LIST_COLUMNS = [
   'image_url',
   'image_status',
   'image_notes',
-  'inventory_enabled',
-  'supplier_name',
-  'internal_notes',
   'active',
 ] as const
 
@@ -145,4 +143,15 @@ export function pickAdditionalItemsUpdatePayload(
   const payload = pickAdditionalItemsInsertPayload(row)
   delete payload.company_id
   return payload
+}
+
+/** Remove campos de upgrade que ainda não existem no banco. */
+export function stripAdditionalItemsUpgradeFields<T extends Record<string, unknown>>(
+  row: T,
+): T {
+  const next = { ...row }
+  for (const key of ADDITIONAL_ITEMS_UPGRADE_COLUMNS) {
+    delete next[key]
+  }
+  return next
 }
