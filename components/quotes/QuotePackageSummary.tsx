@@ -213,7 +213,7 @@ export default function QuotePackageSummary({
                 <div key={group.id} className="space-y-2">
                   <p className="text-xs font-bold uppercase tracking-wide text-neutral-600">
                     {groupTitle}
-                    {group.is_required ? (
+                    {group.required ? (
                       <span className="ml-1 text-red-600">*</span>
                     ) : null}
                   </p>

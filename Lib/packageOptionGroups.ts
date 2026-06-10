@@ -6,12 +6,12 @@ export type PackageOptionGroupItem = {
   company_id?: string | null
   option_group_id: string
   additional_item_id?: string | null
-  item_key?: string | null
+  option_item_key?: string | null
   label_pt?: string | null
   label_en?: string | null
   label_es?: string | null
   display_order?: number | null
-  is_active?: boolean | null
+  active?: boolean | null
   price_delta?: number | null
 }
 
@@ -19,16 +19,16 @@ export type PackageOptionGroup = {
   id: string
   company_id?: string | null
   package_id: string
-  group_key: string
-  title_pt?: string | null
-  title_en?: string | null
-  title_es?: string | null
+  option_group_key: string
+  label_pt?: string | null
+  label_en?: string | null
+  label_es?: string | null
   min_choices?: number | null
   max_choices?: number | null
-  is_required?: boolean | null
+  required?: boolean | null
   blocks_additional_items?: boolean | null
   display_order?: number | null
-  is_active?: boolean | null
+  active?: boolean | null
   items: PackageOptionGroupItem[]
 }
 
@@ -56,7 +56,7 @@ export function getOptionItemLabel(
     return (
       item.label_en?.trim() ||
       item.label_pt?.trim() ||
-      item.item_key?.trim() ||
+      item.option_item_key?.trim() ||
       '—'
     )
   }
@@ -64,11 +64,11 @@ export function getOptionItemLabel(
     return (
       item.label_es?.trim() ||
       item.label_pt?.trim() ||
-      item.item_key?.trim() ||
+      item.option_item_key?.trim() ||
       '—'
     )
   }
-  return item.label_pt?.trim() || item.item_key?.trim() || '—'
+  return item.label_pt?.trim() || item.option_item_key?.trim() || '—'
 }
 
 export function getOptionGroupTitle(
@@ -76,12 +76,20 @@ export function getOptionGroupTitle(
   language: QuoteLanguage = 'pt',
 ): string {
   if (language === 'en') {
-    return group.title_en?.trim() || group.title_pt?.trim() || group.group_key
+    return (
+      group.label_en?.trim() ||
+      group.label_pt?.trim() ||
+      group.option_group_key
+    )
   }
   if (language === 'es') {
-    return group.title_es?.trim() || group.title_pt?.trim() || group.group_key
+    return (
+      group.label_es?.trim() ||
+      group.label_pt?.trim() ||
+      group.option_group_key
+    )
   }
-  return group.title_pt?.trim() || group.group_key
+  return group.label_pt?.trim() || group.option_group_key
 }
 
 export function isCustomPackage(
@@ -93,16 +101,16 @@ export function isCustomPackage(
 
 function sortGroups(groups: PackageOptionGroup[]): PackageOptionGroup[] {
   return [...groups]
-    .filter((group) => group.is_active !== false)
+    .filter((group) => group.active !== false)
     .sort(
       (a, b) =>
         Number(a.display_order ?? 0) - Number(b.display_order ?? 0) ||
-        a.group_key.localeCompare(b.group_key),
+        a.option_group_key.localeCompare(b.option_group_key),
     )
     .map((group) => ({
       ...group,
       items: [...(group.items ?? [])]
-        .filter((item) => item.is_active !== false)
+        .filter((item) => item.active !== false)
         .sort(
           (a, b) =>
             Number(a.display_order ?? 0) - Number(b.display_order ?? 0) ||
@@ -130,11 +138,10 @@ export function getBlockedAdditionalItemIds(
   const blocked = new Set<string>()
   for (const group of getPackageOptionGroupsForPackage(packageId, groups)) {
     if (!group.blocks_additional_items) continue
-    const selectedItemId = selections[group.id]?.trim()
-    if (!selectedItemId) continue
-    const item = group.items.find((row) => row.id === selectedItemId)
-    const additionalId = item?.additional_item_id?.trim()
-    if (additionalId) blocked.add(additionalId)
+    for (const item of group.items) {
+      const additionalId = item.additional_item_id?.trim()
+      if (additionalId) blocked.add(additionalId)
+    }
   }
 
   return [...blocked]
@@ -147,7 +154,7 @@ export function validatePackageSelections(
   const issues: string[] = []
 
   for (const group of sortGroups([...groups])) {
-    if (!group.is_required) continue
+    if (!group.required) continue
     const selected = selections[group.id]?.trim()
     if (!selected) {
       const title = getOptionGroupTitle(group)
@@ -202,13 +209,13 @@ export function resolvePackageItemsWithSelections(
     }
 
     const keyPattern = group.items
-      .map((item) => item.item_key?.trim())
+      .map((item) => item.option_item_key?.trim())
       .filter(Boolean)
       .join(' ou ')
     if (keyPattern && result.includes(keyPattern)) {
       result = result.replace(
         keyPattern,
-        selectedItem.item_key?.trim() || selectedLabel,
+        selectedItem.option_item_key?.trim() || selectedLabel,
       )
     }
   }
