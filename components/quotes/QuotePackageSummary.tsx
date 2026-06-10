@@ -16,7 +16,8 @@ import {
   formatPackageBulletText,
   getPackageDetailTitle,
   getPackageGarnishDisplayText,
-  getPackageItemsDisplayText,
+  getPackageHighlights,
+  getPackageItemsDescription,
 } from '@/Lib/packageDisplay'
 import type { QuoteLanguage } from '@/Lib/quoteWizardTypes'
 
@@ -50,10 +51,15 @@ export default function QuotePackageSummary({
       ? resolvePackageSidesPricing(pkg, basePackage, sidesPricePerPerson)
       : null
 
-  const rawItems = getPackageItemsDisplayText(pkg, 'pt')
+  const rawItems = getPackageItemsDescription(pkg, 'pt')
   const itemsText = rawItems
     ? formatPackageBulletText(rawItems)
     : 'Descrição não cadastrada'
+
+  const highlightItems = getPackageHighlights(pkg, 'pt')
+    .split(' • ')
+    .map((item) => item.trim())
+    .filter(Boolean)
 
   const garnishText =
     variant === 'with_sides'
@@ -158,6 +164,17 @@ export default function QuotePackageSummary({
         <h3 className="text-2xl font-black tracking-tight text-neutral-900 sm:text-3xl">
           {detailTitle}
         </h3>
+
+        {highlightItems.length > 0 ? (
+          <div className="package-highlights-box">
+            <p className="package-highlights-title">Diferenciais do pacote</p>
+            <div className="package-highlights-list">
+              {highlightItems.map((item) => (
+                <span key={item}>{item}</span>
+              ))}
+            </div>
+          </div>
+        ) : null}
 
         <div>
           <p className="text-sm leading-relaxed text-neutral-700">

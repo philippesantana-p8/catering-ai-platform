@@ -1,6 +1,12 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MutableRefObject,
+} from 'react'
 import {
   BackofficeCascadeLayout,
   BackofficeCascadePanel,
@@ -109,6 +115,7 @@ function MobilePackageList({
   allPackages,
   language,
   sidesPricePerPerson,
+  packageDetailRefs,
   onPackageClick,
 }: {
   packages: PackageRow[]
@@ -117,6 +124,7 @@ function MobilePackageList({
   allPackages: PackageRow[]
   language: QuoteLanguage
   sidesPricePerPerson: number
+  packageDetailRefs: MutableRefObject<Record<string, HTMLDivElement | null>>
   onPackageClick: (pkg: PackageRow) => void
 }) {
   return (
@@ -134,7 +142,12 @@ function MobilePackageList({
               onClick={() => onPackageClick(pkg)}
             />
             {isExpanded ? (
-              <div className="mt-2 md:hidden">
+              <div
+                ref={(el) => {
+                  packageDetailRefs.current[code] = el
+                }}
+                className="package-detail-card mt-2 md:hidden"
+              >
                 <QuotePackageSummary
                   pkg={pkg}
                   allPackages={allPackages}
@@ -204,6 +217,8 @@ export default function QuotePackageStepExplorer({
     null,
   )
 
+  const packageDetailRefs = useRef<Record<string, HTMLDivElement | null>>({})
+
   useEffect(() => {
     if (!selectedPackage) return
     setSelectedGroup(resolveGroupForPackage(selectedPackage))
@@ -237,17 +252,19 @@ export default function QuotePackageStepExplorer({
 
   function handleMobilePackageClick(pkg: PackageRow) {
     const code = getPackageKey(pkg)
-    const wasSelected = selectedPackageId === pkg.id
-    const wasExpanded = expandedPackageCode === code
+    const isExpanding = expandedPackageCode !== code
 
     onSelect(pkg.id)
-
-    if (wasSelected && wasExpanded) {
-      setExpandedPackageCode(null)
-      return
-    }
-
     setExpandedPackageCode(code)
+
+    if (isExpanding) {
+      setTimeout(() => {
+        packageDetailRefs.current[code]?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start',
+        })
+      }, 120)
+    }
   }
 
   const totalCount = packagesWithoutSides.length + packagesWithSides.length
@@ -345,6 +362,7 @@ export default function QuotePackageStepExplorer({
                 allPackages={allPackages}
                 language={language}
                 sidesPricePerPerson={sidesPricePerPerson}
+                packageDetailRefs={packageDetailRefs}
                 onPackageClick={handleMobilePackageClick}
               />
             ) : null}
@@ -369,6 +387,7 @@ export default function QuotePackageStepExplorer({
                 allPackages={allPackages}
                 language={language}
                 sidesPricePerPerson={sidesPricePerPerson}
+                packageDetailRefs={packageDetailRefs}
                 onPackageClick={handleMobilePackageClick}
               />
             ) : null}

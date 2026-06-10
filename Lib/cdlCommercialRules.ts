@@ -55,10 +55,10 @@ export const PACKAGE_COMMON_ITEMS = [
 
 export const SIDES_ITEMS = [
   'Arroz branco',
-  'Feijão preto',
-  'Maionese',
-  'Vinagrete ou salada César',
-  'Estrutura de mesa com rechauds e descartáveis: pratos, talheres e guardanapos',
+  'Feijão tropeiro',
+  'Vinagrete',
+  'Farofa',
+  'Mandioca',
 ] as const
 
 export type CdlPackageDefinition = {

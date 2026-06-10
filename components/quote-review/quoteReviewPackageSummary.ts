@@ -206,7 +206,7 @@ function garnishItemsFromDescription(
 }
 
 const DEFAULT_GARNISH_TEXT_PT =
-  'Arroz, feijão tropeiro, vinagrete, farofa e mandioca.'
+  'Arroz branco, Feijão tropeiro, Vinagrete, Farofa, Mandioca'
 
 export function garnishDescription(
   pkg: QuoteReviewPackageFields | null,

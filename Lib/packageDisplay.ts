@@ -9,9 +9,76 @@ import {
 } from '@/Lib/packageFieldAccess'
 
 const DEFAULT_GARNISH_TEXT_PT =
-  'Arroz branco, Feijão tropeiro, Vinagrete, Farofa e Mandioca.'
+  'Arroz branco • Feijão tropeiro • Vinagrete • Farofa • Mandioca'
+
+const TRADITIONAL_BASE_ITEMS = [
+  'Picanha Angus',
+  'Linguiça tradicional',
+  'Frango sobrecoxa desossada',
+  'Pão de alho',
+  'Queijo coalho',
+  'Milho',
+] as const
+
+const TRADITIONAL_COMMON_ITEMS = [
+  'Chimichurri',
+  'Farofa',
+  'Mel',
+  'Goiabada',
+  'Pimenta de bico',
+  'Geleia de pimenta',
+] as const
 
 const PACKAGE_TIER_ORDER = ['PRI', 'CHO', 'SEL', 'TRAD', 'PERS'] as const
+
+type PackageCommercialTier = (typeof PACKAGE_TIER_ORDER)[number]
+
+const TIER_EXTRA_ITEMS: Record<PackageCommercialTier, readonly string[]> = {
+  TRAD: [],
+  SEL: ['Costela de boi ou costela de porco'],
+  CHO: ['Salmão ou camarão', 'Costela de boi ou costela de porco'],
+  PRI: [
+    'Carré de cordeiro',
+    'Salmão ou camarão',
+    'Costela de boi ou costela de porco',
+  ],
+  PERS: [],
+}
+
+const PACKAGE_HIGHLIGHTS_PT: Record<PackageCommercialTier, readonly string[]> = {
+  PRI: [
+    'Carré de cordeiro',
+    'Salmão ou camarão',
+    'Costela de boi ou costela de porco',
+    'Experiência premium completa',
+  ],
+  CHO: [
+    'Salmão ou camarão',
+    'Costela de boi ou costela de porco',
+    'Opção premium sem carré de cordeiro',
+  ],
+  SEL: [
+    'Costela de boi ou costela de porco',
+    'Opção intermediária com upgrade de proteína',
+  ],
+  TRAD: [
+    'Churrasco tradicional CDL',
+    'Melhor opção de entrada',
+    'Seleção clássica para eventos',
+  ],
+  PERS: [
+    'Montado conforme necessidade do cliente',
+    'Itens definidos manualmente',
+    'Ideal para eventos customizados',
+  ],
+}
+
+type PackageDescriptionFields = PackageFieldSource & {
+  items_description_pt?: string | null
+  garnish_description_pt?: string | null
+  sides_description_pt?: string | null
+  package_highlights_pt?: string | null
+}
 
 const PACKAGE_TIER_NAMES: Record<
   (typeof PACKAGE_TIER_ORDER)[number],
@@ -26,12 +93,60 @@ const PACKAGE_TIER_NAMES: Record<
 
 function detectPackageTier(
   packageKey: string,
-): (typeof PACKAGE_TIER_ORDER)[number] | null {
+): PackageCommercialTier | null {
   const key = packageKey.toUpperCase().replace(/\+$/, '')
   for (const tier of PACKAGE_TIER_ORDER) {
     if (key.includes(tier)) return tier
   }
   return null
+}
+
+function buildTierItemsDescription(tier: PackageCommercialTier): string {
+  if (tier === 'PERS') {
+    return 'Itens definidos conforme necessidade do evento.'
+  }
+
+  const items = [
+    ...TRADITIONAL_BASE_ITEMS,
+    ...TIER_EXTRA_ITEMS[tier],
+    ...TRADITIONAL_COMMON_ITEMS,
+  ]
+  return items.join(' • ')
+}
+
+export function getPackageItemsDescription(
+  pkg: PackageFieldSource | null | undefined,
+  language: 'pt' | 'en' | 'es' = 'pt',
+): string {
+  if (!pkg) return ''
+
+  const extended = pkg as PackageDescriptionFields
+  const fromColumn = extended.items_description_pt?.trim()
+  if (fromColumn) return fromColumn
+
+  const parsed = packageItemsDescription(pkg, language)
+  if (parsed?.trim()) return parsed
+
+  const tier = detectPackageTier(getPackageKey(pkg))
+  if (!tier) return ''
+
+  return buildTierItemsDescription(tier)
+}
+
+export function getPackageHighlights(
+  pkg: PackageFieldSource | null | undefined,
+  language: 'pt' | 'en' | 'es' = 'pt',
+): string {
+  if (!pkg || language !== 'pt') return ''
+
+  const extended = pkg as PackageDescriptionFields
+  const fromColumn = extended.package_highlights_pt?.trim()
+  if (fromColumn) return formatPackageBulletText(fromColumn)
+
+  const tier = detectPackageTier(getPackageKey(pkg))
+  if (!tier) return ''
+
+  return PACKAGE_HIGHLIGHTS_PT[tier].join(' • ')
 }
 
 export function getPackageTierSortIndex(
@@ -57,9 +172,7 @@ export function getPackageItemsDisplayText(
   pkg: PackageFieldSource | null | undefined,
   language: 'pt' | 'en' | 'es' = 'pt',
 ): string {
-  const parsed = packageItemsDescription(pkg ?? null, language)
-  if (parsed?.trim()) return parsed
-  return ''
+  return getPackageItemsDescription(pkg, language)
 }
 
 export function getPackageGarnishDisplayText(
@@ -74,11 +187,17 @@ export function getPackageGarnishDisplayText(
         : 'Não inclusas'
   }
 
+  const extended = (pkg ?? null) as PackageDescriptionFields | null
+  const fromColumn =
+    extended?.garnish_description_pt?.trim() ||
+    extended?.sides_description_pt?.trim()
+  if (fromColumn) return formatPackageBulletText(fromColumn)
+
   const parsed = garnishDescription(pkg ?? null, language)
-  if (parsed?.trim()) return parsed
+  if (parsed?.trim()) return formatPackageBulletText(parsed)
 
   if (language === 'pt') return DEFAULT_GARNISH_TEXT_PT
-  return parsed ?? DEFAULT_GARNISH_TEXT_PT
+  return parsed ? formatPackageBulletText(parsed) : DEFAULT_GARNISH_TEXT_PT
 }
 
 export function getPackageGroupSummaryCodes(
