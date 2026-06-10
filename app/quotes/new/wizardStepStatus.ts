@@ -67,7 +67,12 @@ export type StepStatusContext = {
   currentStep: number
   reservationAmount: number
   additionalsCount: number
-  packageOptionGroups?: ReadonlyArray<PackageOptionGroup>
+  packageOptionGroups?: ReadonlyArray<
+    import('@/Lib/packageOptionGroups').PackageOptionGroupRecord
+  >
+  packageOptionGroupItems?: ReadonlyArray<
+    import('@/Lib/packageOptionGroups').PackageOptionGroupItem
+  >
   commercialRules?: CommercialRulesSnapshot
   isEditMode?: boolean
 }
@@ -187,6 +192,7 @@ export function getStepIssues(
         const groups = getPackageOptionGroupsForPackage(
           packageId,
           ctx.packageOptionGroups,
+          ctx.packageOptionGroupItems,
         )
         issues.push(
           ...validatePackageSelections(groups, ctx.state.packageSelections),

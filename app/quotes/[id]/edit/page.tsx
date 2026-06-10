@@ -21,6 +21,7 @@ export default async function EditQuotePage({
     packages,
     additionalItems,
     packageOptionGroups,
+    packageOptionGroupItems,
     packageItems,
     packageSideItems,
     commercialRules,
@@ -59,6 +60,7 @@ export default async function EditQuotePage({
       packages={packages}
       additionalItems={additionalItems}
       packageOptionGroups={packageOptionGroups}
+      packageOptionGroupItems={packageOptionGroupItems}
       packageItems={packageItems}
       packageSideItems={packageSideItems}
       commercialRules={commercialRules}

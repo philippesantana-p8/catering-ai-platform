@@ -2,7 +2,6 @@
 
 import {
   getOptionGroupTitle,
-  getOptionItemLabel,
   isRequiredOptionGroup,
   type PackageOptionGroup,
 } from '@/Lib/packageOptionGroups'
@@ -23,12 +22,14 @@ export default function PackageIncludedOptions({
   mode?: 'select' | 'summary'
   pendingGroupIds?: string[]
 }) {
-  const selectableGroups = optionGroups
-    .filter((group) => group.active !== false)
-    .filter((group) => (group.items?.length ?? 0) > 0)
-  if (selectableGroups.length === 0) return null
+  const activeGroups = optionGroups.filter((group) => group.active !== false)
+
+  if (activeGroups.length === 0) return null
 
   if (mode === 'summary') {
+    const selectableGroups = activeGroups.filter(
+      (group) => (group.items?.length ?? 0) > 0,
+    )
     const missingRequired = selectableGroups.some(
       (group) =>
         isRequiredOptionGroup(group) && !selections[group.id]?.trim(),
@@ -53,12 +54,13 @@ export default function PackageIncludedOptions({
             const selectedId = selections[group.id]?.trim()
             const item = group.items.find((row) => row.id === selectedId)
             if (!item) return null
+            const label = item.label_pt?.trim() || item.option_item_key || '—'
             return (
               <p key={group.id} className="text-sm text-neutral-800">
                 <span className="font-bold text-neutral-900">
-                  {getOptionGroupTitle(group, language)}:
+                  {group.label_pt?.trim() || getOptionGroupTitle(group, language)}:
                 </span>{' '}
-                {getOptionItemLabel(item, language)}
+                {label}
               </p>
             )
           })}
@@ -72,10 +74,12 @@ export default function PackageIncludedOptions({
       <p className="text-sm font-bold text-neutral-900">
         Escolhas inclusas no pacote
       </p>
-      {selectableGroups.map((group) => {
-        const groupTitle = getOptionGroupTitle(group, language)
+      {activeGroups.map((group) => {
+        const groupTitle =
+          group.label_pt?.trim() || getOptionGroupTitle(group, language)
         const selectedItemId = selections[group.id] ?? null
         const isPending = pendingGroupIds.includes(group.id)
+        const items = group.items ?? []
 
         return (
           <div
@@ -84,7 +88,7 @@ export default function PackageIncludedOptions({
               isPending ? 'bg-red-50 ring-2 ring-red-200' : ''
             }`}
           >
-            <p className="text-xs font-bold uppercase tracking-wide text-neutral-600">
+            <p className="text-xs font-bold uppercase tracking-wide text-neutral-800">
               {groupTitle}
               {isRequiredOptionGroup(group) ? (
                 <span className="ml-1 text-red-600">*</span>
@@ -95,27 +99,32 @@ export default function PackageIncludedOptions({
                 Escolha uma opção em: {groupTitle}.
               </p>
             ) : null}
-            <div className="flex flex-wrap gap-2" role="group" aria-label={groupTitle}>
-              {group.items.map((item) => {
-                const active = selectedItemId === item.id
-                const itemLabel = getOptionItemLabel(item, language)
-                return (
-                  <button
-                    key={`${group.id}-${item.id}`}
-                    type="button"
-                    onClick={() => onChange?.(group.id, item.id)}
-                    aria-pressed={active}
-                    className={`min-h-11 rounded-xl border px-4 py-2.5 text-sm font-bold transition ${
-                      active
-                        ? 'border-red-400 bg-gradient-to-br from-red-50 to-amber-50 text-red-900 shadow-sm ring-2 ring-amber-300'
-                        : 'border-neutral-200 bg-white text-neutral-800 hover:border-red-200 hover:bg-red-50/40'
-                    }`}
-                  >
-                    {itemLabel}
-                  </button>
-                )
-              })}
-            </div>
+            {items.length === 0 ? (
+              <p className="text-xs font-semibold text-red-700">
+                Grupo encontrado, mas sem itens carregados.
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-2" role="group" aria-label={groupTitle}>
+                {items.map((item) => {
+                  const active = selectedItemId === item.id
+                  const itemLabel =
+                    item.label_pt?.trim() || item.option_item_key?.trim() || '—'
+                  return (
+                    <button
+                      key={`${group.id}-${item.id}`}
+                      type="button"
+                      onClick={() => onChange?.(group.id, item.id)}
+                      aria-pressed={active}
+                      className={`package-option-choice ${
+                        active ? 'selected' : ''
+                      }`}
+                    >
+                      {itemLabel}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
           </div>
         )
       })}

@@ -42,7 +42,8 @@ import {
 import {
   formatPackageOptionGroupsSummary,
   getPackageOptionGroupsForPackage,
-  type PackageOptionGroup,
+  type PackageOptionGroupItem,
+  type PackageOptionGroupRecord,
 } from '@/Lib/packageOptionGroups'
 
 function formatPrice(value: number, currency = 'USD') {
@@ -55,6 +56,7 @@ export default function PackageDetailCard({
   packageItems = [],
   packageSideItems = [],
   packageOptionGroups = [],
+  packageOptionGroupItems = [],
   onEdit,
   onPhoto,
   onDeactivate,
@@ -64,7 +66,8 @@ export default function PackageDetailCard({
   allPackages?: PackageListItem[]
   packageItems?: PackageItem[]
   packageSideItems?: PackageSideItem[]
-  packageOptionGroups?: PackageOptionGroup[]
+  packageOptionGroups?: PackageOptionGroupRecord[]
+  packageOptionGroupItems?: PackageOptionGroupItem[]
   onEdit: () => void
   onPhoto: () => void
   onDeactivate: () => void
@@ -91,8 +94,11 @@ export default function PackageDetailCard({
       : getPackageGarnishDisplayText(pkg)
   const highlightItems = parsePackageHighlightsText(pkg.package_highlights_pt)
   const optionGroupSummaries = formatPackageOptionGroupsSummary(
-    pkg.id,
-    packageOptionGroups,
+    getPackageOptionGroupsForPackage(
+      pkg.id,
+      packageOptionGroups,
+      packageOptionGroupItems,
+    ),
     'pt',
   )
 

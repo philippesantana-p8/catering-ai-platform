@@ -283,10 +283,8 @@ export default function QuotePackageStepExplorer({
   const activeOptionGroups = selectedPackage
     ? optionGroupsForPackage(selectedPackage.id)
     : []
-  const hasIncludedChoices = hasPackageIncludedChoices(
-    selectedPackage?.id,
-    activeOptionGroups,
-    selectedPackage,
+  const hasIncludedChoices = activeOptionGroups.some(
+    (group) => (group.items?.length ?? 0) > 0,
   )
 
   function selectGroupDesktop(group: GarnishGroup) {

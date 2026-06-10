@@ -1,5 +1,6 @@
 import {
   BUILD_LABEL,
+  BUILD_NOTE,
   BUILD_SHA,
   BUILD_TIME_ISO,
 } from '@/Lib/buildInfo.generated'
@@ -9,6 +10,7 @@ export type BuildInfo = {
   timeIso: string
   shortSha: string
   displayTime: string
+  note: string
 }
 
 function formatDisplayTime(iso: string): string {
@@ -39,5 +41,6 @@ export function getBuildInfo(): BuildInfo {
     timeIso,
     shortSha: sha === 'local' ? 'local' : sha.slice(0, 7),
     displayTime: formatDisplayTime(timeIso),
+    note: BUILD_NOTE || 'package-options-debug',
   }
 }

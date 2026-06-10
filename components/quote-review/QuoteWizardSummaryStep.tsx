@@ -20,7 +20,10 @@ import type {
   PackageItem,
   PackageSideItem,
 } from '@/Lib/packageConfiguration'
-import type { PackageOptionGroup } from '@/Lib/packageOptionGroups'
+import type {
+  PackageOptionGroupItem,
+  PackageOptionGroupRecord,
+} from '@/Lib/packageOptionGroups'
 import type { QuoteReviewPackageFields } from './quoteReviewPackageSummary'
 
 export default function QuoteWizardSummaryStep({
@@ -33,6 +36,7 @@ export default function QuoteWizardSummaryStep({
   selectedPackage,
   allPackages,
   packageOptionGroups = [],
+  packageOptionGroupItems = [],
   packageItems = [],
   packageSideItems = [],
   fromWithSidesSection,
@@ -58,7 +62,8 @@ export default function QuoteWizardSummaryStep({
   packageUnitPrice: number
   selectedPackage: QuoteReviewPackageFields | null
   allPackages: QuoteReviewPackageFields[]
-  packageOptionGroups?: PackageOptionGroup[]
+  packageOptionGroups?: PackageOptionGroupRecord[]
+  packageOptionGroupItems?: PackageOptionGroupItem[]
   packageItems?: PackageItem[]
   packageSideItems?: PackageSideItem[]
   fromWithSidesSection: boolean
@@ -88,6 +93,7 @@ export default function QuoteWizardSummaryStep({
         selectedPackage,
         allPackages,
         packageOptionGroups,
+        packageOptionGroupItems,
         packageItems,
         packageSideItems,
         fromWithSidesSection,
@@ -105,6 +111,7 @@ export default function QuoteWizardSummaryStep({
       selectedPackage,
       allPackages,
       packageOptionGroups,
+      packageOptionGroupItems,
       packageItems,
       packageSideItems,
       fromWithSidesSection,

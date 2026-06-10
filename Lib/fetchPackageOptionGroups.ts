@@ -1,62 +1,65 @@
 import { getCdlCompanyId } from '@/Lib/cdlCompany'
-import type { PackageOptionGroup, PackageOptionGroupItem } from '@/Lib/packageOptionGroups'
+import type {
+  PackageOptionGroup,
+  PackageOptionGroupItem,
+  PackageOptionGroupRecord,
+} from '@/Lib/packageOptionGroups'
+import { mergeOptionGroupsForPackage } from '@/Lib/packageOptionGroups'
 import {
   PACKAGE_OPTION_GROUP_COLUMNS,
   PACKAGE_OPTION_GROUP_ITEM_COLUMNS,
 } from '@/Lib/packageOptionGroupsSchema'
 import { supabase } from '@/Lib/supabase'
 
-type PackageOptionGroupRow = Omit<PackageOptionGroup, 'items'> & {
-  group_key?: string | null
-}
-
-function mapItemRow(item: PackageOptionGroupItem): PackageOptionGroupItem {
+function mapGroupRecord(row: PackageOptionGroupRecord): PackageOptionGroupRecord {
   return {
-    id: item.id,
-    company_id: item.company_id,
-    option_group_id: item.option_group_id,
-    additional_item_id: item.additional_item_id,
-    option_item_key: item.option_item_key,
-    label_pt: item.label_pt,
-    label_en: item.label_en,
-    label_es: item.label_es,
-    display_order: item.display_order,
-    active: item.active,
-    price_delta: item.price_delta,
-  }
-}
-
-function mapGroupRow(
-  row: PackageOptionGroupRow,
-  items: PackageOptionGroupItem[],
-): PackageOptionGroup {
-  return {
-    id: row.id,
-    company_id: row.company_id,
-    package_id: row.package_id,
+    ...row,
     option_group_key:
       row.option_group_key?.trim() || row.group_key?.trim() || '',
-    group_key: row.group_key,
-    label_pt: row.label_pt,
-    label_en: row.label_en,
-    label_es: row.label_es,
-    min_choices: row.min_choices,
-    max_choices: row.max_choices,
-    required: row.required,
-    blocks_additional_items: row.blocks_additional_items,
-    display_order: row.display_order,
-    active: row.active,
-    items: items
-      .filter((item) => item.active !== false)
-      .sort(
-        (a, b) =>
-          Number(a.display_order ?? 0) - Number(b.display_order ?? 0) ||
-          (a.label_pt ?? '').localeCompare(b.label_pt ?? '', 'pt-BR'),
-      )
-      .map(mapItemRow),
   }
 }
 
+/** Etapa A — grupos sem join aninhado. */
+export async function fetchPackageOptionGroupsOnly(options?: {
+  packageId?: string | null
+  packageIds?: string[] | null
+  includeInactive?: boolean
+}) {
+  const companyId = getCdlCompanyId()
+
+  let query = supabase
+    .from('package_option_groups')
+    .select(PACKAGE_OPTION_GROUP_COLUMNS.join(', '))
+    .order('display_order', { ascending: true })
+
+  if (!options?.includeInactive) {
+    query = query.eq('active', true)
+  }
+
+  if (companyId?.trim()) {
+    query = query.eq('company_id', companyId)
+  }
+
+  if (options?.packageId?.trim()) {
+    query = query.eq('package_id', options.packageId.trim())
+  } else if (options?.packageIds?.length) {
+    query = query.in('package_id', options.packageIds)
+  }
+
+  const { data, error } = await query
+  if (error) {
+    return { data: null as PackageOptionGroupRecord[] | null, error }
+  }
+
+  return {
+    data: ((data ?? []) as unknown as PackageOptionGroupRecord[]).map(
+      mapGroupRecord,
+    ),
+    error: null,
+  }
+}
+
+/** Etapa B — itens por option_group_id (não chama .in vazio). */
 export async function fetchPackageOptionGroupItems(
   optionGroupIds: string[],
   options?: { includeInactive?: boolean },
@@ -92,66 +95,63 @@ export async function fetchPackageOptionGroupItems(
   }
 }
 
+/** Busca em duas etapas — fonte única para cotação. */
+export async function loadPackageOptionChoices(options?: {
+  packageId?: string | null
+  packageIds?: string[] | null
+  includeInactive?: boolean
+}) {
+  const groupsRes = await fetchPackageOptionGroupsOnly(options)
+  if (groupsRes.error) {
+    return {
+      groups: [] as PackageOptionGroupRecord[],
+      groupItems: [] as PackageOptionGroupItem[],
+      error: groupsRes.error,
+    }
+  }
+
+  const groups = groupsRes.data ?? []
+  const groupIds = groups.map((group) => group.id)
+
+  if (groupIds.length === 0) {
+    return { groups, groupItems: [] as PackageOptionGroupItem[], error: null }
+  }
+
+  const itemsRes = await fetchPackageOptionGroupItems(groupIds, {
+    includeInactive: options?.includeInactive,
+  })
+
+  return {
+    groups,
+    groupItems: itemsRes.data ?? [],
+    error: itemsRes.error ?? null,
+  }
+}
+
+/** Compat — grupos com items anexados no código. */
 export async function fetchPackageOptionGroups(options?: {
   packageId?: string | null
   packageIds?: string[] | null
   includeInactive?: boolean
 }) {
-  const companyId = getCdlCompanyId()
-
-  let query = supabase
-    .from('package_option_groups')
-    .select(PACKAGE_OPTION_GROUP_COLUMNS.join(', '))
-    .order('display_order', { ascending: true })
-
-  if (!options?.includeInactive) {
-    query = query.eq('active', true)
+  const { groups, groupItems, error } = await loadPackageOptionChoices(options)
+  if (error) {
+    return { data: null as PackageOptionGroup[] | null, error }
   }
 
-  if (companyId?.trim()) {
-    query = query.eq('company_id', companyId)
-  }
+  const packageIds = options?.packageId?.trim()
+    ? [options.packageId.trim()]
+    : options?.packageIds?.filter(Boolean) ?? [
+        ...new Set(groups.map((g) => g.package_id).filter(Boolean)),
+      ]
 
-  if (options?.packageId?.trim()) {
-    query = query.eq('package_id', options.packageId.trim())
-  } else if (options?.packageIds?.length) {
-    query = query.in('package_id', options.packageIds)
-  }
+  const hydrated = packageIds.flatMap((packageId) =>
+    mergeOptionGroupsForPackage(packageId, groups, groupItems, {
+      includeEmptyGroups: true,
+    }),
+  )
 
-  const { data: groupRows, error: groupsError } = await query
-
-  if (groupsError) {
-    return { data: null as PackageOptionGroup[] | null, error: groupsError }
-  }
-
-  const rows = (groupRows ?? []) as unknown as PackageOptionGroupRow[]
-  const groupIds = rows.map((row) => row.id)
-
-  const itemsRes = await fetchPackageOptionGroupItems(groupIds, {
-    includeInactive: options?.includeInactive,
-  })
-  if (itemsRes.error) {
-    return { data: null, error: itemsRes.error }
-  }
-
-  const itemsByGroup = new Map<string, PackageOptionGroupItem[]>()
-  for (const item of itemsRes.data ?? []) {
-    const groupId = item.option_group_id?.trim()
-    if (!groupId) continue
-    const list = itemsByGroup.get(groupId) ?? []
-    list.push({ ...item, option_group_id: groupId })
-    itemsByGroup.set(groupId, list)
-  }
-
-  const hydrated = rows.map((row) => {
-    const groupId = row.id.trim()
-    return mapGroupRow(row, itemsByGroup.get(groupId) ?? [])
-  })
-
-  return {
-    data: hydrated,
-    error: null,
-  }
+  return { data: hydrated, error: null }
 }
 
 export async function fetchQuotePackageSelections(quoteId: string) {

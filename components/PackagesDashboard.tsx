@@ -20,7 +20,10 @@ import CatalogImageFrame from '@/components/CatalogImageFrame'
 import PackageCascadeExplorer from '@/components/packages/PackageCascadeExplorer'
 import PackageConfigEditor from '@/components/packages/PackageConfigEditor'
 import type { AdditionalItemOption } from '@/components/packages/AdditionalItemPicker'
-import type { PackageOptionGroup } from '@/Lib/packageOptionGroups'
+import type {
+  PackageOptionGroupItem,
+  PackageOptionGroupRecord,
+} from '@/Lib/packageOptionGroups'
 import type { PackageListItem } from '@/Lib/fetchPackages'
 import type {
   PackageItem,
@@ -64,12 +67,14 @@ export default function PackagesDashboard({
   packageItems = [],
   packageSideItems = [],
   packageOptionGroups = [],
+  packageOptionGroupItems = [],
   additionalItems = [],
 }: {
   initialPackages: PackageListItem[]
   packageItems?: PackageItem[]
   packageSideItems?: PackageSideItem[]
-  packageOptionGroups?: PackageOptionGroup[]
+  packageOptionGroups?: PackageOptionGroupRecord[]
+  packageOptionGroupItems?: PackageOptionGroupItem[]
   additionalItems?: AdditionalItemOption[]
 }) {
   const router = useRouter()
@@ -353,6 +358,7 @@ export default function PackagesDashboard({
             packageItems={livePackageItems}
             packageSideItems={livePackageSideItems}
             packageOptionGroups={liveOptionGroups}
+            packageOptionGroupItems={packageOptionGroupItems}
             onEdit={startEdit}
             onPhoto={triggerUpload}
             onDeactivate={(pkg) => void deactivate(pkg)}

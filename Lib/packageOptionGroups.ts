@@ -20,7 +20,7 @@ export type PackageOptionGroupItem = {
   price_delta?: number | null
 }
 
-export type PackageOptionGroup = {
+export type PackageOptionGroupRecord = {
   id: string
   company_id?: string | null
   package_id: string
@@ -35,6 +35,10 @@ export type PackageOptionGroup = {
   blocks_additional_items?: boolean | null
   display_order?: number | null
   active?: boolean | null
+  items?: PackageOptionGroupItem[]
+}
+
+export type PackageOptionGroup = PackageOptionGroupRecord & {
   items: PackageOptionGroupItem[]
 }
 
@@ -118,7 +122,9 @@ export function hasPackageIncludedChoices(
   return getPackageOptionGroupsForPackage(packageId, groups).length > 0
 }
 
-function sortGroups(groups: PackageOptionGroup[]): PackageOptionGroup[] {
+function sortGroups(
+  groups: ReadonlyArray<PackageOptionGroupRecord>,
+): PackageOptionGroup[] {
   return [...groups]
     .filter((group) => group.active !== false)
     .sort(
@@ -146,8 +152,12 @@ function packageIdsMatch(
 }
 
 export function flattenPackageOptionGroupItems(
-  groups: ReadonlyArray<PackageOptionGroup>,
+  groups: ReadonlyArray<PackageOptionGroupRecord>,
+  groupItems?: ReadonlyArray<PackageOptionGroupItem>,
 ): PackageOptionGroupItem[] {
+  if (groupItems?.length) {
+    return [...groupItems]
+  }
   return groups.flatMap((group) =>
     (group.items ?? []).map((item) => ({
       ...item,
@@ -156,30 +166,96 @@ export function flattenPackageOptionGroupItems(
   )
 }
 
-export function getPackageOptionGroupsForPackage(
+/**
+ * Anexa itens aos grupos no código — não depende de join Supabase.
+ */
+export function mergeOptionGroupsForPackage(
   packageId: string,
-  groups: ReadonlyArray<PackageOptionGroup>,
+  groups: ReadonlyArray<PackageOptionGroupRecord>,
+  groupItems: ReadonlyArray<PackageOptionGroupItem>,
+  options?: { includeEmptyGroups?: boolean },
 ): PackageOptionGroup[] {
   if (!packageId?.trim()) return []
+
+  const normalizedId = packageId.trim()
+  const groupsForPackage = [...groups]
+    .filter(
+      (group) =>
+        packageIdsMatch(normalizedId, group.package_id) &&
+        group.active !== false,
+    )
+    .sort(
+      (a, b) =>
+        Number(a.display_order ?? 0) - Number(b.display_order ?? 0) ||
+        (a.option_group_key ?? '').localeCompare(b.option_group_key ?? ''),
+    )
+
+  const merged: PackageOptionGroup[] = groupsForPackage.map((group) => {
+    const groupId = group.id.trim()
+    const items = groupItems
+      .filter(
+        (item) =>
+          item.option_group_id?.trim() === groupId && item.active !== false,
+      )
+      .sort(
+        (a, b) =>
+          Number(a.display_order ?? 0) - Number(b.display_order ?? 0) ||
+          (a.label_pt ?? '').localeCompare(b.label_pt ?? '', 'pt-BR'),
+      )
+      .map((item) => ({ ...item, option_group_id: groupId }))
+
+    return {
+      ...group,
+      option_group_key:
+        group.option_group_key?.trim() || group.group_key?.trim() || '',
+      items,
+    }
+  })
+
+  if (options?.includeEmptyGroups) return merged
+  return merged.filter((group) => group.items.length > 0)
+}
+
+export function getPackageOptionGroupsForPackage(
+  packageId: string,
+  groups: ReadonlyArray<PackageOptionGroupRecord>,
+  groupItems?: ReadonlyArray<PackageOptionGroupItem>,
+): PackageOptionGroup[] {
+  if (!packageId?.trim()) return []
+
+  if (groupItems) {
+    return mergeOptionGroupsForPackage(packageId, groups, groupItems)
+  }
+
   return sortGroups(
     groups.filter((group) => packageIdsMatch(packageId, group.package_id)),
-  ).filter((group) => group.items.length > 0)
+  ).filter((group) => (group.items?.length ?? 0) > 0) as PackageOptionGroup[]
 }
 
 export function getBlockedAdditionalItemIds(
   packageId: string,
-  groups: ReadonlyArray<PackageOptionGroup>,
+  groups: ReadonlyArray<PackageOptionGroupRecord>,
   customPackage: boolean,
   options?: {
     packageItems?: ReadonlyArray<PackageItem>
     packageSideItems?: ReadonlyArray<PackageSideItem>
+    groupItems?: ReadonlyArray<PackageOptionGroupItem>
   },
 ): string[] {
+  const mergedGroups: PackageOptionGroup[] = options?.groupItems
+    ? mergeOptionGroupsForPackage(packageId, groups, options.groupItems, {
+        includeEmptyGroups: true,
+      })
+    : (groups as PackageOptionGroup[]).map((group) => ({
+        ...group,
+        items: group.items ?? [],
+      }))
+
   return getBlockedAdditionalItemIdsFromConfig({
     packageId,
     packageItems: options?.packageItems ?? [],
     packageSideItems: options?.packageSideItems ?? [],
-    optionGroups: groups,
+    optionGroups: mergedGroups,
     customPackage,
   })
 }
@@ -310,11 +386,10 @@ export function packageSelectionsFromRows(
 }
 
 export function formatPackageOptionGroupsSummary(
-  packageId: string,
   groups: ReadonlyArray<PackageOptionGroup>,
   language: QuoteLanguage = 'pt',
 ): string[] {
-  return getPackageOptionGroupsForPackage(packageId, groups).map((group) => {
+  return groups.map((group) => {
     const title = getOptionGroupTitle(group, language)
     const labels = group.items
       .map((item) => getOptionItemLabel(item, language))
@@ -327,10 +402,13 @@ export function formatPackageOptionGroupsSummary(
 export function prunePackageSelectionsForPackage(
   packageId: string,
   selections: Record<string, string>,
-  groups: ReadonlyArray<PackageOptionGroup>,
+  groups: ReadonlyArray<PackageOptionGroupRecord>,
+  groupItems?: ReadonlyArray<PackageOptionGroupItem>,
 ): Record<string, string> {
   const validGroupIds = new Set(
-    getPackageOptionGroupsForPackage(packageId, groups).map((group) => group.id),
+    getPackageOptionGroupsForPackage(packageId, groups, groupItems).map(
+      (group) => group.id,
+    ),
   )
   const next: Record<string, string> = {}
   for (const [groupId, itemId] of Object.entries(selections)) {

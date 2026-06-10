@@ -33,6 +33,7 @@ export default async function PackagesPage() {
     packageItems: [],
     packageSideItems: [],
     optionGroups: [],
+    optionGroupItems: [],
   }
 
   return (
@@ -41,6 +42,7 @@ export default async function PackagesPage() {
       packageItems={packageConfiguration.packageItems}
       packageSideItems={packageConfiguration.packageSideItems}
       packageOptionGroups={packageConfiguration.optionGroups}
+      packageOptionGroupItems={packageConfiguration.optionGroupItems}
       additionalItems={additionalRes.data ?? []}
     />
   )

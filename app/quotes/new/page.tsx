@@ -72,6 +72,7 @@ export default async function NewQuotePage() {
     packageItems: [],
     packageSideItems: [],
     optionGroups: [],
+    optionGroupItems: [],
   }
 
   const customers = (customersRes.data ?? []) as Customer[]
@@ -83,6 +84,7 @@ export default async function NewQuotePage() {
       packages={packages}
       additionalItems={additionalItems}
       packageOptionGroups={packageConfiguration.optionGroups}
+      packageOptionGroupItems={packageConfiguration.optionGroupItems}
       packageItems={packageConfiguration.packageItems}
       packageSideItems={packageConfiguration.packageSideItems}
       commercialRules={commercialRules}

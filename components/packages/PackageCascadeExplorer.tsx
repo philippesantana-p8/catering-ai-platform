@@ -20,7 +20,10 @@ import {
   type PackageItem,
   type PackageSideItem,
 } from '@/Lib/packageConfiguration'
-import type { PackageOptionGroup } from '@/Lib/packageOptionGroups'
+import type {
+  PackageOptionGroupItem,
+  PackageOptionGroupRecord,
+} from '@/Lib/packageOptionGroups'
 import { splitPackagesByGarnish } from '@/Lib/packageCatalogAdmin'
 import { getPackageGroupSummaryCodes } from '@/Lib/packageDisplay'
 import {
@@ -37,6 +40,7 @@ export default function PackageCascadeExplorer({
   packageItems = [],
   packageSideItems = [],
   packageOptionGroups = [],
+  packageOptionGroupItems = [],
   onEdit,
   onPhoto,
   onDeactivate,
@@ -45,7 +49,8 @@ export default function PackageCascadeExplorer({
   packages: PackageListItem[]
   packageItems?: PackageItem[]
   packageSideItems?: PackageSideItem[]
-  packageOptionGroups?: PackageOptionGroup[]
+  packageOptionGroups?: PackageOptionGroupRecord[]
+  packageOptionGroupItems?: PackageOptionGroupItem[]
   onEdit: (pkg: PackageListItem) => void
   onPhoto: (pkg: PackageListItem) => void
   onDeactivate: (pkg: PackageListItem) => void
@@ -252,6 +257,7 @@ export default function PackageCascadeExplorer({
                   packageSideItems,
                 )}
                 packageOptionGroups={packageOptionGroups}
+                packageOptionGroupItems={packageOptionGroupItems}
                 onEdit={() => onEdit(selectedPackage)}
                 onPhoto={() => onPhoto(selectedPackage)}
                 onDeactivate={() => onDeactivate(selectedPackage)}

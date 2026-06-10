@@ -14,7 +14,8 @@ import {
   getPackageOptionGroupsForPackage,
   isCustomPackage,
   resolvePackageItemsWithSelections,
-  type PackageOptionGroup,
+  type PackageOptionGroupItem,
+  type PackageOptionGroupRecord,
 } from '@/Lib/packageOptionGroups'
 import type { WizardState } from '@/Lib/quoteWizardTypes'
 import type { CommercialRulesSnapshot } from '@/Lib/supabaseCommercialRules'
@@ -45,7 +46,8 @@ export type MapWizardToQuoteReviewInput = {
   packageUnitPrice: number
   selectedPackage: QuoteReviewPackageFields | null
   allPackages?: ReadonlyArray<QuoteReviewPackageFields>
-  packageOptionGroups?: ReadonlyArray<PackageOptionGroup>
+  packageOptionGroups?: ReadonlyArray<PackageOptionGroupRecord>
+  packageOptionGroupItems?: ReadonlyArray<PackageOptionGroupItem>
   packageItems?: ReadonlyArray<PackageItem>
   packageSideItems?: ReadonlyArray<PackageSideItem>
   fromWithSidesSection?: boolean
@@ -76,6 +78,7 @@ export function mapWizardToQuoteReview(
       ? getPackageOptionGroupsForPackage(
           state.packageId,
           input.packageOptionGroups,
+          input.packageOptionGroupItems,
         )
       : []
 

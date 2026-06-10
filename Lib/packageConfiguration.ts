@@ -1,6 +1,9 @@
 import { getCdlCompanyId } from '@/Lib/cdlCompany'
-import { fetchPackageOptionGroups } from '@/Lib/fetchPackageOptionGroups'
-import type { PackageOptionGroup } from '@/Lib/packageOptionGroups'
+import { loadPackageOptionChoices } from '@/Lib/fetchPackageOptionGroups'
+import type {
+  PackageOptionGroupItem,
+  PackageOptionGroupRecord,
+} from '@/Lib/packageOptionGroups'
 import type { QuoteLanguage } from '@/Lib/quoteWizardTypes'
 import { supabase } from '@/Lib/supabase'
 
@@ -54,7 +57,9 @@ export type PackageSideItem = {
 export type PackageConfiguration = {
   packageItems: PackageItem[]
   packageSideItems: PackageSideItem[]
-  optionGroups: PackageOptionGroup[]
+  /** Grupos flat — itens anexados via mergeOptionGroupsForPackage */
+  optionGroups: PackageOptionGroupRecord[]
+  optionGroupItems: PackageOptionGroupItem[]
 }
 
 export const PACKAGE_ITEM_COLUMNS = [
@@ -194,8 +199,8 @@ export function formatPackageSideItemsText(
 
 function optionGroupsForPackage(
   packageId: string,
-  groups: ReadonlyArray<PackageOptionGroup>,
-): PackageOptionGroup[] {
+  groups: ReadonlyArray<PackageOptionGroupRecord & { items?: PackageOptionGroupItem[] }>,
+) {
   if (!packageId?.trim()) return []
   const normalizedId = packageId.trim()
   return groups
@@ -220,7 +225,7 @@ export function getBlockedAdditionalItemIdsFromConfig({
   packageId: string
   packageItems: ReadonlyArray<PackageItem>
   packageSideItems: ReadonlyArray<PackageSideItem>
-  optionGroups: ReadonlyArray<PackageOptionGroup>
+  optionGroups: ReadonlyArray<PackageOptionGroupRecord & { items?: PackageOptionGroupItem[] }>
   customPackage: boolean
 }): string[] {
   if (customPackage || !packageId?.trim()) return []
@@ -318,20 +323,21 @@ export async function loadPackageConfiguration(options?: {
 }) {
   const packageIds = options?.packageIds?.filter((id) => id?.trim()) ?? null
 
-  const [itemsRes, sidesRes, groupsRes] = await Promise.all([
+  const [itemsRes, sidesRes, choicesRes] = await Promise.all([
     fetchPackageItems(),
     fetchPackageSideItems(),
-    fetchPackageOptionGroups(
+    loadPackageOptionChoices(
       packageIds?.length ? { packageIds } : undefined,
     ),
   ])
 
   const error =
-    itemsRes.error ?? sidesRes.error ?? groupsRes.error ?? null
+    itemsRes.error ?? sidesRes.error ?? choicesRes.error ?? null
 
   let packageItems = itemsRes.data ?? []
   let packageSideItems = sidesRes.data ?? []
-  let optionGroups = groupsRes.data ?? []
+  let optionGroups = choicesRes.groups ?? []
+  let optionGroupItems = choicesRes.groupItems ?? []
 
   if (packageIds && packageIds.length > 0) {
     const idSet = new Set(packageIds)
@@ -340,6 +346,10 @@ export async function loadPackageConfiguration(options?: {
       idSet.has(side.package_id),
     )
     optionGroups = optionGroups.filter((group) => idSet.has(group.package_id))
+    const groupIdSet = new Set(optionGroups.map((group) => group.id))
+    optionGroupItems = optionGroupItems.filter((item) =>
+      groupIdSet.has(item.option_group_id),
+    )
   }
 
   return {
@@ -347,6 +357,7 @@ export async function loadPackageConfiguration(options?: {
       packageItems,
       packageSideItems,
       optionGroups,
+      optionGroupItems,
     } satisfies PackageConfiguration,
     error,
   }

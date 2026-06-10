@@ -100,7 +100,8 @@ export type FetchQuoteForEditResult = {
   linkedCustomer: Customer | null
   packages: Package[]
   additionalItems: AdditionalItem[]
-  packageOptionGroups: import('@/Lib/packageOptionGroups').PackageOptionGroup[]
+  packageOptionGroups: import('@/Lib/packageOptionGroups').PackageOptionGroupRecord[]
+  packageOptionGroupItems: import('@/Lib/packageOptionGroups').PackageOptionGroupItem[]
   packageItems: import('@/Lib/packageConfiguration').PackageItem[]
   packageSideItems: import('@/Lib/packageConfiguration').PackageSideItem[]
   commercialRules: CommercialRulesSnapshot
@@ -125,6 +126,7 @@ export async function fetchQuoteForEdit(
       packages: [],
       additionalItems: [],
       packageOptionGroups: [],
+      packageOptionGroupItems: [],
       packageItems: [],
       packageSideItems: [],
       commercialRules,
@@ -218,6 +220,7 @@ export async function fetchQuoteForEdit(
     packageItems: [],
     packageSideItems: [],
     optionGroups: [],
+    optionGroupItems: [],
   }
   if (packagesRes.error) fetchErrors.push(`Pacotes: ${packagesRes.error.message}`)
   if (additionalRes.error) {
@@ -270,6 +273,7 @@ export async function fetchQuoteForEdit(
     packages,
     additionalItems: (additionalRes.data ?? []) as unknown as AdditionalItem[],
     packageOptionGroups: packageConfiguration.optionGroups,
+    packageOptionGroupItems: packageConfiguration.optionGroupItems,
     packageItems: packageConfiguration.packageItems,
     packageSideItems: packageConfiguration.packageSideItems,
     commercialRules,
