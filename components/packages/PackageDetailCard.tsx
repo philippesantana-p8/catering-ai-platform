@@ -29,6 +29,8 @@ import {
 import {
   formatPackageItemsText,
   formatPackageSideItemsText,
+  getPackageItemsForPackage,
+  getPackageSideItemsForPackage,
   type PackageItem,
   type PackageSideItem,
 } from '@/Lib/packageConfiguration'
@@ -37,6 +39,11 @@ import {
   getPackageItemsDisplayText,
   parsePackageHighlightsText,
 } from '@/Lib/packageDisplay'
+import {
+  formatPackageOptionGroupsSummary,
+  getPackageOptionGroupsForPackage,
+  type PackageOptionGroup,
+} from '@/Lib/packageOptionGroups'
 
 function formatPrice(value: number, currency = 'USD') {
   return `${currency === 'USD' ? '$' : ''}${value.toFixed(2)}`
@@ -47,6 +54,7 @@ export default function PackageDetailCard({
   allPackages = [],
   packageItems = [],
   packageSideItems = [],
+  packageOptionGroups = [],
   onEdit,
   onPhoto,
   onDeactivate,
@@ -56,6 +64,7 @@ export default function PackageDetailCard({
   allPackages?: PackageListItem[]
   packageItems?: PackageItem[]
   packageSideItems?: PackageSideItem[]
+  packageOptionGroups?: PackageOptionGroup[]
   onEdit: () => void
   onPhoto: () => void
   onDeactivate: () => void
@@ -67,15 +76,25 @@ export default function PackageDetailCard({
   const imageUrl = getPackageImageUrl(pkg)
   const currency = getPackageCurrencyCode(pkg)
   const price = getPackagePrice(pkg)
+  const configuredItemsForPackage = getPackageItemsForPackage(pkg.id, packageItems)
+  const configuredSidesForPackage = getPackageSideItemsForPackage(
+    pkg.id,
+    packageSideItems,
+  )
   const itemsText =
-    packageItems.length > 0
-      ? formatPackageItemsText(packageItems)
+    configuredItemsForPackage.length > 0
+      ? formatPackageItemsText(configuredItemsForPackage)
       : getPackageItemsDisplayText(pkg)
   const garnishText =
-    packageSideItems.length > 0
-      ? formatPackageSideItemsText(packageSideItems)
+    configuredSidesForPackage.length > 0
+      ? formatPackageSideItemsText(configuredSidesForPackage)
       : getPackageGarnishDisplayText(pkg)
   const highlightItems = parsePackageHighlightsText(pkg.package_highlights_pt)
+  const optionGroupSummaries = formatPackageOptionGroupsSummary(
+    pkg.id,
+    packageOptionGroups,
+    'pt',
+  )
 
   let basePrice = price
   let garnishAddon = 0
@@ -169,6 +188,18 @@ export default function PackageDetailCard({
 
         <ExpandableDescription label="Itens do pacote" text={itemsText || '—'} />
         <ExpandableDescription label="Guarnições" text={garnishText} />
+        {optionGroupSummaries.length > 0 ? (
+          <div className="rounded-xl border border-amber-100 bg-amber-50/50 px-4 py-3">
+            <p className="text-xs font-bold uppercase tracking-wide text-amber-900">
+              Escolhas inclusas
+            </p>
+            <ul className="mt-2 space-y-1 text-sm text-neutral-800">
+              {optionGroupSummaries.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
 
         <div className="rounded-xl border border-neutral-100 bg-white p-4">
           <p className="text-xs font-bold uppercase tracking-wider text-red-600">

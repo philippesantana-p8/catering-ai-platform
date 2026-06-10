@@ -10,6 +10,7 @@ export type PackageItem = {
   package_id: string
   additional_item_id?: string | null
   item_key: string
+  item_name?: string | null
   label_pt: string
   label_en?: string | null
   label_es?: string | null
@@ -33,6 +34,7 @@ export type PackageSideItem = {
   package_id: string
   additional_item_id?: string | null
   item_key: string
+  item_name?: string | null
   label_pt: string
   label_en?: string | null
   label_es?: string | null
@@ -61,6 +63,7 @@ export const PACKAGE_ITEM_COLUMNS = [
   'package_id',
   'additional_item_id',
   'item_key',
+  'item_name',
   'label_pt',
   'label_en',
   'label_es',
@@ -84,6 +87,7 @@ export const PACKAGE_SIDE_ITEM_COLUMNS = [
   'package_id',
   'additional_item_id',
   'item_key',
+  'item_name',
   'label_pt',
   'label_en',
   'label_es',
@@ -311,7 +315,9 @@ export async function loadPackageConfiguration(options?: {
   const [itemsRes, sidesRes, groupsRes] = await Promise.all([
     fetchPackageItems(),
     fetchPackageSideItems(),
-    fetchPackageOptionGroups(),
+    fetchPackageOptionGroups(
+      packageIds?.length ? { packageIds } : undefined,
+    ),
   ])
 
   const error =
@@ -319,6 +325,7 @@ export async function loadPackageConfiguration(options?: {
 
   let packageItems = itemsRes.data ?? []
   let packageSideItems = sidesRes.data ?? []
+  let optionGroups = groupsRes.data ?? []
 
   if (packageIds && packageIds.length > 0) {
     const idSet = new Set(packageIds)
@@ -326,13 +333,14 @@ export async function loadPackageConfiguration(options?: {
     packageSideItems = packageSideItems.filter((side) =>
       idSet.has(side.package_id),
     )
+    optionGroups = optionGroups.filter((group) => idSet.has(group.package_id))
   }
 
   return {
     data: {
       packageItems,
       packageSideItems,
-      optionGroups: groupsRes.data ?? [],
+      optionGroups,
     } satisfies PackageConfiguration,
     error,
   }

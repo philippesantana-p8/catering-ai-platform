@@ -305,29 +305,25 @@ export default function QuotePackageStepExplorer({
   function openMobileGroup(group: GarnishGroup) {
     if (mobileExpandedGroup === group) {
       setMobileExpandedGroup(null)
+      setExpandedPackageCode(null)
       return
     }
     setMobileExpandedGroup(group)
     setSelectedGroup(group)
-    onSelect(null)
     setExpandedPackageCode(null)
   }
 
   function handleMobilePackageClick(pkg: PackageRow) {
     const code = getPackageKey(pkg)
-    const isExpanding = expandedPackageCode !== code
+
+    if (expandedPackageCode === code) {
+      setExpandedPackageCode(null)
+      onSelect(pkg.id)
+      return
+    }
 
     onSelect(pkg.id)
     setExpandedPackageCode(code)
-
-    if (isExpanding) {
-      setTimeout(() => {
-        packageDetailRefs.current[code]?.scrollIntoView({
-          behavior: 'smooth',
-          block: 'start',
-        })
-      }, 120)
-    }
   }
 
   const totalCount = packagesWithoutSides.length + packagesWithSides.length

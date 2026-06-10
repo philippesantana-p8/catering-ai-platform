@@ -25,6 +25,7 @@ export type PackageOptionGroup = {
   company_id?: string | null
   package_id: string
   option_group_key: string
+  group_key?: string | null
   label_pt?: string | null
   label_en?: string | null
   label_es?: string | null
@@ -288,6 +289,21 @@ export function packageSelectionsFromRows(
     }
   }
   return selections
+}
+
+export function formatPackageOptionGroupsSummary(
+  packageId: string,
+  groups: ReadonlyArray<PackageOptionGroup>,
+  language: QuoteLanguage = 'pt',
+): string[] {
+  return getPackageOptionGroupsForPackage(packageId, groups).map((group) => {
+    const title = getOptionGroupTitle(group, language)
+    const labels = group.items
+      .map((item) => getOptionItemLabel(item, language))
+      .filter(Boolean)
+      .join(' / ')
+    return labels ? `${title}: ${labels}` : title
+  })
 }
 
 export function prunePackageSelectionsForPackage(

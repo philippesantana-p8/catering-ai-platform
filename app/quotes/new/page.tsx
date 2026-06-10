@@ -16,28 +16,27 @@ export const revalidate = 0
 export default async function NewQuotePage() {
   const fetchErrors: string[] = []
 
-  const [
-    customersRes,
-    packagesRes,
-    additionalRes,
-    packageConfigurationRes,
-    commercialRules,
-  ] = await Promise.all([
-    fetchActiveCustomers(),
-    supabase
-      .from('packages')
-      .select(buildPackagesListSelect())
-      .eq('active', true)
-      .order('display_order', { ascending: true }),
-    supabase
-      .from('additional_items')
-      .select(buildAdditionalItemsListSelect())
-      .eq('active', true)
-      .order('category_pt', { ascending: true })
-      .order('display_order', { ascending: true }),
-    loadPackageConfiguration(),
-    fetchSupabaseCommercialRules(),
-  ])
+  const [customersRes, packagesRes, additionalRes, commercialRules] =
+    await Promise.all([
+      fetchActiveCustomers(),
+      supabase
+        .from('packages')
+        .select(buildPackagesListSelect())
+        .eq('active', true)
+        .order('display_order', { ascending: true }),
+      supabase
+        .from('additional_items')
+        .select(buildAdditionalItemsListSelect())
+        .eq('active', true)
+        .order('category_pt', { ascending: true })
+        .order('display_order', { ascending: true }),
+      fetchSupabaseCommercialRules(),
+    ])
+
+  const packages = (packagesRes.data ?? []) as unknown as Package[]
+  const packageConfigurationRes = await loadPackageConfiguration({
+    packageIds: packages.map((pkg) => pkg.id),
+  })
 
   if (customersRes.error) {
     fetchErrors.push(`Clientes: ${customersRes.error.message}`)
@@ -61,7 +60,6 @@ export default async function NewQuotePage() {
   }
 
   const customers = (customersRes.data ?? []) as Customer[]
-  const packages = (packagesRes.data ?? []) as unknown as Package[]
   const additionalItems = (additionalRes.data ?? []) as unknown as AdditionalItem[]
 
   return (

@@ -2069,6 +2069,32 @@ export default function QuoteWizard({
     state.packageSelections,
   ])
 
+  const packageOptionGroupItems = useMemo(
+    () =>
+      activePackageOptionGroups.flatMap((group) =>
+        group.items.map((item) => ({ ...item, option_group_id: group.id })),
+      ),
+    [activePackageOptionGroups],
+  )
+
+  useEffect(() => {
+    if (step !== 2) return
+    console.log('packages', packages)
+    console.log('packageOptionGroups', resolvedPackageOptionGroups)
+    console.log('packageOptionGroupItems', packageOptionGroupItems)
+    console.log('selectedPackage', selectedPackage)
+    console.log('selectedPackageOptions', state.packageSelections)
+    console.log('blockedAdditionalItemIds', blockedAdditionalItemIds)
+  }, [
+    step,
+    packages,
+    resolvedPackageOptionGroups,
+    packageOptionGroupItems,
+    selectedPackage,
+    state.packageSelections,
+    blockedAdditionalItemIds,
+  ])
+
   const packageStepNextDisabled = useMemo(() => {
     if (!state.packageId) return true
     if (!selectedPackage || isCustomPackage(selectedPackage)) return false

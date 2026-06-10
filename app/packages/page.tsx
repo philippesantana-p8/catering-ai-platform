@@ -1,4 +1,5 @@
 import PackagesDashboard from '@/components/PackagesDashboard'
+import { fetchAdditionalItems } from '@/Lib/fetchAdditionalItems'
 import { fetchPackages } from '@/Lib/fetchPackages'
 import { loadPackageConfiguration } from '@/Lib/packageConfiguration'
 
@@ -6,9 +7,9 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 export default async function PackagesPage() {
-  const [packagesRes, packageConfigurationRes] = await Promise.all([
+  const [packagesRes, additionalRes] = await Promise.all([
     fetchPackages({ includeInactive: false }),
-    loadPackageConfiguration(),
+    fetchAdditionalItems({ activeOnly: true }),
   ])
 
   const { data, error } = packagesRes
@@ -23,6 +24,11 @@ export default async function PackagesPage() {
     )
   }
 
+  const packages = data ?? []
+  const packageConfigurationRes = await loadPackageConfiguration({
+    packageIds: packages.map((pkg) => pkg.id),
+  })
+
   const packageConfiguration = packageConfigurationRes.data ?? {
     packageItems: [],
     packageSideItems: [],
@@ -31,9 +37,11 @@ export default async function PackagesPage() {
 
   return (
     <PackagesDashboard
-      initialPackages={data ?? []}
+      initialPackages={packages}
       packageItems={packageConfiguration.packageItems}
       packageSideItems={packageConfiguration.packageSideItems}
+      packageOptionGroups={packageConfiguration.optionGroups}
+      additionalItems={additionalRes.data ?? []}
     />
   )
 }

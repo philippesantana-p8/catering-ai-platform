@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import BackofficeTableShell from '@/components/BackofficeTableShell'
 import {
@@ -17,6 +18,9 @@ import {
 } from '@/components/backoffice/PackageAdminFormFields'
 import CatalogImageFrame from '@/components/CatalogImageFrame'
 import PackageCascadeExplorer from '@/components/packages/PackageCascadeExplorer'
+import PackageConfigEditor from '@/components/packages/PackageConfigEditor'
+import type { AdditionalItemOption } from '@/components/packages/AdditionalItemPicker'
+import type { PackageOptionGroup } from '@/Lib/packageOptionGroups'
 import type { PackageListItem } from '@/Lib/fetchPackages'
 import type {
   PackageItem,
@@ -59,11 +63,16 @@ export default function PackagesDashboard({
   initialPackages,
   packageItems = [],
   packageSideItems = [],
+  packageOptionGroups = [],
+  additionalItems = [],
 }: {
   initialPackages: PackageListItem[]
   packageItems?: PackageItem[]
   packageSideItems?: PackageSideItem[]
+  packageOptionGroups?: PackageOptionGroup[]
+  additionalItems?: AdditionalItemOption[]
 }) {
+  const router = useRouter()
   const [packages, setPackages] = useState<PackageListItem[]>(initialPackages)
   const [search, setSearch] = useState('')
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>('active')
@@ -73,6 +82,18 @@ export default function PackagesDashboard({
   const [draft, setDraft] = useState<PackagesInsertPayload>(EMPTY_PACKAGE_ROW)
   const [saving, setSaving] = useState(false)
   const [uploadingId, setUploadingId] = useState<string | null>(null)
+  const [configVersion, setConfigVersion] = useState(0)
+  const [livePackageItems, setLivePackageItems] = useState(packageItems)
+  const [livePackageSideItems, setLivePackageSideItems] =
+    useState(packageSideItems)
+  const [liveOptionGroups, setLiveOptionGroups] =
+    useState(packageOptionGroups)
+
+  useEffect(() => {
+    setLivePackageItems(packageItems)
+    setLivePackageSideItems(packageSideItems)
+    setLiveOptionGroups(packageOptionGroups)
+  }, [packageItems, packageSideItems, packageOptionGroups, configVersion])
   const fileInputRef = useRef<HTMLInputElement>(null)
   const uploadTargetIdRef = useRef<string | null>(null)
 
@@ -308,6 +329,19 @@ export default function PackagesDashboard({
               </div>
             ) : null}
             <PackageAdminFormFields draft={draft} setDraft={setDraft} />
+            {editingPackage ? (
+              <div className="col-span-full mt-6 border-t border-neutral-200 pt-6">
+                <PackageConfigEditor
+                  key={`${editingPackage.id}-${configVersion}`}
+                  packageId={editingPackage.id}
+                  additionalItems={additionalItems}
+                  onChanged={() => {
+                    setConfigVersion((v) => v + 1)
+                    router.refresh()
+                  }}
+                />
+              </div>
+            ) : null}
           </BackofficeFormCard>
         ) : null}
 
@@ -316,8 +350,9 @@ export default function PackagesDashboard({
         ) : (
           <PackageCascadeExplorer
             packages={filteredPackages}
-            packageItems={packageItems}
-            packageSideItems={packageSideItems}
+            packageItems={livePackageItems}
+            packageSideItems={livePackageSideItems}
+            packageOptionGroups={liveOptionGroups}
             onEdit={startEdit}
             onPhoto={triggerUpload}
             onDeactivate={(pkg) => void deactivate(pkg)}
