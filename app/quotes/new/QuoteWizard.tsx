@@ -47,6 +47,7 @@ import {
 import type { QuoteSnapshotRecord } from '../../../Lib/readQuoteSnapshot'
 import {
   getBlockedAdditionalItemIds,
+  getPendingPackageSelectionGroupIds,
   getPackageOptionGroupsForPackage,
   isCustomPackage,
   prunePackageSelectionsForPackage,
@@ -1398,6 +1399,8 @@ export default function QuoteWizard({
   const [packageStepMessage, setPackageStepMessage] = useState<string | null>(
     null,
   )
+  const [packageSelectionAttempted, setPackageSelectionAttempted] =
+    useState(false)
   const [packageExplorerKey, setPackageExplorerKey] = useState(0)
   const router = useRouter()
   const distanceInputRef = useRef<HTMLInputElement>(null)
@@ -1527,16 +1530,10 @@ export default function QuoteWizard({
     if (!state.packageId || !selectedPackage) return []
     return getBlockedAdditionalItemIds(
       state.packageId,
-      state.packageSelections,
       packageOptionGroups,
       isCustomPackage(selectedPackage),
     )
-  }, [
-    state.packageId,
-    state.packageSelections,
-    packageOptionGroups,
-    selectedPackage,
-  ])
+  }, [state.packageId, packageOptionGroups, selectedPackage])
 
   const visibleAdditionalItems = useMemo(
     () =>
@@ -1984,11 +1981,13 @@ export default function QuoteWizard({
           state.packageSelections,
         )
         if (issues.length > 0) {
+          setPackageSelectionAttempted(true)
           setPackageStepMessage(issues[0])
           return
         }
       }
     }
+    setPackageSelectionAttempted(false)
     setPackageStepMessage(null)
     if (step === 4 && !state.grillSetupAnswered) {
       updateState({ grillSetupAnswered: true })
@@ -1999,8 +1998,23 @@ export default function QuoteWizard({
   useEffect(() => {
     if (state.packageId) {
       setPackageStepMessage(null)
+      setPackageSelectionAttempted(false)
     }
-  }, [state.packageId])
+  }, [state.packageId, state.packageSelections])
+
+  const pendingSelectionGroupIds = useMemo(() => {
+    if (!packageSelectionAttempted || !selectedPackage) return []
+    if (isCustomPackage(selectedPackage)) return []
+    return getPendingPackageSelectionGroupIds(
+      activePackageOptionGroups,
+      state.packageSelections,
+    )
+  }, [
+    packageSelectionAttempted,
+    selectedPackage,
+    activePackageOptionGroups,
+    state.packageSelections,
+  ])
 
   useEffect(() => {
     const previousStep = previousStepRef.current
@@ -2585,6 +2599,7 @@ export default function QuoteWizard({
               optionGroupsForPackage={optionGroupsForPackage}
               selections={state.packageSelections}
               onSelectionChange={handlePackageSelectionChange}
+              pendingSelectionGroupIds={pendingSelectionGroupIds}
               onSelect={handlePackageSelect}
             />
           </div>

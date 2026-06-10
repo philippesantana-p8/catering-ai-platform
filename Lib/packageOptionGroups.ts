@@ -129,7 +129,6 @@ export function getPackageOptionGroupsForPackage(
 
 export function getBlockedAdditionalItemIds(
   packageId: string,
-  selections: Record<string, string>,
   groups: ReadonlyArray<PackageOptionGroup>,
   customPackage: boolean,
 ): string[] {
@@ -137,7 +136,7 @@ export function getBlockedAdditionalItemIds(
 
   const blocked = new Set<string>()
   for (const group of getPackageOptionGroupsForPackage(packageId, groups)) {
-    if (!group.blocks_additional_items) continue
+    if (group.blocks_additional_items === false) continue
     for (const item of group.items) {
       const additionalId = item.additional_item_id?.trim()
       if (additionalId) blocked.add(additionalId)
@@ -145,6 +144,15 @@ export function getBlockedAdditionalItemIds(
   }
 
   return [...blocked]
+}
+
+export function getPendingPackageSelectionGroupIds(
+  groups: ReadonlyArray<PackageOptionGroup>,
+  selections: Record<string, string>,
+): string[] {
+  return sortGroups([...groups])
+    .filter((group) => group.required && !selections[group.id]?.trim())
+    .map((group) => group.id)
 }
 
 export function validatePackageSelections(

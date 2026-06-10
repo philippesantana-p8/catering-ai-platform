@@ -11,10 +11,12 @@ import {
   BackofficeCascadeLayout,
   BackofficeCascadePanel,
 } from '@/components/backoffice/BackofficeSectionPrimitives'
+import PackageIncludedOptions from '@/components/quotes/PackageIncludedOptions'
 import QuotePackageSummary from '@/components/quotes/QuotePackageSummary'
 import { PackageCodeOption } from '@/components/premium/PremiumPrimitives'
 import { sortPackagesByCommercialTier } from '@/Lib/packageDisplay'
 import { getPackageHasGarnish, getPackageKey } from '@/Lib/packageFieldAccess'
+import { isCustomPackage } from '@/Lib/packageOptionGroups'
 import type { PackageCatalogFields } from '@/Lib/packageCatalogVisual'
 import type { PackageOptionGroup } from '@/Lib/packageOptionGroups'
 import type { QuoteLanguage } from '@/Lib/quoteWizardTypes'
@@ -120,6 +122,7 @@ function MobilePackageList({
   optionGroupsForPackage,
   selections,
   onSelectionChange,
+  pendingSelectionGroupIds = [],
   onPackageClick,
 }: {
   packages: PackageRow[]
@@ -132,6 +135,7 @@ function MobilePackageList({
   optionGroupsForPackage: (packageId: string) => PackageOptionGroup[]
   selections: Record<string, string>
   onSelectionChange: (groupId: string, itemId: string) => void
+  pendingSelectionGroupIds?: string[]
   onPackageClick: (pkg: PackageRow) => void
 }) {
   return (
@@ -140,6 +144,9 @@ function MobilePackageList({
         const code = getPackageKey(pkg)
         const isSelected = selectedPackageId === pkg.id
         const isExpanded = expandedPackageCode === code
+        const packageOptionGroups = optionGroupsForPackage(pkg.id)
+        const hasIncludedChoices =
+          packageOptionGroups.length > 0 && !isCustomPackage(pkg)
 
         return (
           <div key={pkg.id}>
@@ -149,23 +156,35 @@ function MobilePackageList({
               onClick={() => onPackageClick(pkg)}
             />
             {isExpanded ? (
-              <div
-                ref={(el) => {
-                  packageDetailRefs.current[code] = el
-                }}
-                className="package-detail-card mt-2 md:hidden"
-              >
-                <QuotePackageSummary
-                  pkg={pkg}
-                  allPackages={allPackages}
-                  language={language}
-                  sidesPricePerPerson={sidesPricePerPerson}
-                  selected={isSelected}
-                  compact
-                  optionGroups={optionGroupsForPackage(pkg.id)}
-                  selections={selections}
-                  onSelectionChange={onSelectionChange}
-                />
+              <div className="mt-2 space-y-2 md:hidden">
+                {hasIncludedChoices ? (
+                  <PackageIncludedOptions
+                    optionGroups={packageOptionGroups}
+                    selections={selections}
+                    onChange={onSelectionChange}
+                    language={language}
+                    mode="select"
+                    pendingGroupIds={pendingSelectionGroupIds}
+                  />
+                ) : null}
+                <div
+                  ref={(el) => {
+                    packageDetailRefs.current[code] = el
+                  }}
+                  className="package-detail-card"
+                >
+                  <QuotePackageSummary
+                    pkg={pkg}
+                    allPackages={allPackages}
+                    language={language}
+                    sidesPricePerPerson={sidesPricePerPerson}
+                    selected={isSelected}
+                    compact
+                    optionGroups={packageOptionGroups}
+                    selections={selections}
+                    showIncludedOptionsSummary
+                  />
+                </div>
               </div>
             ) : null}
           </div>
@@ -192,6 +211,7 @@ export default function QuotePackageStepExplorer({
   optionGroupsForPackage,
   selections = {},
   onSelectionChange,
+  pendingSelectionGroupIds = [],
   onSelect,
 }: {
   packagesWithoutSides: PackageRow[]
@@ -203,6 +223,7 @@ export default function QuotePackageStepExplorer({
   optionGroupsForPackage: (packageId: string) => PackageOptionGroup[]
   selections?: Record<string, string>
   onSelectionChange: (groupId: string, itemId: string) => void
+  pendingSelectionGroupIds?: string[]
   onSelect: (id: string | null) => void
 }) {
   const sortedWithSides = useMemo(
@@ -245,6 +266,14 @@ export default function QuotePackageStepExplorer({
 
   const groupTitle =
     selectedGroup === 'with' ? 'Com guarnições' : 'Sem guarnições'
+
+  const activeOptionGroups = selectedPackage
+    ? optionGroupsForPackage(selectedPackage.id)
+    : []
+  const hasIncludedChoices =
+    activeOptionGroups.length > 0 &&
+    selectedPackage &&
+    !isCustomPackage(selectedPackage)
 
   function selectGroupDesktop(group: GarnishGroup) {
     setSelectedGroup(group)
@@ -293,13 +322,13 @@ export default function QuotePackageStepExplorer({
 
   return (
     <div className="space-y-3">
-      {/* Desktop — 3 colunas */}
+      {/* Desktop — cascata com coluna de escolhas inclusas quando necessário */}
       <div className="hidden md:block">
         <BackofficeCascadeLayout>
           <BackofficeCascadePanel
             title="Tipo de pacote"
             subtitle="Com ou sem guarnições"
-            className="lg:col-span-3"
+            className={hasIncludedChoices ? 'lg:col-span-3' : 'lg:col-span-3'}
           >
             <div className="space-y-3">
               {sortedWithSides.length > 0 ? (
@@ -326,7 +355,7 @@ export default function QuotePackageStepExplorer({
           <BackofficeCascadePanel
             title={groupTitle}
             subtitle={`${groupPackages.length} opções`}
-            className="lg:col-span-3"
+            className={hasIncludedChoices ? 'lg:col-span-2' : 'lg:col-span-3'}
           >
             <div className="space-y-3">
               {groupPackages.map((pkg) => (
@@ -340,7 +369,24 @@ export default function QuotePackageStepExplorer({
             </div>
           </BackofficeCascadePanel>
 
-          <div className="lg:col-span-6">
+          {hasIncludedChoices ? (
+            <BackofficeCascadePanel
+              title="Escolhas inclusas"
+              subtitle="Opções do pacote"
+              className="lg:col-span-3"
+            >
+              <PackageIncludedOptions
+                optionGroups={activeOptionGroups}
+                selections={selections}
+                onChange={onSelectionChange}
+                language={language}
+                mode="select"
+                pendingGroupIds={pendingSelectionGroupIds}
+              />
+            </BackofficeCascadePanel>
+          ) : null}
+
+          <div className={hasIncludedChoices ? 'lg:col-span-4' : 'lg:col-span-6'}>
             {selectedPackage ? (
               <QuotePackageSummary
                 pkg={selectedPackage}
@@ -348,9 +394,9 @@ export default function QuotePackageStepExplorer({
                 language={language}
                 sidesPricePerPerson={sidesPricePerPerson}
                 selected
-                optionGroups={optionGroupsForPackage(selectedPackage.id)}
+                optionGroups={activeOptionGroups}
                 selections={selections}
-                onSelectionChange={onSelectionChange}
+                showIncludedOptionsSummary
               />
             ) : (
               <div className="rounded-2xl border border-neutral-200 bg-white p-6 text-sm text-neutral-500 shadow-sm">
@@ -385,6 +431,7 @@ export default function QuotePackageStepExplorer({
                 optionGroupsForPackage={optionGroupsForPackage}
                 selections={selections}
                 onSelectionChange={onSelectionChange}
+                pendingSelectionGroupIds={pendingSelectionGroupIds}
                 onPackageClick={handleMobilePackageClick}
               />
             ) : null}
@@ -413,6 +460,7 @@ export default function QuotePackageStepExplorer({
                 optionGroupsForPackage={optionGroupsForPackage}
                 selections={selections}
                 onSelectionChange={onSelectionChange}
+                pendingSelectionGroupIds={pendingSelectionGroupIds}
                 onPackageClick={handleMobilePackageClick}
               />
             ) : null}

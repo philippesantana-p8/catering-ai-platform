@@ -19,9 +19,8 @@ import {
   getPackageHighlights,
   getPackageItemsDescription,
 } from '@/Lib/packageDisplay'
+import PackageIncludedOptions from '@/components/quotes/PackageIncludedOptions'
 import {
-  getOptionGroupTitle,
-  getOptionItemLabel,
   isCustomPackage,
   resolvePackageItemsWithSelections,
   type PackageOptionGroup,
@@ -42,6 +41,8 @@ export default function QuotePackageSummary({
   optionGroups = [],
   selections = {},
   onSelectionChange,
+  showIncludedOptionsEditor = false,
+  showIncludedOptionsSummary = true,
 }: {
   pkg: PackageCatalogFields & { id?: string }
   allPackages?: ReadonlyArray<PackageCatalogFields>
@@ -52,6 +53,8 @@ export default function QuotePackageSummary({
   optionGroups?: ReadonlyArray<PackageOptionGroup>
   selections?: Record<string, string>
   onSelectionChange?: (groupId: string, itemId: string) => void
+  showIncludedOptionsEditor?: boolean
+  showIncludedOptionsSummary?: boolean
 }) {
   const image = getPackageCatalogImage(pkg, allPackages)
   const variant = getPackageCatalogVariant(pkg)
@@ -64,13 +67,18 @@ export default function QuotePackageSummary({
       ? resolvePackageSidesPricing(pkg, basePackage, sidesPricePerPerson)
       : null
 
+  const hasIncludedOptions =
+    optionGroups.length > 0 && !isCustomPackage(pkg)
   const showOptionGroups =
-    optionGroups.length > 0 && !isCustomPackage(pkg) && Boolean(onSelectionChange)
+    hasIncludedOptions &&
+    showIncludedOptionsEditor &&
+    Boolean(onSelectionChange)
+  const showOptionsSummary = hasIncludedOptions && showIncludedOptionsSummary
 
   const rawItems = getPackageItemsDescription(pkg, 'pt')
   const itemsText = rawItems
     ? formatPackageBulletText(
-        showOptionGroups
+        hasIncludedOptions
           ? resolvePackageItemsWithSelections(
               rawItems,
               selections,
@@ -202,44 +210,22 @@ export default function QuotePackageSummary({
         ) : null}
 
         {showOptionGroups ? (
-          <div className="space-y-4 rounded-xl border border-red-100 bg-gradient-to-br from-red-50/80 to-amber-50/40 p-4">
-            <p className="text-sm font-bold text-neutral-900">
-              Escolhas inclusas no pacote
-            </p>
-            {optionGroups.map((group) => {
-              const groupTitle = getOptionGroupTitle(group, language)
-              const selectedItemId = selections[group.id] ?? null
-              return (
-                <div key={group.id} className="space-y-2">
-                  <p className="text-xs font-bold uppercase tracking-wide text-neutral-600">
-                    {groupTitle}
-                    {group.required ? (
-                      <span className="ml-1 text-red-600">*</span>
-                    ) : null}
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {group.items.map((item) => {
-                      const active = selectedItemId === item.id
-                      return (
-                        <button
-                          key={item.id}
-                          type="button"
-                          onClick={() => onSelectionChange?.(group.id, item.id)}
-                          className={`min-h-11 rounded-xl border px-4 py-2.5 text-sm font-bold transition ${
-                            active
-                              ? 'border-red-400 bg-gradient-to-br from-red-50 to-amber-50 text-red-900 shadow-sm ring-2 ring-amber-300'
-                              : 'border-neutral-200 bg-white text-neutral-800 hover:border-red-200 hover:bg-red-50/40'
-                          }`}
-                        >
-                          {getOptionItemLabel(item, language)}
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
+          <PackageIncludedOptions
+            optionGroups={optionGroups}
+            selections={selections}
+            onChange={onSelectionChange}
+            language={language}
+            mode="select"
+          />
+        ) : null}
+
+        {showOptionsSummary && !showOptionGroups ? (
+          <PackageIncludedOptions
+            optionGroups={optionGroups}
+            selections={selections}
+            language={language}
+            mode="summary"
+          />
         ) : null}
 
         <div>
