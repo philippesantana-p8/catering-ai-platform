@@ -136,15 +136,20 @@ export async function fetchPackageOptionGroups(options?: {
 
   const itemsByGroup = new Map<string, PackageOptionGroupItem[]>()
   for (const item of itemsRes.data ?? []) {
-    const groupId = item.option_group_id
+    const groupId = item.option_group_id?.trim()
     if (!groupId) continue
     const list = itemsByGroup.get(groupId) ?? []
-    list.push(item)
+    list.push({ ...item, option_group_id: groupId })
     itemsByGroup.set(groupId, list)
   }
 
+  const hydrated = rows.map((row) => {
+    const groupId = row.id.trim()
+    return mapGroupRow(row, itemsByGroup.get(groupId) ?? [])
+  })
+
   return {
-    data: rows.map((row) => mapGroupRow(row, itemsByGroup.get(row.id) ?? [])),
+    data: hydrated,
     error: null,
   }
 }

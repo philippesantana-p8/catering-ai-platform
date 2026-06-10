@@ -23,7 +23,9 @@ export default function PackageIncludedOptions({
   mode?: 'select' | 'summary'
   pendingGroupIds?: string[]
 }) {
-  const selectableGroups = optionGroups.filter((group) => group.items.length > 0)
+  const selectableGroups = optionGroups
+    .filter((group) => group.active !== false)
+    .filter((group) => (group.items?.length ?? 0) > 0)
   if (selectableGroups.length === 0) return null
 
   if (mode === 'summary') {
@@ -93,21 +95,23 @@ export default function PackageIncludedOptions({
                 Escolha uma opção em: {groupTitle}.
               </p>
             ) : null}
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2" role="group" aria-label={groupTitle}>
               {group.items.map((item) => {
                 const active = selectedItemId === item.id
+                const itemLabel = getOptionItemLabel(item, language)
                 return (
                   <button
-                    key={item.id}
+                    key={`${group.id}-${item.id}`}
                     type="button"
                     onClick={() => onChange?.(group.id, item.id)}
+                    aria-pressed={active}
                     className={`min-h-11 rounded-xl border px-4 py-2.5 text-sm font-bold transition ${
                       active
                         ? 'border-red-400 bg-gradient-to-br from-red-50 to-amber-50 text-red-900 shadow-sm ring-2 ring-amber-300'
                         : 'border-neutral-200 bg-white text-neutral-800 hover:border-red-200 hover:bg-red-50/40'
                     }`}
                   >
-                    {getOptionItemLabel(item, language)}
+                    {itemLabel}
                   </button>
                 )
               })}

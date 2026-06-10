@@ -1,4 +1,5 @@
 import { buildAdditionalItemsListSelect } from '../../../Lib/additionalItemsTableSchema'
+import { getCdlCompanyId } from '../../../Lib/cdlCompany'
 import { fetchActiveCustomers } from '../../../Lib/fetchCustomers'
 import { loadPackageConfiguration } from '../../../Lib/packageConfiguration'
 import { buildPackagesListSelect } from '../../../Lib/packagesTableSchema'
@@ -16,20 +17,34 @@ export const revalidate = 0
 export default async function NewQuotePage() {
   const fetchErrors: string[] = []
 
+  const companyId = getCdlCompanyId()
+
+  let packagesQuery = supabase
+    .from('packages')
+    .select(buildPackagesListSelect())
+    .eq('active', true)
+    .order('display_order', { ascending: true })
+
+  if (companyId?.trim()) {
+    packagesQuery = packagesQuery.eq('company_id', companyId)
+  }
+
+  let additionalQuery = supabase
+    .from('additional_items')
+    .select(buildAdditionalItemsListSelect())
+    .eq('active', true)
+    .order('category_pt', { ascending: true })
+    .order('display_order', { ascending: true })
+
+  if (companyId?.trim()) {
+    additionalQuery = additionalQuery.eq('company_id', companyId)
+  }
+
   const [customersRes, packagesRes, additionalRes, commercialRules] =
     await Promise.all([
       fetchActiveCustomers(),
-      supabase
-        .from('packages')
-        .select(buildPackagesListSelect())
-        .eq('active', true)
-        .order('display_order', { ascending: true }),
-      supabase
-        .from('additional_items')
-        .select(buildAdditionalItemsListSelect())
-        .eq('active', true)
-        .order('category_pt', { ascending: true })
-        .order('display_order', { ascending: true }),
+      packagesQuery,
+      additionalQuery,
       fetchSupabaseCommercialRules(),
     ])
 

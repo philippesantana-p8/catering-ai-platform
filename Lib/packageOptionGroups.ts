@@ -138,14 +138,32 @@ function sortGroups(groups: PackageOptionGroup[]): PackageOptionGroup[] {
     }))
 }
 
+function packageIdsMatch(
+  packageId: string,
+  groupPackageId: string | null | undefined,
+): boolean {
+  return groupPackageId?.trim() === packageId.trim()
+}
+
+export function flattenPackageOptionGroupItems(
+  groups: ReadonlyArray<PackageOptionGroup>,
+): PackageOptionGroupItem[] {
+  return groups.flatMap((group) =>
+    (group.items ?? []).map((item) => ({
+      ...item,
+      option_group_id: item.option_group_id || group.id,
+    })),
+  )
+}
+
 export function getPackageOptionGroupsForPackage(
   packageId: string,
   groups: ReadonlyArray<PackageOptionGroup>,
 ): PackageOptionGroup[] {
   if (!packageId?.trim()) return []
-  return sortGroups(groups.filter((group) => group.package_id === packageId)).filter(
-    (group) => group.items.length > 0,
-  )
+  return sortGroups(
+    groups.filter((group) => packageIdsMatch(packageId, group.package_id)),
+  ).filter((group) => group.items.length > 0)
 }
 
 export function getBlockedAdditionalItemIds(

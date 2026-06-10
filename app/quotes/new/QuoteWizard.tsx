@@ -51,6 +51,7 @@ import type {
   PackageSideItem,
 } from '../../../Lib/packageConfiguration'
 import {
+  flattenPackageOptionGroupItems,
   getBlockedAdditionalItemIds,
   getPendingPackageSelectionGroupIds,
   getPackageOptionGroupsForPackage,
@@ -1432,17 +1433,41 @@ export default function QuoteWizard({
       { cache: 'no-store' },
     )
       .then(async (res) => {
-        if (!res.ok) return null
-        return res.json() as Promise<{ data?: PackageOptionGroup[] }>
+        const json = (await res.json()) as {
+          data?: PackageOptionGroup[]
+          error?: string
+        }
+        if (!res.ok) {
+          console.warn(
+            '[package-option-groups] fetch falhou:',
+            res.status,
+            json.error,
+          )
+          return null
+        }
+        return json
       })
       .then((json) => {
-        if (cancelled || !json?.data) return
+        if (cancelled || !json || !Array.isArray(json.data)) return
         setResolvedPackageOptionGroups((prev) => {
-          const rest = prev.filter((group) => group.package_id !== packageId)
-          return [...rest, ...json.data!]
+          const normalizedPackageId = packageId.trim()
+          const rest = prev.filter(
+            (group) => group.package_id?.trim() !== normalizedPackageId,
+          )
+          const merged = json.data!.map((group) => {
+            if ((group.items?.length ?? 0) > 0) return group
+            const existing = prev.find((row) => row.id === group.id)
+            if ((existing?.items?.length ?? 0) > 0) {
+              return { ...group, items: existing!.items }
+            }
+            return group
+          })
+          return [...rest, ...merged]
         })
       })
-      .catch(() => undefined)
+      .catch((fetchError) => {
+        console.warn('[package-option-groups] fetch erro:', fetchError)
+      })
 
     return () => {
       cancelled = true
@@ -2070,26 +2095,46 @@ export default function QuoteWizard({
   ])
 
   const packageOptionGroupItems = useMemo(
-    () =>
-      activePackageOptionGroups.flatMap((group) =>
-        group.items.map((item) => ({ ...item, option_group_id: group.id })),
-      ),
+    () => flattenPackageOptionGroupItems(resolvedPackageOptionGroups),
+    [resolvedPackageOptionGroups],
+  )
+
+  const activePackageOptionGroupItems = useMemo(
+    () => flattenPackageOptionGroupItems(activePackageOptionGroups),
     [activePackageOptionGroups],
   )
 
   useEffect(() => {
     if (step !== 2) return
-    console.log('packages', packages)
-    console.log('packageOptionGroups', resolvedPackageOptionGroups)
-    console.log('packageOptionGroupItems', packageOptionGroupItems)
-    console.log('selectedPackage', selectedPackage)
-    console.log('selectedPackageOptions', state.packageSelections)
-    console.log('blockedAdditionalItemIds', blockedAdditionalItemIds)
+    console.log('[Etapa Pacote] packages', packages)
+    console.log('[Etapa Pacote] packageOptionGroups', resolvedPackageOptionGroups)
+    console.log('[Etapa Pacote] packageOptionGroupItems', packageOptionGroupItems)
+    console.log(
+      '[Etapa Pacote] activePackageOptionGroups',
+      activePackageOptionGroups,
+    )
+    console.log(
+      '[Etapa Pacote] activePackageOptionGroupItems',
+      activePackageOptionGroupItems,
+    )
+    console.log('[Etapa Pacote] selectedPackage', selectedPackage)
+    console.log('[Etapa Pacote] selectedPackageOptions', state.packageSelections)
+    console.log('[Etapa Pacote] blockedAdditionalItemIds', blockedAdditionalItemIds)
+    if (
+      activePackageOptionGroups.length > 0 &&
+      activePackageOptionGroupItems.length === 0
+    ) {
+      console.warn(
+        '[Etapa Pacote] grupos sem itens anexados — verificar package_option_group_items',
+      )
+    }
   }, [
     step,
     packages,
     resolvedPackageOptionGroups,
     packageOptionGroupItems,
+    activePackageOptionGroups,
+    activePackageOptionGroupItems,
     selectedPackage,
     state.packageSelections,
     blockedAdditionalItemIds,
@@ -2690,7 +2735,7 @@ export default function QuoteWizard({
               packagesWithSides={packagesWithSides}
               allPackages={packages}
               selectedPackageId={state.packageId}
-              language={state.language}
+              language="pt"
               sidesPricePerPerson={commercialRules.sidesPricePerPerson}
               optionGroupsForPackage={optionGroupsForPackage}
               packageItems={packageItems}

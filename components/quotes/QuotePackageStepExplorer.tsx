@@ -153,11 +153,7 @@ function MobilePackageList({
         const isSelected = selectedPackageId === pkg.id
         const isExpanded = expandedPackageCode === code
         const packageOptionGroups = optionGroupsForPackage(pkg.id)
-        const hasIncludedChoices = hasPackageIncludedChoices(
-          pkg.id,
-          packageOptionGroups,
-          pkg,
-        )
+        const hasIncludedChoices = packageOptionGroups.length > 0
 
         return (
           <div key={pkg.id}>

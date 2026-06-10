@@ -155,8 +155,9 @@ export function getPackageItemsForPackage(
   items: ReadonlyArray<PackageItem>,
 ): PackageItem[] {
   if (!packageId?.trim()) return []
+  const normalizedId = packageId.trim()
   return sortPackageItems(
-    items.filter((item) => item.package_id === packageId),
+    items.filter((item) => item.package_id?.trim() === normalizedId),
   )
 }
 
@@ -165,8 +166,9 @@ export function getPackageSideItemsForPackage(
   sides: ReadonlyArray<PackageSideItem>,
 ): PackageSideItem[] {
   if (!packageId?.trim()) return []
+  const normalizedId = packageId.trim()
   return sortPackageItems(
-    sides.filter((side) => side.package_id === packageId),
+    sides.filter((side) => side.package_id?.trim() === normalizedId),
   )
 }
 
@@ -195,8 +197,12 @@ function optionGroupsForPackage(
   groups: ReadonlyArray<PackageOptionGroup>,
 ): PackageOptionGroup[] {
   if (!packageId?.trim()) return []
+  const normalizedId = packageId.trim()
   return groups
-    .filter((group) => group.package_id === packageId && group.active !== false)
+    .filter(
+      (group) =>
+        group.package_id?.trim() === normalizedId && group.active !== false,
+    )
     .sort(
       (a, b) =>
         Number(a.display_order ?? 0) - Number(b.display_order ?? 0) ||
