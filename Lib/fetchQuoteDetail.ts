@@ -1,6 +1,7 @@
 import type { QuoteDetail } from '@/app/quotes/[id]/quoteDetailTypes'
 import { fetchQuoteLinkedPackageCatalog } from '@/Lib/fetchQuoteLinkedPackageCatalog'
 import type { CustomerNameSource } from '@/Lib/getCustomerDisplayName'
+import { getActiveCompanyId } from '@/Lib/tenant/resolveTenant'
 import { supabase } from './supabase'
 
 function normalizeQuoteDetailRow(
@@ -41,12 +42,20 @@ const OFFICIAL_GUEST_COLUMNS =
   'adult_count, children_under_3_count, children_4_to_12_count, physical_guest_count, billable_guest_count'
 
 export async function fetchQuoteDetail(id: string) {
+  const companyId = getActiveCompanyId()
+
   const [viewRes, guestRes] = await Promise.all([
-    supabase.from('quote_detail_view').select('*').eq('id', id).single(),
+    supabase
+      .from('quote_detail_view')
+      .select('*')
+      .eq('id', id)
+      .eq('company_id', companyId)
+      .single(),
     supabase
       .from('quotes')
       .select(OFFICIAL_GUEST_COLUMNS)
       .eq('id', id)
+      .eq('company_id', companyId)
       .maybeSingle(),
   ])
 

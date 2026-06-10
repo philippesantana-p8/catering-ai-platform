@@ -1,0 +1,123 @@
+'use client'
+
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react'
+import type { Branch, Company, CompanyRole, TenantContext } from '@/Lib/tenant/types'
+
+const BRANCH_STORAGE_KEY = 'catering-ai.active-branch-id'
+
+type TenantContextValue = TenantContext & {
+  loading: boolean
+  setBranchId: (branchId: string | null) => void
+  refresh: () => Promise<void>
+}
+
+const TenantCtx = createContext<TenantContextValue | null>(null)
+
+export function TenantProvider({ children }: { children: ReactNode }) {
+  const [loading, setLoading] = useState(true)
+  const [companyId, setCompanyId] = useState('')
+  const [company, setCompany] = useState<Company | null>(null)
+  const [branches, setBranches] = useState<Branch[]>([])
+  const [branchId, setBranchIdState] = useState<string | null>(null)
+  const [role, setRole] = useState<CompanyRole | null>(null)
+  const [featureFlags, setFeatureFlags] = useState<Record<string, boolean>>({})
+
+  const refresh = useCallback(async () => {
+    setLoading(true)
+    try {
+      const response = await fetch('/api/tenant/context', { cache: 'no-store' })
+      const result = (await response.json()) as {
+        data?: TenantContext
+        error?: string
+      }
+      if (!response.ok || !result.data) {
+        throw new Error(result.error ?? 'Falha ao carregar tenant.')
+      }
+
+      const data = result.data
+      setCompanyId(data.companyId)
+      setCompany(data.company)
+      setBranches(data.branches)
+      setRole(data.role)
+      setFeatureFlags(data.featureFlags)
+
+      const stored =
+        typeof window !== 'undefined'
+          ? window.localStorage.getItem(BRANCH_STORAGE_KEY)
+          : null
+      const resolvedBranchId =
+        stored && data.branches.some((b) => b.id === stored)
+          ? stored
+          : data.branchId
+
+      setBranchIdState(resolvedBranchId)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    void refresh()
+  }, [refresh])
+
+  const setBranchId = useCallback((next: string | null) => {
+    setBranchIdState(next)
+    if (typeof window !== 'undefined') {
+      if (next) {
+        window.localStorage.setItem(BRANCH_STORAGE_KEY, next)
+      } else {
+        window.localStorage.removeItem(BRANCH_STORAGE_KEY)
+      }
+    }
+  }, [])
+
+  const branch = useMemo(
+    () => branches.find((row) => row.id === branchId) ?? null,
+    [branches, branchId],
+  )
+
+  const value = useMemo<TenantContextValue>(
+    () => ({
+      companyId,
+      company,
+      branchId,
+      branch,
+      branches,
+      role,
+      featureFlags,
+      loading,
+      setBranchId,
+      refresh,
+    }),
+    [
+      companyId,
+      company,
+      branchId,
+      branch,
+      branches,
+      role,
+      featureFlags,
+      loading,
+      setBranchId,
+      refresh,
+    ],
+  )
+
+  return <TenantCtx.Provider value={value}>{children}</TenantCtx.Provider>
+}
+
+export function useTenant() {
+  const ctx = useContext(TenantCtx)
+  if (!ctx) {
+    throw new Error('useTenant must be used within TenantProvider')
+  }
+  return ctx
+}

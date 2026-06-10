@@ -22,10 +22,13 @@ export async function updateQuote(
   quoteId: string,
   input: QuoteSaveInput,
 ): Promise<UpdateQuoteResult> {
+  const companyId = getCdlCompanyId()
+
   const { data: existingQuote, error: fetchError } = await supabase
     .from('quotes')
     .select('event_id')
     .eq('id', quoteId)
+    .eq('company_id', companyId)
     .eq('active', true)
     .maybeSingle()
 
@@ -78,6 +81,7 @@ export async function updateQuote(
     .from('quotes')
     .update(quotePayload)
     .eq('id', quoteId)
+    .eq('company_id', companyId)
     .eq('active', true)
 
   if (updateError) {
@@ -88,8 +92,6 @@ export async function updateQuote(
     logSaveQuoteError(errorInfo, updateError)
     return { data: null, error: errorInfo }
   }
-
-  const companyId = getCdlCompanyId()
 
   const { error: deleteSelectionsError } = await supabase
     .from('quote_package_selections')

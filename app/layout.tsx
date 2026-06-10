@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { TenantProvider } from "../components/tenant/TenantProvider";
 import { ThemeProvider } from "../components/ThemeProvider";
 import { ThemeScript } from "../components/ThemeScript";
 import { ThemeToggle } from "../components/ThemeToggle";
@@ -37,12 +38,14 @@ export default function RootLayout({
       </head>
       <body className="flex min-h-full flex-col bg-cdl-bg text-cdl-fg">
         <ThemeProvider>
+          <TenantProvider>
           <div className="no-print pointer-events-none fixed top-4 right-4 z-50 sm:top-6 sm:right-6">
             <div className="pointer-events-auto">
               <ThemeToggle />
             </div>
           </div>
           <div className="relative min-h-full pt-14">{children}</div>
+          </TenantProvider>
         </ThemeProvider>
       </body>
     </html>

@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import AppMainNav from '../../../components/AppMainNav'
+import { useTenant } from '../../../components/tenant/TenantProvider'
 import CatalogImageFrame from '../../../components/CatalogImageFrame'
 import BuildVersionBadge from '../../../components/BuildVersionBadge'
 import QuoteHeaderCompact from '../../../components/quotes/QuoteHeaderCompact'
@@ -1380,6 +1381,7 @@ export default function QuoteWizard({
   initialStep?: number
 }) {
   const isEditMode = mode === 'edit' && Boolean(quoteId)
+  const { branchId: tenantBranchId } = useTenant()
   const [step, setStep] = useState(() =>
     Math.min(Math.max(initialStep, 0), STEPS.length - 1),
   )
@@ -1407,6 +1409,11 @@ export default function QuoteWizard({
   const [packageStepMessage, setPackageStepMessage] = useState<string | null>(
     null,
   )
+
+  useEffect(() => {
+    if (!tenantBranchId || state.branchId) return
+    setState((prev) => ({ ...prev, branchId: tenantBranchId }))
+  }, [tenantBranchId, state.branchId])
   const [packageSelectionAttempted, setPackageSelectionAttempted] =
     useState(false)
   const [packageExplorerKey, setPackageExplorerKey] = useState(0)
@@ -2109,6 +2116,7 @@ export default function QuoteWizard({
             }
           : null,
       packageId: packageForSave.id,
+      branchId: state.branchId ?? tenantBranchId ?? null,
       eventName: state.eventName,
       eventDate: state.eventDate,
       startTime: state.startTime,

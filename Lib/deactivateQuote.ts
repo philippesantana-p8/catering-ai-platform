@@ -1,6 +1,9 @@
+import { getActiveCompanyId } from '@/Lib/tenant/resolveTenant'
 import { supabase } from './supabase'
 
 export async function deactivateQuote(quoteId: string) {
+  const companyId = getActiveCompanyId()
+
   const { data, error } = await supabase
     .from('quotes')
     .update({
@@ -8,6 +11,7 @@ export async function deactivateQuote(quoteId: string) {
       updated_at: new Date().toISOString(),
     })
     .eq('id', quoteId)
+    .eq('company_id', companyId)
     .eq('active', true)
     .select('id')
     .maybeSingle()

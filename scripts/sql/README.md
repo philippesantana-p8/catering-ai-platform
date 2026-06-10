@@ -18,6 +18,19 @@ Se não houver duplicatas ativas, pode rodar `customers-phone-normalized.sql` in
 
 - **`commercial-rules-key-value.sql`** — independente; cria `commercial_rules`, colunas faltantes, índice parcial e seeds padrão (`quote_validity_days = 7`). Seeds só entram se `rule_key` ainda não existir.
 
+## Multi-tenant SaaS
+
+- **`multi-tenant-foundation.sql`** — `franchise_groups`, `branches`, `subscriptions`, `company_memberships`, `feature_flags`, `audit_logs`, `branch_id` em tabelas core. Rodar após migrations de catálogo.
+
+## Pacotes configuráveis
+
+| Script | Propósito |
+|--------|-----------|
+| `package-items-and-side-items.sql` | `package_items`, `package_side_items` |
+| `package-option-groups-and-calendar.sql` | Escolhas inclusas + calendar prep |
+| `cdl-package-option-groups-seed.sql` | Seed CDL option groups |
+| `package-commercial-descriptions.sql` | Highlights e descrições |
+
 ## Outros scripts
 
 | Script | Propósito |

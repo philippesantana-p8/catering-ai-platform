@@ -81,6 +81,8 @@ export function mapQuoteDetailToWizardState(
     grillRentalQty: quote.grill_rental_qty ?? 0,
     grillNotes: quote.grill_notes ?? '',
     packageId: quote.package_id ?? null,
+    branchId:
+      (quote as { branch_id?: string | null }).branch_id?.trim() || null,
     packageSelections: packageSelectionsFromRows(
       quote.package_selections ?? [],
     ),

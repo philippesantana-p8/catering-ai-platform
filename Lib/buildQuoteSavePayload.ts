@@ -40,6 +40,7 @@ export type QuoteSaveInput = {
   /** Rascunho do wizard — cliente criado somente no save final. */
   customerDraft?: QuoteCustomerDraft | null
   packageId: string
+  branchId?: string | null
   packageSelections?: QuotePackageSelectionSaveLine[]
   eventName: string
   eventDate: string
@@ -249,6 +250,7 @@ export function buildQuoteSavePayload(
       ? {
           active: true,
           company_id: getCdlCompanyId(),
+          ...(input.branchId?.trim() ? { branch_id: input.branchId.trim() } : {}),
           source: 'wizard',
           quote_status: 'draft',
           quote_date: quoteDate,

@@ -12,6 +12,7 @@ import {
   RESERVATION_PERCENTAGE,
   SIDES_PRICE_PER_PERSON,
 } from './cdlCommercialRules'
+import { getActiveCompanyId } from '@/Lib/tenant/resolveTenant'
 import { supabase } from './supabase'
 
 export type CommercialRulesSnapshot = {
@@ -193,8 +194,14 @@ function parseCommercialRulesRows(rows: RuleRow[]): CommercialRulesSnapshot {
 }
 
 export async function fetchSupabaseCommercialRules(): Promise<CommercialRulesSnapshot> {
+  const companyId = getActiveCompanyId()
+
   for (const table of RULE_TABLE_CANDIDATES) {
-    const { data, error } = await supabase.from(table).select('*')
+    let query = supabase.from(table).select('*')
+    if (companyId?.trim()) {
+      query = query.or(`company_id.eq.${companyId},company_id.is.null`)
+    }
+    const { data, error } = await query
 
     if (error) {
       if (process.env.NODE_ENV === 'development') {

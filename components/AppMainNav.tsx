@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import BuildVersionBadge from '@/components/BuildVersionBadge'
+import TenantContextBar from '@/components/tenant/TenantContextBar'
 
 const NAV_LINKS = [
   { href: '/quotes', label: 'Cotações' },
@@ -54,8 +55,9 @@ export default function AppMainNav({ className = '' }: { className?: string }) {
 
   return (
     <div className={`w-full ${className}`}>
+      <TenantContextBar />
       <nav
-        className="flex flex-wrap items-center gap-2"
+        className="mt-2 flex flex-wrap items-center gap-2"
         aria-label="Navegação principal"
       >
       {NAV_LINKS.map((link) => {

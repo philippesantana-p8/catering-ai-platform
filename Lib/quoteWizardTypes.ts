@@ -33,6 +33,8 @@ export type WizardState = {
   grillRentalQty: number
   grillNotes: string
   packageId: string | null
+  /** Filial operacional (quando a company tiver branches). */
+  branchId: string | null
   /** option_group_id -> option_item_id */
   packageSelections: Record<string, string>
   additionals: Record<string, number>
@@ -77,6 +79,7 @@ export function createInitialWizardState(
     grillRentalQty: 0,
     grillNotes: '',
     packageId: null,
+    branchId: null,
     packageSelections: {},
     additionals: {},
     baseLocation: rules.mileageBaseLocation,
