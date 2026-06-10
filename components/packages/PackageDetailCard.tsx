@@ -29,6 +29,7 @@ import {
 import {
   getPackageGarnishDisplayText,
   getPackageItemsDisplayText,
+  parsePackageHighlightsText,
 } from '@/Lib/packageDisplay'
 
 function formatPrice(value: number, currency = 'USD') {
@@ -58,6 +59,7 @@ export default function PackageDetailCard({
   const price = getPackagePrice(pkg)
   const itemsText = getPackageItemsDisplayText(pkg)
   const garnishText = getPackageGarnishDisplayText(pkg)
+  const highlightItems = parsePackageHighlightsText(pkg.package_highlights_pt)
 
   let basePrice = price
   let garnishAddon = 0
@@ -103,6 +105,24 @@ export default function PackageDetailCard({
             <span className="ml-1 text-sm font-semibold text-neutral-500">/ pessoa</span>
           </p>
         </div>
+
+        {highlightItems.length > 0 ? (
+          <div className="package-highlights-box !mt-0">
+            <p className="package-highlights-title">Diferenciais do pacote</p>
+            <div className="package-highlights-list">
+              {highlightItems.map((item) => (
+                <span key={item}>• {item}</span>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-xl border border-neutral-100 bg-neutral-50 px-4 py-3">
+            <p className="text-xs font-bold uppercase tracking-wide text-neutral-500">
+              Diferenciais do pacote
+            </p>
+            <p className="mt-1 text-sm text-neutral-400">Diferenciais não cadastrados</p>
+          </div>
+        )}
 
         <PriceBreakdownCard
           rows={[

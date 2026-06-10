@@ -20,6 +20,9 @@ export type PackageListItem = {
   image_url?: string | null
   image_status?: string | null
   image_notes?: string | null
+  package_highlights_pt?: string | null
+  package_highlights_en?: string | null
+  package_highlights_es?: string | null
   active?: boolean | null
   updated_at?: string | null
 }

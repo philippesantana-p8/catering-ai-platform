@@ -209,6 +209,19 @@ export function getPackageGroupSummaryCodes(
     .join(' · ')
 }
 
+/** Quebra highlights do banco (• ou quebra de linha) em itens de lista. */
+export function parsePackageHighlightsText(
+  text: string | null | undefined,
+): string[] {
+  const raw = String(text ?? '').trim()
+  if (!raw) return []
+
+  return raw
+    .split(/\s*•\s*|\n+/)
+    .map((part) => part.trim())
+    .filter(Boolean)
+}
+
 /** Converte texto com vírgulas ou quebras em lista com bullet • */
 export function formatPackageBulletText(text: string | null | undefined): string {
   const raw = String(text ?? '').trim()
