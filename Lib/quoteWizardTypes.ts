@@ -33,6 +33,8 @@ export type WizardState = {
   grillRentalQty: number
   grillNotes: string
   packageId: string | null
+  /** option_group_id -> option_item_id */
+  packageSelections: Record<string, string>
   additionals: Record<string, number>
   baseLocation: string
   distance: number
@@ -75,6 +77,7 @@ export function createInitialWizardState(
     grillRentalQty: 0,
     grillNotes: '',
     packageId: null,
+    packageSelections: {},
     additionals: {},
     baseLocation: rules.mileageBaseLocation,
     distance: 0,

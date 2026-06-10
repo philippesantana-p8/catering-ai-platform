@@ -8,6 +8,7 @@ import {
   formatMoneyOrDash,
 } from '@/Lib/readQuoteSnapshot'
 import { displayValue, formatCurrency } from '@/app/quotes/[id]/quoteDetailTypes'
+import type { PackageSelectionLabel } from '@/Lib/packageOptionGroups'
 import type { QuoteReviewPackageSummary } from './quoteReviewPackageSummary'
 
 function PackageDetailLine({
@@ -58,6 +59,7 @@ export default function QuoteReviewPackageCdlSection({
   packageName,
   packageImageUrl,
   packageSummary,
+  packageSelections = [],
   physicalGuestCount,
   billableGuestCount,
   packageTotal,
@@ -66,6 +68,7 @@ export default function QuoteReviewPackageCdlSection({
   packageName: string | null
   packageImageUrl?: string | null
   packageSummary?: QuoteReviewPackageSummary | null
+  packageSelections?: PackageSelectionLabel[]
   physicalGuestCount: number | null
   billableGuestCount: number | null
   packageTotal: number | null
@@ -103,6 +106,22 @@ export default function QuoteReviewPackageCdlSection({
           className="!aspect-square !min-h-0 !max-h-[min(85vw,20rem)] !w-full !bg-white sm:!aspect-[4/3] sm:!max-h-[18rem]"
         />
       </div>
+      {packageSelections.length > 0 ? (
+        <div className="space-y-1">
+          <p className="quote-proposal-package-detail">
+            <span className="quote-proposal-package-detail-label font-bold">
+              Escolhas inclusas:
+            </span>
+          </p>
+          <ul className="ml-4 list-disc text-sm text-neutral-700">
+            {packageSelections.map((selection) => (
+              <li key={selection.groupId}>
+                {selection.groupTitle}: {selection.itemLabel}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
       <PackageDetailLine label="Itens do pacote:" value={itemsText} />
       <PackageDetailLine label="Guarnições:" value={garnishText} />
       <div className="quote-proposal-highlight-grid">

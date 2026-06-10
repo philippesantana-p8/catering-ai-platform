@@ -215,6 +215,7 @@ export default function QuoteReviewLayout({
               packageName={data.packageName}
               packageImageUrl={data.packageImageUrl}
               packageSummary={data.packageSummary}
+              packageSelections={data.packageSelections}
               physicalGuestCount={data.physicalGuestCount}
               billableGuestCount={data.billableGuestCount}
               packageTotal={data.packageTotal}

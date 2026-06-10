@@ -1,4 +1,10 @@
 import {
+  getPackageOptionGroupsForPackage,
+  isCustomPackage,
+  validatePackageSelections,
+  type PackageOptionGroup,
+} from '@/Lib/packageOptionGroups'
+import {
   getFallbackCommercialRules,
   type CommercialRulesSnapshot,
 } from '@/Lib/supabaseCommercialRules'
@@ -44,6 +50,7 @@ export type WizardStateSnapshot = {
   grillRentalQty: number
   grillNotes: string
   packageId: string | null
+  packageSelections: Record<string, string>
   additionals: Record<string, number>
   baseLocation: string
   distance: number
@@ -56,10 +63,11 @@ export type WizardStateSnapshot = {
 export type StepStatusContext = {
   state: WizardStateSnapshot
   selectedCustomer: { id: string } | null
-  selectedPackage: { id: string } | null
+  selectedPackage: { id: string; package_key?: string | null } | null
   currentStep: number
   reservationAmount: number
   additionalsCount: number
+  packageOptionGroups?: ReadonlyArray<PackageOptionGroup>
   commercialRules?: CommercialRulesSnapshot
   isEditMode?: boolean
 }
@@ -164,9 +172,28 @@ export function getStepIssues(
         issues.push('Informe o número de adultos (mínimo 1).')
       }
       break
-    case 2:
-      if (!hasValidPackage(ctx)) issues.push('Selecione um pacote.')
+    case 2: {
+      if (!hasValidPackage(ctx)) {
+        issues.push('Selecione um pacote.')
+        break
+      }
+      const packageId = ctx.state.packageId?.trim()
+      if (
+        packageId &&
+        ctx.selectedPackage &&
+        !isCustomPackage(ctx.selectedPackage) &&
+        ctx.packageOptionGroups
+      ) {
+        const groups = getPackageOptionGroupsForPackage(
+          packageId,
+          ctx.packageOptionGroups,
+        )
+        issues.push(
+          ...validatePackageSelections(groups, ctx.state.packageSelections),
+        )
+      }
       break
+    }
     case 3:
       if (ctx.additionalsCount === 0) {
         issues.push('Nenhum adicional selecionado (opcional).')

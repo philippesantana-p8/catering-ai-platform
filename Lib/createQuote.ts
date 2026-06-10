@@ -1,6 +1,7 @@
 import {
   buildAdditionalItemRows,
   buildEventSavePayload,
+  buildPackageSelectionRows,
   buildQuoteSavePayload,
   type QuoteSaveInput,
 } from './buildQuoteSavePayload'
@@ -218,6 +219,48 @@ export async function createQuote(input: QuoteSaveInput): Promise<CreateQuoteRes
   }
 
   const quoteId = data.id as string
+  const packageSelections = saveInput.packageSelections ?? []
+
+  if (packageSelections.length > 0) {
+    let selectionRows: ReturnType<typeof buildPackageSelectionRows>
+    try {
+      selectionRows = buildPackageSelectionRows(
+        quoteId,
+        companyId,
+        saveInput.packageId,
+        packageSelections,
+      )
+    } catch (error) {
+      const errorInfo = buildSaveQuoteError('quote', error, {
+        eventPayload,
+        quotePayload,
+      })
+      logSaveQuoteError(errorInfo, error)
+      await supabase.from('quotes').delete().eq('id', quoteId)
+      await supabase.from('events').delete().eq('id', eventId)
+      return { data: null, error: errorInfo }
+    }
+
+    const { error: selectionsError } = await supabase
+      .from('quote_package_selections')
+      .insert(selectionRows)
+
+    if (selectionsError) {
+      const errorInfo = buildSaveQuoteError('quote', selectionsError, {
+        eventPayload,
+        quotePayload,
+      })
+      errorInfo.message = `Cotação ${quoteId} criada, mas falhou ao salvar escolhas do pacote: ${errorInfo.message}`
+      logSaveQuoteError(errorInfo, selectionsError)
+      await supabase
+        .from('quote_package_selections')
+        .delete()
+        .eq('quote_id', quoteId)
+      await supabase.from('quotes').delete().eq('id', quoteId)
+      await supabase.from('events').delete().eq('id', eventId)
+      return { data: null, error: errorInfo }
+    }
+  }
 
   if (saveInput.additionals.length === 0) {
     return {

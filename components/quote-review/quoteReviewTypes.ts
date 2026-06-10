@@ -1,4 +1,5 @@
 import type { GuestCounts } from '@/Lib/calculateQuoteTotals'
+import type { PackageSelectionLabel } from '@/Lib/packageOptionGroups'
 import type { QuoteReviewPackageSummary } from './quoteReviewPackageSummary'
 
 export type QuoteReviewAdditional = {
@@ -29,6 +30,7 @@ export type QuoteReviewData = {
   packageUnitPrice: number | null
   packageTotal: number | null
   packageSummary?: QuoteReviewPackageSummary | null
+  packageSelections?: PackageSelectionLabel[]
   guestCounts: GuestCounts
   billableGuestCount: number | null
   physicalGuestCount: number | null

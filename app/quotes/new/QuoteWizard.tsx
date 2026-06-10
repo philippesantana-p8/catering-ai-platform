@@ -46,6 +46,14 @@ import {
 } from '../../../Lib/grillPhotoStatus'
 import type { QuoteSnapshotRecord } from '../../../Lib/readQuoteSnapshot'
 import {
+  getBlockedAdditionalItemIds,
+  getPackageOptionGroupsForPackage,
+  isCustomPackage,
+  prunePackageSelectionsForPackage,
+  validatePackageSelections,
+  type PackageOptionGroup,
+} from '../../../Lib/packageOptionGroups'
+import {
   buildPricingFingerprint,
   createInitialWizardState,
   type QuoteLanguage,
@@ -1337,6 +1345,7 @@ export default function QuoteWizard({
   customers,
   packages,
   additionalItems,
+  packageOptionGroups = [],
   commercialRules,
   fetchErrors,
   mode = 'create',
@@ -1350,6 +1359,7 @@ export default function QuoteWizard({
   customers: Customer[]
   packages: Package[]
   additionalItems: AdditionalItem[]
+  packageOptionGroups?: PackageOptionGroup[]
   commercialRules: CommercialRulesSnapshot
   fetchErrors: string[]
   mode?: 'create' | 'edit'
@@ -1491,8 +1501,53 @@ export default function QuoteWizard({
     [packagesWithSides, state.packageId],
   )
 
+  const optionGroupsForPackage = useMemo(() => {
+    const cache = new Map<string, PackageOptionGroup[]>()
+    return (packageId: string) => {
+      if (!packageId?.trim()) return []
+      if (!cache.has(packageId)) {
+        cache.set(
+          packageId,
+          getPackageOptionGroupsForPackage(packageId, packageOptionGroups),
+        )
+      }
+      return cache.get(packageId) ?? []
+    }
+  }, [packageOptionGroups])
+
+  const activePackageOptionGroups = useMemo(
+    () =>
+      state.packageId
+        ? optionGroupsForPackage(state.packageId)
+        : [],
+    [state.packageId, optionGroupsForPackage],
+  )
+
+  const blockedAdditionalItemIds = useMemo(() => {
+    if (!state.packageId || !selectedPackage) return []
+    return getBlockedAdditionalItemIds(
+      state.packageId,
+      state.packageSelections,
+      packageOptionGroups,
+      isCustomPackage(selectedPackage),
+    )
+  }, [
+    state.packageId,
+    state.packageSelections,
+    packageOptionGroups,
+    selectedPackage,
+  ])
+
+  const visibleAdditionalItems = useMemo(
+    () =>
+      additionalItems.filter(
+        (item) => !blockedAdditionalItemIds.includes(item.id),
+      ),
+    [additionalItems, blockedAdditionalItemIds],
+  )
+
   const additionalItemsByCategory = useMemo(() => {
-    const grouped = additionalItems.reduce(
+    const grouped = visibleAdditionalItems.reduce(
       (acc, item) => {
         const category = item.category_pt || 'Outros'
         if (!acc[category]) acc[category] = []
@@ -1516,7 +1571,7 @@ export default function QuoteWizard({
           )
         }),
       }))
-  }, [additionalItems])
+  }, [visibleAdditionalItems])
 
   const selectedCountByCategory = useMemo(() => {
     const counts: Record<string, number> = {}
@@ -1528,6 +1583,22 @@ export default function QuoteWizard({
     }
     return counts
   }, [additionalItemsByCategory, state.additionals])
+
+  useEffect(() => {
+    if (blockedAdditionalItemIds.length === 0) return
+    setState((prev) => {
+      let changed = false
+      const nextAdditionals = { ...prev.additionals }
+      for (const itemId of blockedAdditionalItemIds) {
+        if (nextAdditionals[itemId]) {
+          delete nextAdditionals[itemId]
+          changed = true
+        }
+      }
+      if (!changed) return prev
+      return { ...prev, additionals: nextAdditionals }
+    })
+  }, [blockedAdditionalItemIds])
 
   useEffect(() => {
     if (step !== 4) {
@@ -1653,6 +1724,7 @@ export default function QuoteWizard({
       currentStep: step,
       reservationAmount,
       additionalsCount,
+      packageOptionGroups,
       commercialRules,
       isEditMode,
     }),
@@ -1663,6 +1735,7 @@ export default function QuoteWizard({
       step,
       reservationAmount,
       additionalsCount,
+      packageOptionGroups,
       commercialRules,
       isEditMode,
     ],
@@ -1874,10 +1947,47 @@ export default function QuoteWizard({
     if (step > 0) setStep((s) => s - 1)
   }
 
+  function handlePackageSelectionChange(groupId: string, itemId: string) {
+    setState((prev) => ({
+      ...prev,
+      packageSelections: {
+        ...prev.packageSelections,
+        [groupId]: itemId,
+      },
+    }))
+    setPackageStepMessage(null)
+  }
+
+  function handlePackageSelect(packageId: string | null) {
+    if (!packageId) {
+      updateState({ packageId: null, packageSelections: {} })
+      return
+    }
+
+    const prunedSelections = prunePackageSelectionsForPackage(
+      packageId,
+      state.packageSelections,
+      packageOptionGroups,
+    )
+    updateState({ packageId, packageSelections: prunedSelections })
+  }
+
   function goNext() {
     if (step === 2 && !state.packageId) {
       setPackageStepMessage('Selecione um pacote para continuar.')
       return
+    }
+    if (step === 2 && state.packageId && selectedPackage) {
+      if (!isCustomPackage(selectedPackage)) {
+        const issues = validatePackageSelections(
+          activePackageOptionGroups,
+          state.packageSelections,
+        )
+        if (issues.length > 0) {
+          setPackageStepMessage(issues[0])
+          return
+        }
+      }
     }
     setPackageStepMessage(null)
     if (step === 4 && !state.grillSetupAnswered) {
@@ -1896,7 +2006,7 @@ export default function QuoteWizard({
     const previousStep = previousStepRef.current
     previousStepRef.current = step
     if (step === 2 && previousStep === 1 && !isEditMode) {
-      updateState({ packageId: null })
+      updateState({ packageId: null, packageSelections: {} })
       setPackageExplorerKey((key) => key + 1)
     }
   }, [step, isEditMode])
@@ -1992,6 +2102,27 @@ export default function QuoteWizard({
       reservationPercentage: state.reservationPercentage,
       reservationAmount,
       packagePricePerPerson: getPackagePrice(packageForSave),
+      packageSelections: isCustomPackage(packageForSave)
+        ? []
+        : activePackageOptionGroups
+            .map((group) => {
+              const optionItemId = state.packageSelections[group.id]?.trim()
+              if (!optionItemId) return null
+              return {
+                optionGroupId: group.id,
+                optionItemId,
+                packageId: packageForSave.id,
+              }
+            })
+            .filter(
+              (
+                line,
+              ): line is {
+                optionGroupId: string
+                optionItemId: string
+                packageId: string
+              } => line !== null,
+            ),
       additionals: selectedAdditionals.map(
         ({ item, quantity, unitPrice, perPerson, totalPrice }) => ({
           itemId: item.id,
@@ -2451,7 +2582,10 @@ export default function QuoteWizard({
               selectedPackageId={state.packageId}
               language={state.language}
               sidesPricePerPerson={commercialRules.sidesPricePerPerson}
-              onSelect={(id) => updateState({ packageId: id })}
+              optionGroupsForPackage={optionGroupsForPackage}
+              selections={state.packageSelections}
+              onSelectionChange={handlePackageSelectionChange}
+              onSelect={handlePackageSelect}
             />
           </div>
         )}
@@ -2736,6 +2870,7 @@ export default function QuoteWizard({
             packageUnitPrice={packageUnitPrice}
             selectedPackage={selectedPackage}
             allPackages={packages}
+            packageOptionGroups={packageOptionGroups}
             fromWithSidesSection={fromWithSidesSection}
             billableGuestCount={billableGuestCount}
             additionals={reviewAdditionals}

@@ -28,12 +28,19 @@ export type QuoteCustomerDraft = {
   email?: string | null
 }
 
+export type QuotePackageSelectionSaveLine = {
+  optionGroupId: string
+  optionItemId: string
+  packageId: string
+}
+
 export type QuoteSaveInput = {
   language?: 'pt' | 'en' | 'es' | null
   customerId: string | null
   /** Rascunho do wizard — cliente criado somente no save final. */
   customerDraft?: QuoteCustomerDraft | null
   packageId: string
+  packageSelections?: QuotePackageSelectionSaveLine[]
   eventName: string
   eventDate: string
   startTime: string
@@ -271,6 +278,29 @@ export function buildQuoteSavePayload(
     balance_due: draftSnapshot.balanceDue,
     quote_total: draftSnapshot.quoteTotal,
   }
+}
+
+export function buildPackageSelectionRows(
+  quoteId: string,
+  companyId: string,
+  packageId: string,
+  selections: QuotePackageSelectionSaveLine[],
+) {
+  const normalizedCompanyId = companyId?.trim()
+  if (!normalizedCompanyId) {
+    throw new Error(
+      'company_id é obrigatório para inserir quote_package_selections.',
+    )
+  }
+
+  return selections.map((line) => ({
+    id: crypto.randomUUID(),
+    company_id: normalizedCompanyId,
+    quote_id: quoteId,
+    package_id: line.packageId?.trim() || packageId,
+    option_group_id: line.optionGroupId,
+    option_item_id: line.optionItemId,
+  }))
 }
 
 export function buildAdditionalItemRows(

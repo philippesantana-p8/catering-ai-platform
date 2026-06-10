@@ -21,6 +21,9 @@ export const PACKAGES_TABLE_COLUMNS = [
   'currency_code',
   'image_status',
   'image_notes',
+  'package_highlights_pt',
+  'package_highlights_en',
+  'package_highlights_es',
   'updated_at',
 ] as const
 
@@ -43,6 +46,9 @@ export const PACKAGES_INSERT_COLUMNS = [
   'image_url',
   'image_status',
   'image_notes',
+  'package_highlights_pt',
+  'package_highlights_en',
+  'package_highlights_es',
   'active',
 ] as const satisfies ReadonlyArray<PackagesTableColumn>
 
@@ -71,6 +77,9 @@ export const PACKAGES_LIST_COLUMNS = [
   'currency_code',
   'image_status',
   'image_notes',
+  'package_highlights_pt',
+  'package_highlights_en',
+  'package_highlights_es',
   'updated_at',
 ] as const
 

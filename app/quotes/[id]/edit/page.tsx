@@ -20,6 +20,7 @@ export default async function EditQuotePage({
     linkedCustomer,
     packages,
     additionalItems,
+    packageOptionGroups,
     commercialRules,
     fetchErrors,
     error,
@@ -55,6 +56,7 @@ export default async function EditQuotePage({
       customers={[]}
       packages={packages}
       additionalItems={additionalItems}
+      packageOptionGroups={packageOptionGroups}
       commercialRules={commercialRules}
       fetchErrors={fetchErrors}
     />

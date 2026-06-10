@@ -3,6 +3,10 @@ import { buildCustomersListSelect } from '@/Lib/customersTableSchema'
 import { buildPackagesListSelect } from '@/Lib/packagesTableSchema'
 import type { QuoteAdditionalItem, QuoteDetail } from '@/app/quotes/[id]/quoteDetailTypes'
 import type { AdditionalItem, Customer, Package } from '@/app/quotes/new/QuoteWizard'
+import {
+  fetchPackageOptionGroups,
+  fetchQuotePackageSelections,
+} from './fetchPackageOptionGroups'
 import { fetchQuoteDetail } from './fetchQuoteDetail'
 import type { CommercialRulesSnapshot } from './supabaseCommercialRules'
 import { fetchSupabaseCommercialRules } from './supabaseCommercialRules'
@@ -98,6 +102,7 @@ export type FetchQuoteForEditResult = {
   linkedCustomer: Customer | null
   packages: Package[]
   additionalItems: AdditionalItem[]
+  packageOptionGroups: import('@/Lib/packageOptionGroups').PackageOptionGroup[]
   commercialRules: CommercialRulesSnapshot
   fetchErrors: string[]
   error: { message: string } | null
@@ -119,6 +124,7 @@ export async function fetchQuoteForEdit(
       linkedCustomer: null,
       packages: [],
       additionalItems: [],
+      packageOptionGroups: [],
       commercialRules,
       fetchErrors,
       error: quoteRes.error ?? { message: 'Cotação não encontrada.' },
@@ -146,6 +152,8 @@ export async function fetchQuoteForEdit(
     customerRes,
     linkedPackageRes,
     quoteAdditionalsRes,
+    quoteSelectionsRes,
+    packageOptionGroupsRes,
     packagesRes,
     additionalRes,
   ] = await Promise.all([
@@ -170,6 +178,8 @@ export async function fetchQuoteForEdit(
       .from('quote_additional_items')
       .select('additional_item_id, quantity, unit_price, total_price')
       .eq('quote_id', quoteId),
+    fetchQuotePackageSelections(quoteId),
+    fetchPackageOptionGroups(),
     supabase
       .from('packages')
       .select(buildPackagesListSelect())
@@ -191,6 +201,16 @@ export async function fetchQuoteForEdit(
   if (quoteAdditionalsRes.error) {
     fetchErrors.push(`Adicionais da cotação: ${quoteAdditionalsRes.error.message}`)
   }
+  if (quoteSelectionsRes.error) {
+    fetchErrors.push(
+      `Escolhas do pacote: ${quoteSelectionsRes.error.message}`,
+    )
+  }
+  if (packageOptionGroupsRes.error) {
+    fetchErrors.push(
+      `Grupos de opções: ${packageOptionGroupsRes.error.message}`,
+    )
+  }
   if (packagesRes.error) fetchErrors.push(`Pacotes: ${packagesRes.error.message}`)
   if (additionalRes.error) {
     fetchErrors.push(`Catálogo de adicionais: ${additionalRes.error.message}`)
@@ -207,6 +227,18 @@ export async function fetchQuoteForEdit(
 
   if (mappedAdditionals.length > 0) {
     quote = { ...quote, additional_items: mappedAdditionals }
+  }
+
+  const packageSelections = quoteSelectionsRes.data ?? []
+  if (packageSelections.length > 0) {
+    quote = {
+      ...quote,
+      package_selections: packageSelections.map((row) => ({
+        option_group_id: row.option_group_id,
+        option_item_id: row.option_item_id,
+        package_id: row.package_id,
+      })),
+    }
   }
 
   if (customerId && !quote.customer_id) {
@@ -229,6 +261,7 @@ export async function fetchQuoteForEdit(
     linkedCustomer,
     packages,
     additionalItems: (additionalRes.data ?? []) as unknown as AdditionalItem[],
+    packageOptionGroups: packageOptionGroupsRes.data ?? [],
     commercialRules,
     fetchErrors,
     error: null,

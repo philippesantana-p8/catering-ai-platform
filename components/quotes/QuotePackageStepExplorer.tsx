@@ -16,6 +16,7 @@ import { PackageCodeOption } from '@/components/premium/PremiumPrimitives'
 import { sortPackagesByCommercialTier } from '@/Lib/packageDisplay'
 import { getPackageHasGarnish, getPackageKey } from '@/Lib/packageFieldAccess'
 import type { PackageCatalogFields } from '@/Lib/packageCatalogVisual'
+import type { PackageOptionGroup } from '@/Lib/packageOptionGroups'
 import type { QuoteLanguage } from '@/Lib/quoteWizardTypes'
 
 type PackageRow = PackageCatalogFields & { id: string }
@@ -116,6 +117,9 @@ function MobilePackageList({
   language,
   sidesPricePerPerson,
   packageDetailRefs,
+  optionGroupsForPackage,
+  selections,
+  onSelectionChange,
   onPackageClick,
 }: {
   packages: PackageRow[]
@@ -125,6 +129,9 @@ function MobilePackageList({
   language: QuoteLanguage
   sidesPricePerPerson: number
   packageDetailRefs: MutableRefObject<Record<string, HTMLDivElement | null>>
+  optionGroupsForPackage: (packageId: string) => PackageOptionGroup[]
+  selections: Record<string, string>
+  onSelectionChange: (groupId: string, itemId: string) => void
   onPackageClick: (pkg: PackageRow) => void
 }) {
   return (
@@ -155,6 +162,9 @@ function MobilePackageList({
                   sidesPricePerPerson={sidesPricePerPerson}
                   selected={isSelected}
                   compact
+                  optionGroups={optionGroupsForPackage(pkg.id)}
+                  selections={selections}
+                  onSelectionChange={onSelectionChange}
                 />
               </div>
             ) : null}
@@ -179,6 +189,9 @@ export default function QuotePackageStepExplorer({
   selectedPackageId,
   language = 'pt',
   sidesPricePerPerson = 13,
+  optionGroupsForPackage,
+  selections = {},
+  onSelectionChange,
   onSelect,
 }: {
   packagesWithoutSides: PackageRow[]
@@ -187,6 +200,9 @@ export default function QuotePackageStepExplorer({
   selectedPackageId: string | null
   language?: QuoteLanguage
   sidesPricePerPerson?: number
+  optionGroupsForPackage: (packageId: string) => PackageOptionGroup[]
+  selections?: Record<string, string>
+  onSelectionChange: (groupId: string, itemId: string) => void
   onSelect: (id: string | null) => void
 }) {
   const sortedWithSides = useMemo(
@@ -332,6 +348,9 @@ export default function QuotePackageStepExplorer({
                 language={language}
                 sidesPricePerPerson={sidesPricePerPerson}
                 selected
+                optionGroups={optionGroupsForPackage(selectedPackage.id)}
+                selections={selections}
+                onSelectionChange={onSelectionChange}
               />
             ) : (
               <div className="rounded-2xl border border-neutral-200 bg-white p-6 text-sm text-neutral-500 shadow-sm">
@@ -363,6 +382,9 @@ export default function QuotePackageStepExplorer({
                 language={language}
                 sidesPricePerPerson={sidesPricePerPerson}
                 packageDetailRefs={packageDetailRefs}
+                optionGroupsForPackage={optionGroupsForPackage}
+                selections={selections}
+                onSelectionChange={onSelectionChange}
                 onPackageClick={handleMobilePackageClick}
               />
             ) : null}
@@ -388,6 +410,9 @@ export default function QuotePackageStepExplorer({
                 language={language}
                 sidesPricePerPerson={sidesPricePerPerson}
                 packageDetailRefs={packageDetailRefs}
+                optionGroupsForPackage={optionGroupsForPackage}
+                selections={selections}
+                onSelectionChange={onSelectionChange}
                 onPackageClick={handleMobilePackageClick}
               />
             ) : null}

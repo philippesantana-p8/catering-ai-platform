@@ -1,5 +1,6 @@
 import type { QuoteDetail } from '@/app/quotes/[id]/quoteDetailTypes'
 import { getCustomerDisplayNameFromQuote } from '@/Lib/getCustomerDisplayName'
+import { packageSelectionsFromRows } from '@/Lib/packageOptionGroups'
 import {
   deriveGrillPhotoStatus,
   grillPhotoStatusToRequired,
@@ -80,6 +81,9 @@ export function mapQuoteDetailToWizardState(
     grillRentalQty: quote.grill_rental_qty ?? 0,
     grillNotes: quote.grill_notes ?? '',
     packageId: quote.package_id ?? null,
+    packageSelections: packageSelectionsFromRows(
+      quote.package_selections ?? [],
+    ),
     additionals,
     baseLocation: getMileageBaseLocation(quote.mileage_base_location),
     distance: quote.mileage_distance ?? 0,

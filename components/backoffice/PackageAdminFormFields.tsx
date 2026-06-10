@@ -28,6 +28,9 @@ export const EMPTY_PACKAGE_ROW: PackagesInsertPayload = {
   image_url: '',
   image_status: '',
   image_notes: '',
+  package_highlights_pt: '',
+  package_highlights_en: '',
+  package_highlights_es: '',
   active: true,
 }
 
@@ -51,6 +54,9 @@ export function packageDraftFromListItem(
     image_url: String(pkg.image_url ?? ''),
     image_status: String(pkg.image_status ?? ''),
     image_notes: pkg.image_notes == null ? null : String(pkg.image_notes),
+    package_highlights_pt: String(pkg.package_highlights_pt ?? ''),
+    package_highlights_en: String(pkg.package_highlights_en ?? ''),
+    package_highlights_es: String(pkg.package_highlights_es ?? ''),
     active: pkg.active !== false,
   }
 }
@@ -172,6 +178,35 @@ export function PackageAdminFormFields({
         <BackofficeTextarea
           value={draft.description_es ?? ''}
           onChange={(v) => setDraft((c) => ({ ...c, description_es: v }))}
+        />
+      </BackofficeField>
+
+      <BackofficeFormSectionTitle>Diferenciais e opções</BackofficeFormSectionTitle>
+      <p className="sm:col-span-2 text-xs text-neutral-500">
+        Grupos de escolhas inclusas (ex.: proteína premium) são configurados via
+        SQL por enquanto — ver{' '}
+        <code className="rounded bg-neutral-100 px-1">
+          scripts/sql/package-option-groups-and-calendar.sql
+        </code>
+        .
+      </p>
+      <BackofficeField label="package_highlights_pt" className="sm:col-span-2 lg:col-span-3">
+        <BackofficeTextarea
+          value={String(draft.package_highlights_pt ?? '')}
+          onChange={(v) => setDraft((c) => ({ ...c, package_highlights_pt: v }))}
+          rows={3}
+        />
+      </BackofficeField>
+      <BackofficeField label="package_highlights_en" className="sm:col-span-2">
+        <BackofficeTextarea
+          value={String(draft.package_highlights_en ?? '')}
+          onChange={(v) => setDraft((c) => ({ ...c, package_highlights_en: v }))}
+        />
+      </BackofficeField>
+      <BackofficeField label="package_highlights_es" className="sm:col-span-2">
+        <BackofficeTextarea
+          value={String(draft.package_highlights_es ?? '')}
+          onChange={(v) => setDraft((c) => ({ ...c, package_highlights_es: v }))}
         />
       </BackofficeField>
     </>

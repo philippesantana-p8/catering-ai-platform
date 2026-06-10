@@ -1,5 +1,13 @@
 import type { QuoteTotals } from '@/Lib/calculateQuoteTotals'
+import { getPackageItemsDescription } from '@/Lib/packageDisplay'
 import { resolvePackageCatalogImageUrl } from '@/Lib/packageCatalogVisual'
+import {
+  buildPackageSelectionLabels,
+  getPackageOptionGroupsForPackage,
+  isCustomPackage,
+  resolvePackageItemsWithSelections,
+  type PackageOptionGroup,
+} from '@/Lib/packageOptionGroups'
 import type { WizardState } from '@/Lib/quoteWizardTypes'
 import type { CommercialRulesSnapshot } from '@/Lib/supabaseCommercialRules'
 import { getGrillPhotoStatusLabel } from '@/Lib/grillPhotoStatus'
@@ -29,6 +37,7 @@ export type MapWizardToQuoteReviewInput = {
   packageUnitPrice: number
   selectedPackage: QuoteReviewPackageFields | null
   allPackages?: ReadonlyArray<QuoteReviewPackageFields>
+  packageOptionGroups?: ReadonlyArray<PackageOptionGroup>
   fromWithSidesSection?: boolean
   additionals: WizardSelectedAdditional[]
   billableGuestCount: number
@@ -52,7 +61,24 @@ export function mapWizardToQuoteReview(
     }),
   )
 
-  const packageSummary = buildQuoteReviewPackageSummary({
+  const packageGroups =
+    state.packageId && input.packageOptionGroups
+      ? getPackageOptionGroupsForPackage(
+          state.packageId,
+          input.packageOptionGroups,
+        )
+      : []
+
+  const packageSelectionLabels =
+    input.selectedPackage && !isCustomPackage(input.selectedPackage)
+      ? buildPackageSelectionLabels(
+          state.packageSelections,
+          packageGroups,
+          state.language,
+        )
+      : []
+
+  const packageSummaryBase = buildQuoteReviewPackageSummary({
     pkg: input.selectedPackage,
     allPackages: input.allPackages,
     sidesPricePerPerson: commercialRules.sidesPricePerPerson,
@@ -60,6 +86,25 @@ export function mapWizardToQuoteReview(
     fromWithSidesSection: input.fromWithSidesSection,
     language: state.language,
   })
+
+  const resolvedItemsDescription =
+    input.selectedPackage && packageSelectionLabels.length > 0
+      ? resolvePackageItemsWithSelections(
+          getPackageItemsDescription(input.selectedPackage, state.language),
+          state.packageSelections,
+          packageGroups,
+          state.language,
+        )
+      : null
+
+  const packageSummary = packageSummaryBase
+    ? {
+        ...packageSummaryBase,
+        packageItemsDescription:
+          resolvedItemsDescription ??
+          packageSummaryBase.packageItemsDescription,
+      }
+    : null
 
   const packageImageUrl =
     resolvePackageCatalogImageUrl(
@@ -86,6 +131,7 @@ export function mapWizardToQuoteReview(
     packageUnitPrice: input.packageUnitPrice,
     packageTotal: quoteTotals.packageTotal,
     packageSummary,
+    packageSelections: packageSelectionLabels,
     guestCounts: {
       adultCount: state.adultCount,
       childrenUnder3Count: state.childrenUnder3Count,

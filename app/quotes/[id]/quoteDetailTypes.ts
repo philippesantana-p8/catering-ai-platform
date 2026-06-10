@@ -86,6 +86,11 @@ export type QuoteDetail = {
   balance_due?: number | null
   quote_total?: number | null
   additional_items?: QuoteAdditionalItem[] | null
+  package_selections?: Array<{
+    option_group_id: string
+    option_item_id: string
+    package_id?: string | null
+  }> | null
   /** Pacote(s) carregados do Supabase para revisão pública (não persistido). */
   packageCatalogPackages?: QuoteDetailPackageCatalogRow[] | null
 }

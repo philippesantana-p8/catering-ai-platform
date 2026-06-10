@@ -1,6 +1,7 @@
 import {
   buildAdditionalItemRows,
   buildEventSavePayload,
+  buildPackageSelectionRows,
   buildQuoteSavePayload,
   type QuoteSaveInput,
 } from './buildQuoteSavePayload'
@@ -88,6 +89,56 @@ export async function updateQuote(
     return { data: null, error: errorInfo }
   }
 
+  const companyId = getCdlCompanyId()
+
+  const { error: deleteSelectionsError } = await supabase
+    .from('quote_package_selections')
+    .delete()
+    .eq('quote_id', quoteId)
+
+  if (deleteSelectionsError) {
+    const errorInfo = buildSaveQuoteError('quote', deleteSelectionsError, {
+      quotePayload,
+    })
+    errorInfo.message = `Falha ao limpar escolhas do pacote antes de atualizar: ${errorInfo.message}`
+    logSaveQuoteError(errorInfo, deleteSelectionsError)
+    return { data: null, error: errorInfo }
+  }
+
+  const packageSelections = input.packageSelections ?? []
+  if (packageSelections.length > 0) {
+    let selectionRows: ReturnType<typeof buildPackageSelectionRows>
+    try {
+      selectionRows = buildPackageSelectionRows(
+        quoteId,
+        companyId,
+        input.packageId,
+        packageSelections,
+      )
+    } catch (error) {
+      const errorInfo = buildSaveQuoteError('quote', error, {
+        eventPayload,
+        quotePayload,
+      })
+      logSaveQuoteError(errorInfo, error)
+      return { data: null, error: errorInfo }
+    }
+
+    const { error: selectionsError } = await supabase
+      .from('quote_package_selections')
+      .insert(selectionRows)
+
+    if (selectionsError) {
+      const errorInfo = buildSaveQuoteError('quote', selectionsError, {
+        eventPayload,
+        quotePayload,
+      })
+      errorInfo.message = `Cotação atualizada, mas falhou ao salvar escolhas do pacote: ${errorInfo.message}`
+      logSaveQuoteError(errorInfo, selectionsError)
+      return { data: null, error: errorInfo }
+    }
+  }
+
   const { error: deleteError } = await supabase
     .from('quote_additional_items')
     .delete()
@@ -106,7 +157,6 @@ export async function updateQuote(
     return { data: { id: quoteId }, error: null }
   }
 
-  const companyId = getCdlCompanyId()
   let additionalItemsPayload: ReturnType<typeof buildAdditionalItemRows>
   try {
     additionalItemsPayload = buildAdditionalItemRows(
