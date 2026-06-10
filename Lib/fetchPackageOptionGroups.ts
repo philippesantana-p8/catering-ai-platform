@@ -1,5 +1,6 @@
 import { getCdlCompanyId } from '@/Lib/cdlCompany'
 import type { PackageOptionGroup, PackageOptionGroupItem } from '@/Lib/packageOptionGroups'
+import { buildPackageOptionGroupsSelect } from '@/Lib/packageOptionGroupsSchema'
 import { supabase } from '@/Lib/supabase'
 
 type PackageOptionGroupRow = Omit<PackageOptionGroup, 'items'> & {
@@ -21,19 +22,21 @@ function mapGroupRows(rows: PackageOptionGroupRow[]): PackageOptionGroup[] {
     blocks_additional_items: row.blocks_additional_items,
     display_order: row.display_order,
     active: row.active,
-    items: (row.package_option_group_items ?? []).map((item) => ({
-      id: item.id,
-      company_id: item.company_id,
-      option_group_id: item.option_group_id,
-      additional_item_id: item.additional_item_id,
-      option_item_key: item.option_item_key,
-      label_pt: item.label_pt,
-      label_en: item.label_en,
-      label_es: item.label_es,
-      display_order: item.display_order,
-      active: item.active,
-      price_delta: item.price_delta,
-    })),
+    items: (row.package_option_group_items ?? [])
+      .filter((item) => item.active !== false)
+      .map((item) => ({
+        id: item.id,
+        company_id: item.company_id,
+        option_group_id: item.option_group_id,
+        additional_item_id: item.additional_item_id,
+        option_item_key: item.option_item_key,
+        label_pt: item.label_pt,
+        label_en: item.label_en,
+        label_es: item.label_es,
+        display_order: item.display_order,
+        active: item.active,
+        price_delta: item.price_delta,
+      })),
   }))
 }
 
@@ -44,36 +47,7 @@ export async function fetchPackageOptionGroups(options?: {
 
   let query = supabase
     .from('package_option_groups')
-    .select(
-      `
-      id,
-      company_id,
-      package_id,
-      option_group_key,
-      label_pt,
-      label_en,
-      label_es,
-      min_choices,
-      max_choices,
-      required,
-      blocks_additional_items,
-      display_order,
-      active,
-      package_option_group_items (
-        id,
-        company_id,
-        option_group_id,
-        additional_item_id,
-        option_item_key,
-        label_pt,
-        label_en,
-        label_es,
-        display_order,
-        active,
-        price_delta
-      )
-    `,
-    )
+    .select(buildPackageOptionGroupsSelect())
     .eq('active', true)
     .order('display_order', { ascending: true })
 
@@ -92,7 +66,7 @@ export async function fetchPackageOptionGroups(options?: {
   }
 
   return {
-    data: mapGroupRows((data ?? []) as PackageOptionGroupRow[]),
+    data: mapGroupRows((data ?? []) as unknown as PackageOptionGroupRow[]),
     error: null,
   }
 }
