@@ -28,6 +28,7 @@ export const PACKAGE_OPTION_GROUP_COLUMNS = [
   'company_id',
   'package_id',
   'option_group_key',
+  'group_key',
   'label_pt',
   'label_en',
   'label_es',

@@ -129,9 +129,9 @@ LEFT JOIN public.additional_items ai
   ON ai.company_id = :'cdl_company_id'::uuid
   AND (
     lower(trim(coalesce(ai.item_key, ''))) = opt.option_item_key
-    OR lower(trim(coalesce(ai.name_pt, ''))) LIKE '%' || opt.option_item_key || '%'
-    OR (opt.option_item_key = 'salmao' AND ai.name_pt ILIKE '%salm%')
-    OR (opt.option_item_key = 'camarao' AND ai.name_pt ILIKE '%camar%')
+    OR lower(trim(coalesce(ai.label_pt, ai.item_name, ''))) LIKE '%' || opt.option_item_key || '%'
+    OR (opt.option_item_key = 'salmao' AND coalesce(ai.label_pt, ai.item_name, '') ILIKE '%salm%')
+    OR (opt.option_item_key = 'camarao' AND coalesce(ai.label_pt, ai.item_name, '') ILIKE '%camar%')
   )
 WHERE og.company_id = :'cdl_company_id'::uuid
   AND og.option_group_key = 'premium_protein'
@@ -172,10 +172,10 @@ LEFT JOIN public.additional_items ai
   ON ai.company_id = :'cdl_company_id'::uuid
   AND (
     lower(trim(coalesce(ai.item_key, ''))) = opt.option_item_key
-    OR (opt.option_item_key = 'costela_boi' AND ai.name_pt ILIKE '%costela%boi%')
-    OR (opt.option_item_key = 'costela_porco' AND ai.name_pt ILIKE '%costela%porco%')
-    OR (opt.option_item_key = 'costela_boi' AND ai.name_pt ILIKE '%beef%rib%')
-    OR (opt.option_item_key = 'costela_porco' AND ai.name_pt ILIKE '%pork%rib%')
+    OR (opt.option_item_key = 'costela_boi' AND coalesce(ai.label_pt, ai.item_name, '') ILIKE '%costela%boi%')
+    OR (opt.option_item_key = 'costela_porco' AND coalesce(ai.label_pt, ai.item_name, '') ILIKE '%costela%porco%')
+    OR (opt.option_item_key = 'costela_boi' AND coalesce(ai.label_pt, ai.item_name, '') ILIKE '%beef%rib%')
+    OR (opt.option_item_key = 'costela_porco' AND coalesce(ai.label_pt, ai.item_name, '') ILIKE '%pork%rib%')
   )
 WHERE og.company_id = :'cdl_company_id'::uuid
   AND og.option_group_key = 'premium_ribs'

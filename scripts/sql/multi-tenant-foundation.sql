@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS public.franchise_groups (
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.companies (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  name text,
+  company_name text,
   active boolean NOT NULL DEFAULT true,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
@@ -28,15 +28,17 @@ CREATE TABLE IF NOT EXISTS public.companies (
 
 ALTER TABLE public.companies
   ADD COLUMN IF NOT EXISTS franchise_group_id uuid REFERENCES public.franchise_groups(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS company_name text,
+  ADD COLUMN IF NOT EXISTS company_code text,
   ADD COLUMN IF NOT EXISTS legal_name text,
   ADD COLUMN IF NOT EXISTS trade_name text,
   ADD COLUMN IF NOT EXISTS slug text,
   ADD COLUMN IF NOT EXISTS billing_email text,
   ADD COLUMN IF NOT EXISTS phone text,
   ADD COLUMN IF NOT EXISTS website text,
-  ADD COLUMN IF NOT EXISTS default_currency text DEFAULT 'USD',
+  ADD COLUMN IF NOT EXISTS currency_code text DEFAULT 'USD',
   ADD COLUMN IF NOT EXISTS default_language text DEFAULT 'pt',
-  ADD COLUMN IF NOT EXISTS default_timezone text DEFAULT 'America/New_York',
+  ADD COLUMN IF NOT EXISTS timezone text DEFAULT 'America/New_York',
   ADD COLUMN IF NOT EXISTS subscription_status text DEFAULT 'active',
   ADD COLUMN IF NOT EXISTS google_calendar_enabled boolean DEFAULT false,
   ADD COLUMN IF NOT EXISTS google_calendar_id text,
@@ -192,7 +194,7 @@ VALUES (
 )
 ON CONFLICT (slug) DO NOTHING;
 
-INSERT INTO public.companies (id, franchise_group_id, name, trade_name, slug, default_currency, default_language, default_timezone, subscription_status, active)
+INSERT INTO public.companies (id, franchise_group_id, company_name, trade_name, slug, currency_code, default_language, timezone, subscription_status, active)
 VALUES (
   '65fd576f-8d97-49ba-bf38-61bc1e94e94a',
   'a0000000-0000-4000-8000-000000000001',

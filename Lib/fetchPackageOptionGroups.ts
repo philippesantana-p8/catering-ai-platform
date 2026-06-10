@@ -4,6 +4,7 @@ import { buildPackageOptionGroupsSelect } from '@/Lib/packageOptionGroupsSchema'
 import { supabase } from '@/Lib/supabase'
 
 type PackageOptionGroupRow = Omit<PackageOptionGroup, 'items'> & {
+  group_key?: string | null
   package_option_group_items?: PackageOptionGroupItem[] | null
 }
 
@@ -12,7 +13,8 @@ function mapGroupRows(rows: PackageOptionGroupRow[]): PackageOptionGroup[] {
     id: row.id,
     company_id: row.company_id,
     package_id: row.package_id,
-    option_group_key: row.option_group_key,
+    option_group_key:
+      row.option_group_key?.trim() || row.group_key?.trim() || '',
     label_pt: row.label_pt,
     label_en: row.label_en,
     label_es: row.label_es,
@@ -49,6 +51,7 @@ export async function fetchPackageOptionGroups(options?: {
     .from('package_option_groups')
     .select(buildPackageOptionGroupsSelect())
     .eq('active', true)
+    .eq('package_option_group_items.active', true)
     .order('display_order', { ascending: true })
 
   if (companyId?.trim()) {

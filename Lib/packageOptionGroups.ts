@@ -101,7 +101,20 @@ export function isCustomPackage(
   pkg: PackageFieldSource | null | undefined,
 ): boolean {
   const key = getPackageKey(pkg).toUpperCase()
-  return key.includes('PERS') || key.includes('BBQPERS')
+  return /\bPERS\b|BBQPERS/i.test(key)
+}
+
+export function isRequiredOptionGroup(group: PackageOptionGroup): boolean {
+  return group.required === true
+}
+
+export function hasPackageIncludedChoices(
+  packageId: string | null | undefined,
+  groups: ReadonlyArray<PackageOptionGroup>,
+  pkg: PackageFieldSource | null | undefined,
+): boolean {
+  if (!packageId?.trim() || isCustomPackage(pkg)) return false
+  return getPackageOptionGroupsForPackage(packageId, groups).length > 0
 }
 
 function sortGroups(groups: PackageOptionGroup[]): PackageOptionGroup[] {
@@ -129,7 +142,9 @@ export function getPackageOptionGroupsForPackage(
   groups: ReadonlyArray<PackageOptionGroup>,
 ): PackageOptionGroup[] {
   if (!packageId?.trim()) return []
-  return sortGroups(groups.filter((group) => group.package_id === packageId))
+  return sortGroups(groups.filter((group) => group.package_id === packageId)).filter(
+    (group) => group.items.length > 0,
+  )
 }
 
 export function getBlockedAdditionalItemIds(
@@ -155,7 +170,12 @@ export function getPendingPackageSelectionGroupIds(
   selections: Record<string, string>,
 ): string[] {
   return sortGroups([...groups])
-    .filter((group) => group.required && !selections[group.id]?.trim())
+    .filter(
+      (group) =>
+        isRequiredOptionGroup(group) &&
+        group.items.length > 0 &&
+        !selections[group.id]?.trim(),
+    )
     .map((group) => group.id)
 }
 
@@ -166,7 +186,7 @@ export function validatePackageSelections(
   const issues: string[] = []
 
   for (const group of sortGroups([...groups])) {
-    if (!group.required) continue
+    if (!isRequiredOptionGroup(group) || group.items.length === 0) continue
     const selected = selections[group.id]?.trim()
     if (!selected) {
       const title = getOptionGroupTitle(group)

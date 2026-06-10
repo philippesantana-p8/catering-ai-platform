@@ -17,13 +17,14 @@ export type FranchiseGroup = {
 export type Company = {
   id: string
   franchise_group_id?: string | null
-  name?: string | null
+  company_name?: string | null
+  company_code?: string | null
   legal_name?: string | null
   trade_name?: string | null
   slug?: string | null
-  default_currency?: string | null
+  currency_code?: string | null
   default_language?: string | null
-  default_timezone?: string | null
+  timezone?: string | null
   subscription_status?: string | null
   google_calendar_enabled?: boolean | null
   google_calendar_id?: string | null

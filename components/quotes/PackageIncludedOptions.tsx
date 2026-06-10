@@ -3,6 +3,7 @@
 import {
   getOptionGroupTitle,
   getOptionItemLabel,
+  isRequiredOptionGroup,
   type PackageOptionGroup,
 } from '@/Lib/packageOptionGroups'
 import type { QuoteLanguage } from '@/Lib/quoteWizardTypes'
@@ -22,11 +23,13 @@ export default function PackageIncludedOptions({
   mode?: 'select' | 'summary'
   pendingGroupIds?: string[]
 }) {
-  if (optionGroups.length === 0) return null
+  const selectableGroups = optionGroups.filter((group) => group.items.length > 0)
+  if (selectableGroups.length === 0) return null
 
   if (mode === 'summary') {
-    const missingRequired = optionGroups.some(
-      (group) => group.required && !selections[group.id]?.trim(),
+    const missingRequired = selectableGroups.some(
+      (group) =>
+        isRequiredOptionGroup(group) && !selections[group.id]?.trim(),
     )
 
     if (missingRequired) {
@@ -44,7 +47,7 @@ export default function PackageIncludedOptions({
       <div className="rounded-xl border border-red-100 bg-gradient-to-br from-red-50/60 to-amber-50/30 p-4">
         <p className="text-sm font-bold text-neutral-900">Escolhas inclusas</p>
         <div className="mt-2 space-y-1.5">
-          {optionGroups.map((group) => {
+          {selectableGroups.map((group) => {
             const selectedId = selections[group.id]?.trim()
             const item = group.items.find((row) => row.id === selectedId)
             if (!item) return null
@@ -67,7 +70,7 @@ export default function PackageIncludedOptions({
       <p className="text-sm font-bold text-neutral-900">
         Escolhas inclusas no pacote
       </p>
-      {optionGroups.map((group) => {
+      {selectableGroups.map((group) => {
         const groupTitle = getOptionGroupTitle(group, language)
         const selectedItemId = selections[group.id] ?? null
         const isPending = pendingGroupIds.includes(group.id)
@@ -81,7 +84,7 @@ export default function PackageIncludedOptions({
           >
             <p className="text-xs font-bold uppercase tracking-wide text-neutral-600">
               {groupTitle}
-              {group.required ? (
+              {isRequiredOptionGroup(group) ? (
                 <span className="ml-1 text-red-600">*</span>
               ) : null}
             </p>

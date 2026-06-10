@@ -16,7 +16,7 @@ import QuotePackageSummary from '@/components/quotes/QuotePackageSummary'
 import { PackageCodeOption } from '@/components/premium/PremiumPrimitives'
 import { sortPackagesByCommercialTier } from '@/Lib/packageDisplay'
 import { getPackageHasGarnish, getPackageKey } from '@/Lib/packageFieldAccess'
-import { isCustomPackage } from '@/Lib/packageOptionGroups'
+import { hasPackageIncludedChoices } from '@/Lib/packageOptionGroups'
 import type { PackageCatalogFields } from '@/Lib/packageCatalogVisual'
 import type {
   PackageItem,
@@ -153,8 +153,11 @@ function MobilePackageList({
         const isSelected = selectedPackageId === pkg.id
         const isExpanded = expandedPackageCode === code
         const packageOptionGroups = optionGroupsForPackage(pkg.id)
-        const hasIncludedChoices =
-          packageOptionGroups.length > 0 && !isCustomPackage(pkg)
+        const hasIncludedChoices = hasPackageIncludedChoices(
+          pkg.id,
+          packageOptionGroups,
+          pkg,
+        )
 
         return (
           <div key={pkg.id}>
@@ -284,10 +287,11 @@ export default function QuotePackageStepExplorer({
   const activeOptionGroups = selectedPackage
     ? optionGroupsForPackage(selectedPackage.id)
     : []
-  const hasIncludedChoices =
-    activeOptionGroups.length > 0 &&
-    selectedPackage &&
-    !isCustomPackage(selectedPackage)
+  const hasIncludedChoices = hasPackageIncludedChoices(
+    selectedPackage?.id,
+    activeOptionGroups,
+    selectedPackage,
+  )
 
   function selectGroupDesktop(group: GarnishGroup) {
     setSelectedGroup(group)

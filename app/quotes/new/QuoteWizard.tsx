@@ -103,9 +103,6 @@ export type Package = {
   label_pt?: string | null
   label_en?: string | null
   label_es?: string | null
-  name_pt?: string | null
-  name_en?: string | null
-  name_es?: string | null
   description_pt?: string | null
   description_en?: string | null
   description_es?: string | null
@@ -660,12 +657,9 @@ function getEventDefaultsFromCustomer(customer: Customer) {
 function getPackageName(pkg: Package) {
   return (
     pkg.label_pt ??
-    pkg.name_pt ??
     pkg.package_name ??
     pkg.label_en ??
-    pkg.name_en ??
     pkg.label_es ??
-    pkg.name_es ??
     '—'
   )
 }
@@ -1416,10 +1410,44 @@ export default function QuoteWizard({
   }, [tenantBranchId, state.branchId])
   const [packageSelectionAttempted, setPackageSelectionAttempted] =
     useState(false)
+  const [resolvedPackageOptionGroups, setResolvedPackageOptionGroups] =
+    useState<PackageOptionGroup[]>(() => packageOptionGroups)
   const [packageExplorerKey, setPackageExplorerKey] = useState(0)
   const router = useRouter()
   const distanceInputRef = useRef<HTMLInputElement>(null)
   const previousStepRef = useRef(step)
+
+  useEffect(() => {
+    setResolvedPackageOptionGroups(packageOptionGroups)
+  }, [packageOptionGroups])
+
+  useEffect(() => {
+    const packageId = state.packageId?.trim()
+    if (!packageId) return
+
+    let cancelled = false
+
+    fetch(
+      `/api/package-option-groups?package_id=${encodeURIComponent(packageId)}`,
+      { cache: 'no-store' },
+    )
+      .then(async (res) => {
+        if (!res.ok) return null
+        return res.json() as Promise<{ data?: PackageOptionGroup[] }>
+      })
+      .then((json) => {
+        if (cancelled || !json?.data) return
+        setResolvedPackageOptionGroups((prev) => {
+          const rest = prev.filter((group) => group.package_id !== packageId)
+          return [...rest, ...json.data!]
+        })
+      })
+      .catch(() => undefined)
+
+    return () => {
+      cancelled = true
+    }
+  }, [state.packageId])
 
   useEffect(() => {
     setLocalCustomers((current) => {
@@ -1526,12 +1554,15 @@ export default function QuoteWizard({
       if (!cache.has(packageId)) {
         cache.set(
           packageId,
-          getPackageOptionGroupsForPackage(packageId, packageOptionGroups),
+          getPackageOptionGroupsForPackage(
+            packageId,
+            resolvedPackageOptionGroups,
+          ),
         )
       }
       return cache.get(packageId) ?? []
     }
-  }, [packageOptionGroups])
+  }, [resolvedPackageOptionGroups])
 
   const activePackageOptionGroups = useMemo(
     () =>
@@ -1545,13 +1576,13 @@ export default function QuoteWizard({
     if (!state.packageId || !selectedPackage) return []
     return getBlockedAdditionalItemIds(
       state.packageId,
-      packageOptionGroups,
+      resolvedPackageOptionGroups,
       isCustomPackage(selectedPackage),
       { packageItems, packageSideItems },
     )
   }, [
     state.packageId,
-    packageOptionGroups,
+    resolvedPackageOptionGroups,
     packageItems,
     packageSideItems,
     selectedPackage,
@@ -1743,7 +1774,7 @@ export default function QuoteWizard({
       currentStep: step,
       reservationAmount,
       additionalsCount,
-      packageOptionGroups,
+      packageOptionGroups: resolvedPackageOptionGroups,
       commercialRules,
       isEditMode,
     }),
@@ -1754,7 +1785,7 @@ export default function QuoteWizard({
       step,
       reservationAmount,
       additionalsCount,
-      packageOptionGroups,
+      resolvedPackageOptionGroups,
       commercialRules,
       isEditMode,
     ],
@@ -1986,7 +2017,7 @@ export default function QuoteWizard({
     const prunedSelections = prunePackageSelectionsForPackage(
       packageId,
       state.packageSelections,
-      packageOptionGroups,
+      resolvedPackageOptionGroups,
     )
     updateState({ packageId, packageSelections: prunedSelections })
   }
@@ -2033,6 +2064,22 @@ export default function QuoteWizard({
     )
   }, [
     packageSelectionAttempted,
+    selectedPackage,
+    activePackageOptionGroups,
+    state.packageSelections,
+  ])
+
+  const packageStepNextDisabled = useMemo(() => {
+    if (!state.packageId) return true
+    if (!selectedPackage || isCustomPackage(selectedPackage)) return false
+    return (
+      getPendingPackageSelectionGroupIds(
+        activePackageOptionGroups,
+        state.packageSelections,
+      ).length > 0
+    )
+  }, [
+    state.packageId,
     selectedPackage,
     activePackageOptionGroups,
     state.packageSelections,
@@ -2910,7 +2957,7 @@ export default function QuoteWizard({
             packageUnitPrice={packageUnitPrice}
             selectedPackage={selectedPackage}
             allPackages={packages}
-            packageOptionGroups={packageOptionGroups}
+            packageOptionGroups={resolvedPackageOptionGroups}
             packageItems={packageItems}
             packageSideItems={packageSideItems}
             fromWithSidesSection={fromWithSidesSection}
@@ -2962,7 +3009,8 @@ export default function QuoteWizard({
               type="button"
               onClick={goNext}
               disabled={
-                step === STEPS.length - 1 || (step === 2 && !state.packageId)
+                step === STEPS.length - 1 ||
+                (step === 2 && packageStepNextDisabled)
               }
               className="cdl-btn-primary disabled:cursor-not-allowed disabled:opacity-40"
             >

@@ -29,7 +29,7 @@ import {
 } from '@/Lib/packageDisplay'
 import PackageIncludedOptions from '@/components/quotes/PackageIncludedOptions'
 import {
-  isCustomPackage,
+  hasPackageIncludedChoices,
   resolvePackageItemsWithSelections,
   type PackageOptionGroup,
 } from '@/Lib/packageOptionGroups'
@@ -79,8 +79,7 @@ export default function QuotePackageSummary({
       ? resolvePackageSidesPricing(pkg, basePackage, sidesPricePerPerson)
       : null
 
-  const hasIncludedOptions =
-    optionGroups.length > 0 && !isCustomPackage(pkg)
+  const hasIncludedOptions = hasPackageIncludedChoices(pkg.id, optionGroups, pkg)
   const showOptionGroups =
     hasIncludedOptions &&
     showIncludedOptionsEditor &&

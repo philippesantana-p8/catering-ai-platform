@@ -15,7 +15,7 @@ export default function TenantContextBar() {
 
   const companyLabel =
     company?.trade_name?.trim() ||
-    company?.name?.trim() ||
+    company?.company_name?.trim() ||
     'Empresa ativa'
 
   return (

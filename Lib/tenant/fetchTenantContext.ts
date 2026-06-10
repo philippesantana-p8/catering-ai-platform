@@ -17,7 +17,7 @@ export async function fetchTenantContext(options?: {
     supabase
       .from('companies')
       .select(
-        'id, franchise_group_id, name, legal_name, trade_name, slug, default_currency, default_language, default_timezone, subscription_status, google_calendar_enabled, google_calendar_id, google_calendar_timezone, active',
+        'id, franchise_group_id, company_name, company_code, legal_name, trade_name, slug, currency_code, default_language, timezone, subscription_status, google_calendar_enabled, google_calendar_id, google_calendar_timezone, active',
       )
       .eq('id', companyId)
       .maybeSingle(),

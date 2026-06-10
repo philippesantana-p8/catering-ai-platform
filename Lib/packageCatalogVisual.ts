@@ -8,9 +8,6 @@ export type PackageCatalogFields = {
   label_pt?: string | null
   label_en?: string | null
   label_es?: string | null
-  name_pt?: string | null
-  name_en?: string | null
-  name_es?: string | null
   description_pt?: string | null
   description_en?: string | null
   description_es?: string | null
@@ -47,7 +44,6 @@ export function getPackageCatalogName(
   if (language === 'en') {
     return (
       pkg.label_en ??
-      pkg.name_en ??
       pkg.package_name ??
       pkg.label_pt ??
       '—'
@@ -56,7 +52,6 @@ export function getPackageCatalogName(
   if (language === 'es') {
     return (
       pkg.label_es ??
-      pkg.name_es ??
       pkg.package_name ??
       pkg.label_pt ??
       '—'
@@ -64,7 +59,6 @@ export function getPackageCatalogName(
   }
   return (
     pkg.label_pt ??
-    pkg.name_pt ??
     pkg.package_name ??
     pkg.label_en ??
     '—'

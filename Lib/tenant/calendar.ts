@@ -24,7 +24,7 @@ export function resolveCalendarTarget(input: {
       timezone:
         branch.timezone?.trim() ||
         company?.google_calendar_timezone?.trim() ||
-        company?.default_timezone?.trim() ||
+        company?.timezone?.trim() ||
         'America/New_York',
       source: 'branch',
     }
@@ -35,7 +35,7 @@ export function resolveCalendarTarget(input: {
       calendarId: company.google_calendar_id.trim(),
       timezone:
         company.google_calendar_timezone?.trim() ||
-        company.default_timezone?.trim() ||
+        company.timezone?.trim() ||
         'America/New_York',
       source: 'company',
     }
@@ -44,7 +44,7 @@ export function resolveCalendarTarget(input: {
   return {
     calendarId: null,
     timezone:
-      company?.default_timezone?.trim() || 'America/New_York',
+      company?.timezone?.trim() || 'America/New_York',
     source: 'none',
   }
 }
