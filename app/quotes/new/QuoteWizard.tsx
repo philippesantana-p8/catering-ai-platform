@@ -45,6 +45,10 @@ import {
   type GrillPhotoStatus,
 } from '../../../Lib/grillPhotoStatus'
 import type { QuoteSnapshotRecord } from '../../../Lib/readQuoteSnapshot'
+import type {
+  PackageItem,
+  PackageSideItem,
+} from '../../../Lib/packageConfiguration'
 import {
   getBlockedAdditionalItemIds,
   getPendingPackageSelectionGroupIds,
@@ -1347,6 +1351,8 @@ export default function QuoteWizard({
   packages,
   additionalItems,
   packageOptionGroups = [],
+  packageItems = [],
+  packageSideItems = [],
   commercialRules,
   fetchErrors,
   mode = 'create',
@@ -1361,6 +1367,8 @@ export default function QuoteWizard({
   packages: Package[]
   additionalItems: AdditionalItem[]
   packageOptionGroups?: PackageOptionGroup[]
+  packageItems?: PackageItem[]
+  packageSideItems?: PackageSideItem[]
   commercialRules: CommercialRulesSnapshot
   fetchErrors: string[]
   mode?: 'create' | 'edit'
@@ -1532,8 +1540,15 @@ export default function QuoteWizard({
       state.packageId,
       packageOptionGroups,
       isCustomPackage(selectedPackage),
+      { packageItems, packageSideItems },
     )
-  }, [state.packageId, packageOptionGroups, selectedPackage])
+  }, [
+    state.packageId,
+    packageOptionGroups,
+    packageItems,
+    packageSideItems,
+    selectedPackage,
+  ])
 
   const visibleAdditionalItems = useMemo(
     () =>
@@ -2597,6 +2612,8 @@ export default function QuoteWizard({
               language={state.language}
               sidesPricePerPerson={commercialRules.sidesPricePerPerson}
               optionGroupsForPackage={optionGroupsForPackage}
+              packageItems={packageItems}
+              packageSideItems={packageSideItems}
               selections={state.packageSelections}
               onSelectionChange={handlePackageSelectionChange}
               pendingSelectionGroupIds={pendingSelectionGroupIds}
@@ -2886,6 +2903,8 @@ export default function QuoteWizard({
             selectedPackage={selectedPackage}
             allPackages={packages}
             packageOptionGroups={packageOptionGroups}
+            packageItems={packageItems}
+            packageSideItems={packageSideItems}
             fromWithSidesSection={fromWithSidesSection}
             billableGuestCount={billableGuestCount}
             additionals={reviewAdditionals}

@@ -1,6 +1,6 @@
 import { buildAdditionalItemsListSelect } from '../../../Lib/additionalItemsTableSchema'
 import { fetchActiveCustomers } from '../../../Lib/fetchCustomers'
-import { fetchPackageOptionGroups } from '../../../Lib/fetchPackageOptionGroups'
+import { loadPackageConfiguration } from '../../../Lib/packageConfiguration'
 import { buildPackagesListSelect } from '../../../Lib/packagesTableSchema'
 import { fetchSupabaseCommercialRules } from '../../../Lib/supabaseCommercialRules'
 import QuoteWizard, {
@@ -20,7 +20,7 @@ export default async function NewQuotePage() {
     customersRes,
     packagesRes,
     additionalRes,
-    packageOptionGroupsRes,
+    packageConfigurationRes,
     commercialRules,
   ] = await Promise.all([
     fetchActiveCustomers(),
@@ -35,7 +35,7 @@ export default async function NewQuotePage() {
       .eq('active', true)
       .order('category_pt', { ascending: true })
       .order('display_order', { ascending: true }),
-    fetchPackageOptionGroups(),
+    loadPackageConfiguration(),
     fetchSupabaseCommercialRules(),
   ])
 
@@ -48,10 +48,16 @@ export default async function NewQuotePage() {
   if (additionalRes.error) {
     fetchErrors.push(`Adicionais: ${additionalRes.error.message}`)
   }
-  if (packageOptionGroupsRes.error) {
+  if (packageConfigurationRes.error) {
     fetchErrors.push(
-      `Grupos de opções: ${packageOptionGroupsRes.error.message}`,
+      `Configuração do pacote: ${packageConfigurationRes.error.message}`,
     )
+  }
+
+  const packageConfiguration = packageConfigurationRes.data ?? {
+    packageItems: [],
+    packageSideItems: [],
+    optionGroups: [],
   }
 
   const customers = (customersRes.data ?? []) as Customer[]
@@ -63,7 +69,9 @@ export default async function NewQuotePage() {
       customers={customers}
       packages={packages}
       additionalItems={additionalItems}
-      packageOptionGroups={packageOptionGroupsRes.data ?? []}
+      packageOptionGroups={packageConfiguration.optionGroups}
+      packageItems={packageConfiguration.packageItems}
+      packageSideItems={packageConfiguration.packageSideItems}
       commercialRules={commercialRules}
       fetchErrors={fetchErrors}
     />

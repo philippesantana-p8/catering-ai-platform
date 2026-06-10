@@ -27,6 +27,12 @@ import {
   getPackagePrice,
 } from '@/Lib/packageFieldAccess'
 import {
+  formatPackageItemsText,
+  formatPackageSideItemsText,
+  type PackageItem,
+  type PackageSideItem,
+} from '@/Lib/packageConfiguration'
+import {
   getPackageGarnishDisplayText,
   getPackageItemsDisplayText,
   parsePackageHighlightsText,
@@ -39,6 +45,8 @@ function formatPrice(value: number, currency = 'USD') {
 export default function PackageDetailCard({
   pkg,
   allPackages = [],
+  packageItems = [],
+  packageSideItems = [],
   onEdit,
   onPhoto,
   onDeactivate,
@@ -46,6 +54,8 @@ export default function PackageDetailCard({
 }: {
   pkg: PackageListItem
   allPackages?: PackageListItem[]
+  packageItems?: PackageItem[]
+  packageSideItems?: PackageSideItem[]
   onEdit: () => void
   onPhoto: () => void
   onDeactivate: () => void
@@ -57,8 +67,14 @@ export default function PackageDetailCard({
   const imageUrl = getPackageImageUrl(pkg)
   const currency = getPackageCurrencyCode(pkg)
   const price = getPackagePrice(pkg)
-  const itemsText = getPackageItemsDisplayText(pkg)
-  const garnishText = getPackageGarnishDisplayText(pkg)
+  const itemsText =
+    packageItems.length > 0
+      ? formatPackageItemsText(packageItems)
+      : getPackageItemsDisplayText(pkg)
+  const garnishText =
+    packageSideItems.length > 0
+      ? formatPackageSideItemsText(packageSideItems)
+      : getPackageGarnishDisplayText(pkg)
   const highlightItems = parsePackageHighlightsText(pkg.package_highlights_pt)
 
   let basePrice = price

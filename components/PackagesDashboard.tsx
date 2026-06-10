@@ -18,6 +18,10 @@ import {
 import CatalogImageFrame from '@/components/CatalogImageFrame'
 import PackageCascadeExplorer from '@/components/packages/PackageCascadeExplorer'
 import type { PackageListItem } from '@/Lib/fetchPackages'
+import type {
+  PackageItem,
+  PackageSideItem,
+} from '@/Lib/packageConfiguration'
 import {
   getPackageDescription,
   getPackageImageUrl,
@@ -53,8 +57,12 @@ async function fetchPackagesFromApi(
 
 export default function PackagesDashboard({
   initialPackages,
+  packageItems = [],
+  packageSideItems = [],
 }: {
   initialPackages: PackageListItem[]
+  packageItems?: PackageItem[]
+  packageSideItems?: PackageSideItem[]
 }) {
   const [packages, setPackages] = useState<PackageListItem[]>(initialPackages)
   const [search, setSearch] = useState('')
@@ -308,6 +316,8 @@ export default function PackagesDashboard({
         ) : (
           <PackageCascadeExplorer
             packages={filteredPackages}
+            packageItems={packageItems}
+            packageSideItems={packageSideItems}
             onEdit={startEdit}
             onPhoto={triggerUpload}
             onDeactivate={(pkg) => void deactivate(pkg)}

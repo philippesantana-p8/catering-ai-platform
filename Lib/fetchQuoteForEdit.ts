@@ -3,10 +3,8 @@ import { buildCustomersListSelect } from '@/Lib/customersTableSchema'
 import { buildPackagesListSelect } from '@/Lib/packagesTableSchema'
 import type { QuoteAdditionalItem, QuoteDetail } from '@/app/quotes/[id]/quoteDetailTypes'
 import type { AdditionalItem, Customer, Package } from '@/app/quotes/new/QuoteWizard'
-import {
-  fetchPackageOptionGroups,
-  fetchQuotePackageSelections,
-} from './fetchPackageOptionGroups'
+import { loadPackageConfiguration } from './packageConfiguration'
+import { fetchQuotePackageSelections } from './fetchPackageOptionGroups'
 import { fetchQuoteDetail } from './fetchQuoteDetail'
 import type { CommercialRulesSnapshot } from './supabaseCommercialRules'
 import { fetchSupabaseCommercialRules } from './supabaseCommercialRules'
@@ -103,6 +101,8 @@ export type FetchQuoteForEditResult = {
   packages: Package[]
   additionalItems: AdditionalItem[]
   packageOptionGroups: import('@/Lib/packageOptionGroups').PackageOptionGroup[]
+  packageItems: import('@/Lib/packageConfiguration').PackageItem[]
+  packageSideItems: import('@/Lib/packageConfiguration').PackageSideItem[]
   commercialRules: CommercialRulesSnapshot
   fetchErrors: string[]
   error: { message: string } | null
@@ -125,6 +125,8 @@ export async function fetchQuoteForEdit(
       packages: [],
       additionalItems: [],
       packageOptionGroups: [],
+      packageItems: [],
+      packageSideItems: [],
       commercialRules,
       fetchErrors,
       error: quoteRes.error ?? { message: 'Cotação não encontrada.' },
@@ -153,7 +155,7 @@ export async function fetchQuoteForEdit(
     linkedPackageRes,
     quoteAdditionalsRes,
     quoteSelectionsRes,
-    packageOptionGroupsRes,
+    packageConfigurationRes,
     packagesRes,
     additionalRes,
   ] = await Promise.all([
@@ -179,7 +181,7 @@ export async function fetchQuoteForEdit(
       .select('additional_item_id, quantity, unit_price, total_price')
       .eq('quote_id', quoteId),
     fetchQuotePackageSelections(quoteId),
-    fetchPackageOptionGroups(),
+    loadPackageConfiguration(),
     supabase
       .from('packages')
       .select(buildPackagesListSelect())
@@ -206,10 +208,16 @@ export async function fetchQuoteForEdit(
       `Escolhas do pacote: ${quoteSelectionsRes.error.message}`,
     )
   }
-  if (packageOptionGroupsRes.error) {
+  if (packageConfigurationRes.error) {
     fetchErrors.push(
-      `Grupos de opções: ${packageOptionGroupsRes.error.message}`,
+      `Configuração do pacote: ${packageConfigurationRes.error.message}`,
     )
+  }
+
+  const packageConfiguration = packageConfigurationRes.data ?? {
+    packageItems: [],
+    packageSideItems: [],
+    optionGroups: [],
   }
   if (packagesRes.error) fetchErrors.push(`Pacotes: ${packagesRes.error.message}`)
   if (additionalRes.error) {
@@ -261,7 +269,9 @@ export async function fetchQuoteForEdit(
     linkedCustomer,
     packages,
     additionalItems: (additionalRes.data ?? []) as unknown as AdditionalItem[],
-    packageOptionGroups: packageOptionGroupsRes.data ?? [],
+    packageOptionGroups: packageConfiguration.optionGroups,
+    packageItems: packageConfiguration.packageItems,
+    packageSideItems: packageConfiguration.packageSideItems,
     commercialRules,
     fetchErrors,
     error: null,

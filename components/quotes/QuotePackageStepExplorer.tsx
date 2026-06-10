@@ -18,6 +18,10 @@ import { sortPackagesByCommercialTier } from '@/Lib/packageDisplay'
 import { getPackageHasGarnish, getPackageKey } from '@/Lib/packageFieldAccess'
 import { isCustomPackage } from '@/Lib/packageOptionGroups'
 import type { PackageCatalogFields } from '@/Lib/packageCatalogVisual'
+import type {
+  PackageItem,
+  PackageSideItem,
+} from '@/Lib/packageConfiguration'
 import type { PackageOptionGroup } from '@/Lib/packageOptionGroups'
 import type { QuoteLanguage } from '@/Lib/quoteWizardTypes'
 
@@ -120,6 +124,8 @@ function MobilePackageList({
   sidesPricePerPerson,
   packageDetailRefs,
   optionGroupsForPackage,
+  packageItems = [],
+  packageSideItems = [],
   selections,
   onSelectionChange,
   pendingSelectionGroupIds = [],
@@ -133,6 +139,8 @@ function MobilePackageList({
   sidesPricePerPerson: number
   packageDetailRefs: MutableRefObject<Record<string, HTMLDivElement | null>>
   optionGroupsForPackage: (packageId: string) => PackageOptionGroup[]
+  packageItems?: ReadonlyArray<PackageItem>
+  packageSideItems?: ReadonlyArray<PackageSideItem>
   selections: Record<string, string>
   onSelectionChange: (groupId: string, itemId: string) => void
   pendingSelectionGroupIds?: string[]
@@ -181,6 +189,8 @@ function MobilePackageList({
                     selected={isSelected}
                     compact
                     optionGroups={packageOptionGroups}
+                    packageItems={packageItems}
+                    packageSideItems={packageSideItems}
                     selections={selections}
                     showIncludedOptionsSummary
                   />
@@ -209,6 +219,8 @@ export default function QuotePackageStepExplorer({
   language = 'pt',
   sidesPricePerPerson = 13,
   optionGroupsForPackage,
+  packageItems = [],
+  packageSideItems = [],
   selections = {},
   onSelectionChange,
   pendingSelectionGroupIds = [],
@@ -221,6 +233,8 @@ export default function QuotePackageStepExplorer({
   language?: QuoteLanguage
   sidesPricePerPerson?: number
   optionGroupsForPackage: (packageId: string) => PackageOptionGroup[]
+  packageItems?: ReadonlyArray<PackageItem>
+  packageSideItems?: ReadonlyArray<PackageSideItem>
   selections?: Record<string, string>
   onSelectionChange: (groupId: string, itemId: string) => void
   pendingSelectionGroupIds?: string[]
@@ -395,6 +409,8 @@ export default function QuotePackageStepExplorer({
                 sidesPricePerPerson={sidesPricePerPerson}
                 selected
                 optionGroups={activeOptionGroups}
+                packageItems={packageItems}
+                packageSideItems={packageSideItems}
                 selections={selections}
                 showIncludedOptionsSummary
               />
@@ -429,6 +445,8 @@ export default function QuotePackageStepExplorer({
                 sidesPricePerPerson={sidesPricePerPerson}
                 packageDetailRefs={packageDetailRefs}
                 optionGroupsForPackage={optionGroupsForPackage}
+                packageItems={packageItems}
+                packageSideItems={packageSideItems}
                 selections={selections}
                 onSelectionChange={onSelectionChange}
                 pendingSelectionGroupIds={pendingSelectionGroupIds}
@@ -458,6 +476,8 @@ export default function QuotePackageStepExplorer({
                 sidesPricePerPerson={sidesPricePerPerson}
                 packageDetailRefs={packageDetailRefs}
                 optionGroupsForPackage={optionGroupsForPackage}
+                packageItems={packageItems}
+                packageSideItems={packageSideItems}
                 selections={selections}
                 onSelectionChange={onSelectionChange}
                 pendingSelectionGroupIds={pendingSelectionGroupIds}

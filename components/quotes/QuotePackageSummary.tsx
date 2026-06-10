@@ -13,6 +13,14 @@ import {
   type PackageCatalogFields,
 } from '@/Lib/packageCatalogVisual'
 import {
+  formatPackageItemsText,
+  formatPackageSideItemsText,
+  getPackageItemsForPackage,
+  getPackageSideItemsForPackage,
+  type PackageItem,
+  type PackageSideItem,
+} from '@/Lib/packageConfiguration'
+import {
   formatPackageBulletText,
   getPackageDetailTitle,
   getPackageGarnishDisplayText,
@@ -39,6 +47,8 @@ export default function QuotePackageSummary({
   selected = false,
   compact = false,
   optionGroups = [],
+  packageItems = [],
+  packageSideItems = [],
   selections = {},
   onSelectionChange,
   showIncludedOptionsEditor = false,
@@ -51,6 +61,8 @@ export default function QuotePackageSummary({
   selected?: boolean
   compact?: boolean
   optionGroups?: ReadonlyArray<PackageOptionGroup>
+  packageItems?: ReadonlyArray<PackageItem>
+  packageSideItems?: ReadonlyArray<PackageSideItem>
   selections?: Record<string, string>
   onSelectionChange?: (groupId: string, itemId: string) => void
   showIncludedOptionsEditor?: boolean
@@ -75,7 +87,17 @@ export default function QuotePackageSummary({
     Boolean(onSelectionChange)
   const showOptionsSummary = hasIncludedOptions && showIncludedOptionsSummary
 
-  const rawItems = getPackageItemsDescription(pkg, 'pt')
+  const configuredItems = pkg.id
+    ? getPackageItemsForPackage(pkg.id, packageItems)
+    : []
+  const configuredSides = pkg.id
+    ? getPackageSideItemsForPackage(pkg.id, packageSideItems)
+    : []
+
+  const rawItems =
+    configuredItems.length > 0
+      ? formatPackageItemsText(configuredItems, language)
+      : getPackageItemsDescription(pkg, language)
   const itemsText = rawItems
     ? formatPackageBulletText(
         hasIncludedOptions
@@ -96,7 +118,11 @@ export default function QuotePackageSummary({
 
   const garnishText =
     variant === 'with_sides'
-      ? formatPackageBulletText(getPackageGarnishDisplayText(pkg, 'pt'))
+      ? configuredSides.length > 0
+        ? formatPackageBulletText(
+            formatPackageSideItemsText(configuredSides, language),
+          )
+        : formatPackageBulletText(getPackageGarnishDisplayText(pkg, language))
       : 'Não inclusas'
 
   const packagePrice = getPackageCatalogPrice(pkg)

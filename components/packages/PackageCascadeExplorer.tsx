@@ -14,6 +14,12 @@ import {
   SectionHeader,
 } from '@/components/premium/PremiumPrimitives'
 import type { PackageListItem } from '@/Lib/fetchPackages'
+import {
+  getPackageItemsForPackage,
+  getPackageSideItemsForPackage,
+  type PackageItem,
+  type PackageSideItem,
+} from '@/Lib/packageConfiguration'
 import { splitPackagesByGarnish } from '@/Lib/packageCatalogAdmin'
 import { getPackageGroupSummaryCodes } from '@/Lib/packageDisplay'
 import {
@@ -27,12 +33,16 @@ type MobileStep = 'groups' | 'codes' | 'detail'
 
 export default function PackageCascadeExplorer({
   packages,
+  packageItems = [],
+  packageSideItems = [],
   onEdit,
   onPhoto,
   onDeactivate,
   uploadingId,
 }: {
   packages: PackageListItem[]
+  packageItems?: PackageItem[]
+  packageSideItems?: PackageSideItem[]
   onEdit: (pkg: PackageListItem) => void
   onPhoto: (pkg: PackageListItem) => void
   onDeactivate: (pkg: PackageListItem) => void
@@ -230,6 +240,14 @@ export default function PackageCascadeExplorer({
               <PackageDetailCard
                 pkg={selectedPackage}
                 allPackages={packages}
+                packageItems={getPackageItemsForPackage(
+                  selectedPackage.id,
+                  packageItems,
+                )}
+                packageSideItems={getPackageSideItemsForPackage(
+                  selectedPackage.id,
+                  packageSideItems,
+                )}
                 onEdit={() => onEdit(selectedPackage)}
                 onPhoto={() => onPhoto(selectedPackage)}
                 onDeactivate={() => onDeactivate(selectedPackage)}

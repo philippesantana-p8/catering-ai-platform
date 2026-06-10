@@ -1,4 +1,9 @@
 import { getPackageKey, type PackageFieldSource } from '@/Lib/packageFieldAccess'
+import {
+  getBlockedAdditionalItemIdsFromConfig,
+  type PackageItem,
+  type PackageSideItem,
+} from '@/Lib/packageConfiguration'
 import type { QuoteLanguage } from '@/Lib/quoteWizardTypes'
 
 export type PackageOptionGroupItem = {
@@ -131,19 +136,18 @@ export function getBlockedAdditionalItemIds(
   packageId: string,
   groups: ReadonlyArray<PackageOptionGroup>,
   customPackage: boolean,
+  options?: {
+    packageItems?: ReadonlyArray<PackageItem>
+    packageSideItems?: ReadonlyArray<PackageSideItem>
+  },
 ): string[] {
-  if (customPackage || !packageId?.trim()) return []
-
-  const blocked = new Set<string>()
-  for (const group of getPackageOptionGroupsForPackage(packageId, groups)) {
-    if (group.blocks_additional_items === false) continue
-    for (const item of group.items) {
-      const additionalId = item.additional_item_id?.trim()
-      if (additionalId) blocked.add(additionalId)
-    }
-  }
-
-  return [...blocked]
+  return getBlockedAdditionalItemIdsFromConfig({
+    packageId,
+    packageItems: options?.packageItems ?? [],
+    packageSideItems: options?.packageSideItems ?? [],
+    optionGroups: groups,
+    customPackage,
+  })
 }
 
 export function getPendingPackageSelectionGroupIds(

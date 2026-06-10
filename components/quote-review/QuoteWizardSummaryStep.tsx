@@ -16,6 +16,10 @@ import {
   mapWizardToQuoteReview,
   type WizardSelectedAdditional,
 } from './mapWizardToQuoteReview'
+import type {
+  PackageItem,
+  PackageSideItem,
+} from '@/Lib/packageConfiguration'
 import type { PackageOptionGroup } from '@/Lib/packageOptionGroups'
 import type { QuoteReviewPackageFields } from './quoteReviewPackageSummary'
 
@@ -29,6 +33,8 @@ export default function QuoteWizardSummaryStep({
   selectedPackage,
   allPackages,
   packageOptionGroups = [],
+  packageItems = [],
+  packageSideItems = [],
   fromWithSidesSection,
   billableGuestCount,
   additionals,
@@ -53,6 +59,8 @@ export default function QuoteWizardSummaryStep({
   selectedPackage: QuoteReviewPackageFields | null
   allPackages: QuoteReviewPackageFields[]
   packageOptionGroups?: PackageOptionGroup[]
+  packageItems?: PackageItem[]
+  packageSideItems?: PackageSideItem[]
   fromWithSidesSection: boolean
   billableGuestCount: number
   additionals: WizardSelectedAdditional[]
@@ -80,6 +88,8 @@ export default function QuoteWizardSummaryStep({
         selectedPackage,
         allPackages,
         packageOptionGroups,
+        packageItems,
+        packageSideItems,
         fromWithSidesSection,
         additionals,
         billableGuestCount,
@@ -95,6 +105,8 @@ export default function QuoteWizardSummaryStep({
       selectedPackage,
       allPackages,
       packageOptionGroups,
+      packageItems,
+      packageSideItems,
       fromWithSidesSection,
       additionals,
       billableGuestCount,

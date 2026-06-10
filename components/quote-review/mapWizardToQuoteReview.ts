@@ -1,4 +1,12 @@
 import type { QuoteTotals } from '@/Lib/calculateQuoteTotals'
+import {
+  formatPackageItemsText,
+  formatPackageSideItemsText,
+  getPackageItemsForPackage,
+  getPackageSideItemsForPackage,
+  type PackageItem,
+  type PackageSideItem,
+} from '@/Lib/packageConfiguration'
 import { getPackageItemsDescription } from '@/Lib/packageDisplay'
 import { resolvePackageCatalogImageUrl } from '@/Lib/packageCatalogVisual'
 import {
@@ -38,6 +46,8 @@ export type MapWizardToQuoteReviewInput = {
   selectedPackage: QuoteReviewPackageFields | null
   allPackages?: ReadonlyArray<QuoteReviewPackageFields>
   packageOptionGroups?: ReadonlyArray<PackageOptionGroup>
+  packageItems?: ReadonlyArray<PackageItem>
+  packageSideItems?: ReadonlyArray<PackageSideItem>
   fromWithSidesSection?: boolean
   additionals: WizardSelectedAdditional[]
   billableGuestCount: number
@@ -87,14 +97,35 @@ export function mapWizardToQuoteReview(
     language: state.language,
   })
 
+  const configuredItems =
+    state.packageId && input.packageItems
+      ? getPackageItemsForPackage(state.packageId, input.packageItems)
+      : []
+  const configuredSides =
+    state.packageId && input.packageSideItems
+      ? getPackageSideItemsForPackage(state.packageId, input.packageSideItems)
+      : []
+
+  const baseItemsText =
+    configuredItems.length > 0
+      ? formatPackageItemsText(configuredItems, state.language)
+      : getPackageItemsDescription(input.selectedPackage, state.language)
+
   const resolvedItemsDescription =
-    input.selectedPackage && packageSelectionLabels.length > 0
-      ? resolvePackageItemsWithSelections(
-          getPackageItemsDescription(input.selectedPackage, state.language),
-          state.packageSelections,
-          packageGroups,
-          state.language,
-        )
+    input.selectedPackage && baseItemsText
+      ? packageSelectionLabels.length > 0
+        ? resolvePackageItemsWithSelections(
+            baseItemsText,
+            state.packageSelections,
+            packageGroups,
+            state.language,
+          )
+        : baseItemsText
+      : null
+
+  const resolvedGarnishDescription =
+    configuredSides.length > 0
+      ? formatPackageSideItemsText(configuredSides, state.language)
       : null
 
   const packageSummary = packageSummaryBase
@@ -103,6 +134,9 @@ export function mapWizardToQuoteReview(
         packageItemsDescription:
           resolvedItemsDescription ??
           packageSummaryBase.packageItemsDescription,
+        garnishDescription:
+          resolvedGarnishDescription ??
+          packageSummaryBase.garnishDescription,
       }
     : null
 
