@@ -5,28 +5,67 @@ import type {
   PackageOptionGroupRecord,
 } from '@/Lib/packageOptionGroups'
 import { mergeOptionGroupsForPackage } from '@/Lib/packageOptionGroups'
-import { supabase } from '@/Lib/supabase'
+import { getSupabaseServerClient } from '@/Lib/supabaseServer'
 
 /** CDL pilot: grupos/itens são por company_id + package_id apenas. */
 export const PACKAGE_OPTION_BRANCH_FILTER_ENABLED = false
 
+export type PackageOptionQueryErrorInfo = {
+  message: string
+  details: string | null
+  hint: string | null
+  code: string | null
+}
+
 export type PackageOptionQueryDebug = {
   queryCompanyId: string
   packageIds: string[]
+  packageIdsCount: number
   currentBranchId: string | null
   branchFilterActive: boolean
   groupsFetched: number
   itemsFetched: number
+  groupsQueryRan: boolean
+  itemsQueryRan: boolean
+  groupsError: PackageOptionQueryErrorInfo | null
+  itemsError: PackageOptionQueryErrorInfo | null
 }
 
-function resolvePackageIdsForQuery(options?: {
+type SupabaseErrorLike = {
+  message?: string
+  details?: string | null
+  hint?: string | null
+  code?: string | null
+}
+
+export function toPackageOptionQueryError(
+  error: SupabaseErrorLike | null | undefined,
+): PackageOptionQueryErrorInfo | null {
+  if (!error?.message?.trim()) return null
+  return {
+    message: error.message.trim(),
+    details: error.details?.trim() || null,
+    hint: error.hint?.trim() || null,
+    code: error.code?.trim() || null,
+  }
+}
+
+export function resolvePackageIdsForQuery(options?: {
   packageId?: string | null
   packageIds?: string[] | null
 }): string[] {
   if (options?.packageId?.trim()) {
     return [options.packageId.trim()]
   }
-  return [...new Set((options?.packageIds ?? []).map((id) => id?.trim()).filter(Boolean) as string[])]
+
+  const raw = options?.packageIds
+  const asArray = Array.isArray(raw) ? raw : raw != null ? [String(raw)] : []
+
+  return [
+    ...new Set(
+      asArray.map((id) => id?.trim()).filter(Boolean) as string[],
+    ),
+  ]
 }
 
 function buildQueryDebug(
@@ -35,15 +74,22 @@ function buildQueryDebug(
     packageIds?: string[] | null
     currentBranchId?: string | null
   },
-  counts: { groupsFetched: number; itemsFetched: number },
+  partial: Partial<PackageOptionQueryDebug>,
 ): PackageOptionQueryDebug {
+  const packageIds = resolvePackageIdsForQuery(options)
   return {
     queryCompanyId: getCdlCompanyId(),
-    packageIds: resolvePackageIdsForQuery(options),
+    packageIds,
+    packageIdsCount: packageIds.length,
     currentBranchId: options.currentBranchId?.trim() || null,
     branchFilterActive: PACKAGE_OPTION_BRANCH_FILTER_ENABLED,
-    groupsFetched: counts.groupsFetched,
-    itemsFetched: counts.itemsFetched,
+    groupsFetched: 0,
+    itemsFetched: 0,
+    groupsQueryRan: false,
+    itemsQueryRan: false,
+    groupsError: null,
+    itemsError: null,
+    ...partial,
   }
 }
 
@@ -60,39 +106,59 @@ export async function fetchPackageOptionGroupsOnly(options?: {
   packageId?: string | null
   packageIds?: string[] | null
   includeInactive?: boolean
-  /** Apenas para debug — não filtra enquanto PACKAGE_OPTION_BRANCH_FILTER_ENABLED = false */
   currentBranchId?: string | null
 }) {
-  const companyId = getCdlCompanyId()
+  const queryCompanyId = getCdlCompanyId().trim()
   const packageIds = resolvePackageIdsForQuery(options)
+
+  if (packageIds.length === 0) {
+    return {
+      data: [] as PackageOptionGroupRecord[],
+      error: null,
+      queryRan: false,
+      packageIds,
+      queryCompanyId,
+    }
+  }
+
+  if (!queryCompanyId) {
+    const error = {
+      message: 'queryCompanyId vazio — não é possível buscar package_option_groups',
+      details: null,
+      hint: 'Defina NEXT_PUBLIC_CDL_COMPANY_ID no ambiente.',
+      code: 'MISSING_COMPANY_ID',
+    }
+    return {
+      data: null as PackageOptionGroupRecord[] | null,
+      error,
+      queryRan: false,
+      packageIds,
+      queryCompanyId,
+    }
+  }
+
+  const supabase = getSupabaseServerClient()
 
   let query = supabase
     .from('package_option_groups')
     .select('*')
+    .eq('company_id', queryCompanyId)
+    .in('package_id', packageIds)
     .order('display_order', { ascending: true })
 
   if (!options?.includeInactive) {
     query = query.eq('active', true)
   }
 
-  if (companyId?.trim()) {
-    query = query.eq('company_id', companyId)
-  }
-
-  // Não usar .eq('branch_id', currentBranchId) no piloto CDL.
-  // Futuro: if (PACKAGE_OPTION_BRANCH_FILTER_ENABLED && branchId) {
-  //   query = query.or(`branch_id.is.null,branch_id.eq.${branchId}`)
-  // }
-
-  if (options?.packageId?.trim()) {
-    query = query.eq('package_id', options.packageId.trim())
-  } else if (packageIds.length > 0) {
-    query = query.in('package_id', packageIds)
-  }
-
   const { data, error } = await query
   if (error) {
-    return { data: null as PackageOptionGroupRecord[] | null, error }
+    return {
+      data: null as PackageOptionGroupRecord[] | null,
+      error,
+      queryRan: true,
+      packageIds,
+      queryCompanyId,
+    }
   }
 
   return {
@@ -100,6 +166,9 @@ export async function fetchPackageOptionGroupsOnly(options?: {
       mapGroupRecord,
     ),
     error: null,
+    queryRan: true,
+    packageIds,
+    queryCompanyId,
   }
 }
 
@@ -108,15 +177,40 @@ export async function fetchPackageOptionGroupItems(
   optionGroupIds: string[],
   options?: { includeInactive?: boolean },
 ) {
-  const companyId = getCdlCompanyId()
+  const queryCompanyId = getCdlCompanyId().trim()
   const ids = [...new Set(optionGroupIds.filter((id) => id?.trim()))]
+
   if (ids.length === 0) {
-    return { data: [] as PackageOptionGroupItem[], error: null }
+    return {
+      data: [] as PackageOptionGroupItem[],
+      error: null,
+      queryRan: false,
+      queryCompanyId,
+    }
   }
+
+  if (!queryCompanyId) {
+    const error = {
+      message:
+        'queryCompanyId vazio — não é possível buscar package_option_group_items',
+      details: null,
+      hint: 'Defina NEXT_PUBLIC_CDL_COMPANY_ID no ambiente.',
+      code: 'MISSING_COMPANY_ID',
+    }
+    return {
+      data: null as PackageOptionGroupItem[] | null,
+      error,
+      queryRan: false,
+      queryCompanyId,
+    }
+  }
+
+  const supabase = getSupabaseServerClient()
 
   let query = supabase
     .from('package_option_group_items')
     .select('*')
+    .eq('company_id', queryCompanyId)
     .in('option_group_id', ids)
     .order('display_order', { ascending: true })
 
@@ -124,20 +218,22 @@ export async function fetchPackageOptionGroupItems(
     query = query.eq('active', true)
   }
 
-  if (companyId?.trim()) {
-    query = query.eq('company_id', companyId)
-  }
-
-  // Mesma regra do piloto CDL: sem filtro branch_id em package_option_group_items.
-
   const { data, error } = await query
+
   if (error) {
-    return { data: null as PackageOptionGroupItem[] | null, error }
+    return {
+      data: null as PackageOptionGroupItem[] | null,
+      error,
+      queryRan: true,
+      queryCompanyId,
+    }
   }
 
   return {
     data: (data ?? []) as unknown as PackageOptionGroupItem[],
     error: null,
+    queryRan: true,
+    queryCompanyId,
   }
 }
 
@@ -148,15 +244,29 @@ export async function loadPackageOptionChoices(options?: {
   includeInactive?: boolean
   currentBranchId?: string | null
 }) {
+  const packageIds = resolvePackageIdsForQuery(options)
+
+  if (packageIds.length === 0) {
+    return {
+      groups: [] as PackageOptionGroupRecord[],
+      groupItems: [] as PackageOptionGroupItem[],
+      error: null,
+      queryDebug: buildQueryDebug(options ?? {}, {}),
+    }
+  }
+
   const groupsRes = await fetchPackageOptionGroupsOnly(options)
+
   if (groupsRes.error) {
     return {
       groups: [] as PackageOptionGroupRecord[],
       groupItems: [] as PackageOptionGroupItem[],
       error: groupsRes.error,
       queryDebug: buildQueryDebug(options ?? {}, {
+        groupsQueryRan: groupsRes.queryRan,
         groupsFetched: 0,
         itemsFetched: 0,
+        groupsError: toPackageOptionQueryError(groupsRes.error),
       }),
     }
   }
@@ -170,8 +280,10 @@ export async function loadPackageOptionChoices(options?: {
       groupItems: [] as PackageOptionGroupItem[],
       error: null,
       queryDebug: buildQueryDebug(options ?? {}, {
+        groupsQueryRan: groupsRes.queryRan,
         groupsFetched: groups.length,
         itemsFetched: 0,
+        itemsQueryRan: false,
       }),
     }
   }
@@ -180,15 +292,18 @@ export async function loadPackageOptionChoices(options?: {
     includeInactive: options?.includeInactive,
   })
 
-  const groupItems = itemsRes.data ?? []
+  const groupItems = itemsRes.error ? [] : (itemsRes.data ?? [])
 
   return {
     groups,
     groupItems,
     error: itemsRes.error ?? null,
     queryDebug: buildQueryDebug(options ?? {}, {
+      groupsQueryRan: groupsRes.queryRan,
+      itemsQueryRan: itemsRes.queryRan,
       groupsFetched: groups.length,
       itemsFetched: groupItems.length,
+      itemsError: toPackageOptionQueryError(itemsRes.error),
     }),
   }
 }
@@ -204,11 +319,10 @@ export async function fetchPackageOptionGroups(options?: {
     return { data: null as PackageOptionGroup[] | null, error }
   }
 
-  const packageIds = options?.packageId?.trim()
-    ? [options.packageId.trim()]
-    : options?.packageIds?.filter(Boolean) ?? [
-        ...new Set(groups.map((g) => g.package_id).filter(Boolean)),
-      ]
+  const resolvedIds = resolvePackageIdsForQuery(options)
+  const packageIds = resolvedIds.length
+    ? resolvedIds
+    : [...new Set(groups.map((g) => g.package_id).filter(Boolean))]
 
   const hydrated = packageIds.flatMap((packageId) =>
     mergeOptionGroupsForPackage(packageId, groups, groupItems, {
@@ -221,6 +335,7 @@ export async function fetchPackageOptionGroups(options?: {
 
 export async function fetchQuotePackageSelections(quoteId: string) {
   const companyId = getCdlCompanyId()
+  const supabase = getSupabaseServerClient()
 
   let query = supabase
     .from('quote_package_selections')

@@ -1,4 +1,7 @@
-import { loadPackageOptionChoices } from '@/Lib/fetchPackageOptionGroups'
+import {
+  loadPackageOptionChoices,
+  toPackageOptionQueryError,
+} from '@/Lib/fetchPackageOptionGroups'
 import { getCdlCompanyId } from '@/Lib/cdlCompany'
 import { mergeOptionGroupsForPackage } from '@/Lib/packageOptionGroups'
 
@@ -21,27 +24,33 @@ export async function GET(request: Request) {
     currentBranchId: branchId,
   })
 
-  if (error) {
-    return Response.json(
-      { error: error.message ?? 'Não foi possível buscar escolhas do pacote.' },
-      { status: 500, headers: { 'Cache-Control': 'no-store' } },
-    )
-  }
-
   const merged = packageId?.trim()
     ? mergeOptionGroupsForPackage(packageId, groups, groupItems, {
         includeEmptyGroups: true,
       })
     : []
 
-  return Response.json(
-    {
-      companyId: getCdlCompanyId(),
-      groups,
-      groupItems,
-      merged,
-      queryDebug,
+  const groupsError = queryDebug.groupsError ?? toPackageOptionQueryError(error)
+  const responseBody = {
+    companyId: getCdlCompanyId(),
+    groups,
+    groupItems,
+    merged,
+    queryDebug: {
+      ...queryDebug,
+      groupsError,
     },
-    { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' } },
-  )
+    error: groupsError?.message ?? queryDebug.itemsError?.message ?? null,
+  }
+
+  if (error || groupsError || queryDebug.itemsError) {
+    return Response.json(responseBody, {
+      status: error || groupsError || queryDebug.itemsError ? 500 : 200,
+      headers: { 'Cache-Control': 'no-store' },
+    })
+  }
+
+  return Response.json(responseBody, {
+    headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' },
+  })
 }

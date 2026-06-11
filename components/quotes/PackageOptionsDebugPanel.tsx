@@ -1,11 +1,48 @@
 'use client'
 
-import type { PackageOptionQueryDebug } from '@/Lib/fetchPackageOptionGroups'
+import type {
+  PackageOptionQueryDebug,
+  PackageOptionQueryErrorInfo,
+} from '@/Lib/fetchPackageOptionGroups'
 import {
   mergeOptionGroupsForPackage,
   type PackageOptionGroupItem,
   type PackageOptionGroupRecord,
 } from '@/Lib/packageOptionGroups'
+
+function QueryErrorBlock({
+  title,
+  error,
+}: {
+  title: string
+  error: PackageOptionQueryErrorInfo | null | undefined
+}) {
+  if (!error?.message) return null
+
+  return (
+    <div className="mt-3 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-900">
+      <p className="font-black uppercase tracking-wide">{title}</p>
+      <p className="mt-1 font-mono">
+        <span className="font-bold">message:</span> {error.message}
+      </p>
+      {error.details ? (
+        <p className="mt-1 font-mono">
+          <span className="font-bold">details:</span> {error.details}
+        </p>
+      ) : null}
+      {error.hint ? (
+        <p className="mt-1 font-mono">
+          <span className="font-bold">hint:</span> {error.hint}
+        </p>
+      ) : null}
+      {error.code ? (
+        <p className="mt-1 font-mono">
+          <span className="font-bold">code:</span> {error.code}
+        </p>
+      ) : null}
+    </div>
+  )
+}
 
 export default function PackageOptionsDebugPanel({
   companyId,
@@ -43,6 +80,11 @@ export default function PackageOptionsDebugPanel({
     (group) => group.package_id?.trim() === selectedPackage.id.trim(),
   )
 
+  const zeroRowsWithoutError =
+    queryDebug?.groupsQueryRan === true &&
+    queryDebug.groupsFetched === 0 &&
+    !queryDebug.groupsError?.message
+
   return (
     <div className="mt-4 rounded-xl border-2 border-dashed border-amber-400 bg-amber-50 p-4 text-sm text-neutral-900">
       <p className="text-xs font-black uppercase tracking-wider text-amber-900">
@@ -66,10 +108,18 @@ export default function PackageOptionsDebugPanel({
           {queryDebug?.branchFilterActive === true ? 'sim' : 'não'}
         </p>
         <p>
-          <span className="font-bold">packageIds na query:</span>{' '}
+          <span className="font-bold">packageIds (array):</span>{' '}
           {queryDebug?.packageIds?.length
-            ? queryDebug.packageIds.join(', ')
+            ? `[${queryDebug.packageIdsCount ?? queryDebug.packageIds.length}] ${queryDebug.packageIds.join(', ')}`
             : '—'}
+        </p>
+        <p>
+          <span className="font-bold">groups query ran:</span>{' '}
+          {queryDebug?.groupsQueryRan === true ? 'sim' : 'não'}
+        </p>
+        <p>
+          <span className="font-bold">items query ran:</span>{' '}
+          {queryDebug?.itemsQueryRan === true ? 'sim' : 'não'}
         </p>
         <p>
           <span className="font-bold">fetch grupos/itens:</span>{' '}
@@ -101,6 +151,17 @@ export default function PackageOptionsDebugPanel({
           {itemsForPackage.length}
         </p>
       </div>
+
+      <QueryErrorBlock title="groupsError" error={queryDebug?.groupsError} />
+      <QueryErrorBlock title="itemsError" error={queryDebug?.itemsError} />
+
+      {zeroRowsWithoutError ? (
+        <p className="mt-3 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-xs font-semibold text-red-800">
+          Query executou sem erro, mas retornou 0 grupos. Suspeitas: RLS
+          bloqueando SELECT (anon key), schema cache, ou dados ausentes para
+          company_id/package_id.
+        </p>
+      ) : null}
 
       {merged.length > 0 ? (
         <ul className="mt-3 space-y-2 text-xs">

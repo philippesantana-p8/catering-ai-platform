@@ -1450,19 +1450,30 @@ export default function QuoteWizard({
 
   const packageOptionQueryDebugForPanel = useMemo((): PackageOptionQueryDebug => {
     const base = packageOptionQueryDebugState
+    const packageIds = base?.packageIds?.length
+      ? base.packageIds
+      : state.packageId?.trim()
+        ? [state.packageId.trim()]
+        : queryPackageIds
     return {
       queryCompanyId: base?.queryCompanyId ?? debugCompanyId,
-      packageIds: base?.packageIds?.length ? base.packageIds : queryPackageIds,
+      packageIds,
+      packageIdsCount: packageIds.length,
       currentBranchId: debugBranchId,
       branchFilterActive: base?.branchFilterActive ?? false,
       groupsFetched: base?.groupsFetched ?? flatOptionGroups.length,
       itemsFetched: base?.itemsFetched ?? flatOptionGroupItems.length,
+      groupsQueryRan: base?.groupsQueryRan ?? false,
+      itemsQueryRan: base?.itemsQueryRan ?? false,
+      groupsError: base?.groupsError ?? null,
+      itemsError: base?.itemsError ?? null,
     }
   }, [
     packageOptionQueryDebugState,
     debugCompanyId,
     queryPackageIds,
     debugBranchId,
+    state.packageId,
     flatOptionGroups.length,
     flatOptionGroupItems.length,
   ])
@@ -1493,8 +1504,9 @@ export default function QuoteWizard({
             '[package-option-choices] fetch falhou:',
             res.status,
             json.error,
+            json.queryDebug?.groupsError,
+            json.queryDebug?.itemsError,
           )
-          return null
         }
         return json
       })

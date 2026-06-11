@@ -67,6 +67,17 @@ export default async function NewQuotePage() {
       `Configuração do pacote: ${packageConfigurationRes.error.message}`,
     )
   }
+  const optionQueryDebug = packageConfigurationRes.optionQueryDebug
+  if (optionQueryDebug?.groupsError?.message) {
+    fetchErrors.push(
+      `package_option_groups: ${optionQueryDebug.groupsError.message}`,
+    )
+  }
+  if (optionQueryDebug?.itemsError?.message) {
+    fetchErrors.push(
+      `package_option_group_items: ${optionQueryDebug.itemsError.message}`,
+    )
+  }
 
   const packageConfiguration = packageConfigurationRes.data ?? {
     packageItems: [],
