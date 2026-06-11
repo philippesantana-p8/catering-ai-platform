@@ -13,29 +13,33 @@ import {
   type PackageCatalogFields,
 } from '@/Lib/packageCatalogVisual'
 import {
+  formatDisplayableFixedPackageItemsText,
   formatPackageInventoryList,
-  formatPackageItemsText,
   formatPackageSideItemsText,
-  getPackageItemsForPackage,
+  getDisplayableFixedPackageItems,
   getPackageSideItemsForPackage,
   type PackageItem,
   type PackageSideItem,
 } from '@/Lib/packageConfiguration'
 import {
   getPackageDetailTitle,
-  getPackageHighlights,
+  parsePackageHighlightsText,
 } from '@/Lib/packageDisplay'
 import PackageIncludedOptions from '@/components/quotes/PackageIncludedOptions'
 import {
   hasPackageIncludedChoices,
   isCustomPackage,
-  resolvePackageItemsWithSelections,
   type PackageOptionGroup,
 } from '@/Lib/packageOptionGroups'
 import type { QuoteLanguage } from '@/Lib/quoteWizardTypes'
 
 function formatCurrency(value: number) {
   return `$${value.toFixed(2)}`
+}
+
+type PackageWithHighlights = PackageCatalogFields & {
+  id?: string
+  package_highlights_pt?: string | null
 }
 
 export default function QuotePackageSummary({
@@ -53,7 +57,7 @@ export default function QuotePackageSummary({
   showIncludedOptionsEditor = false,
   showIncludedOptionsSummary = true,
 }: {
-  pkg: PackageCatalogFields & { id?: string }
+  pkg: PackageWithHighlights
   allPackages?: ReadonlyArray<PackageCatalogFields>
   language?: QuoteLanguage
   sidesPricePerPerson?: number
@@ -79,6 +83,7 @@ export default function QuotePackageSummary({
       : null
 
   const isCustom = isCustomPackage(pkg)
+  const choiceContext = { optionGroups }
   const hasIncludedOptions = hasPackageIncludedChoices(pkg.id, optionGroups, pkg)
   const showOptionGroups =
     hasIncludedOptions &&
@@ -86,36 +91,23 @@ export default function QuotePackageSummary({
     Boolean(onSelectionChange)
   const showOptionsSummary = hasIncludedOptions && showIncludedOptionsSummary
 
-  const configuredItems = pkg.id
-    ? getPackageItemsForPackage(pkg.id, packageItems)
+  const displayableFixedItems = pkg.id
+    ? getDisplayableFixedPackageItems(pkg.id, packageItems, choiceContext)
     : []
   const configuredSides = pkg.id
     ? getPackageSideItemsForPackage(pkg.id, packageSideItems)
     : []
 
-  const rawItemsText =
-    configuredItems.length > 0
-      ? formatPackageItemsText(configuredItems, language)
-      : ''
-  const itemsText = rawItemsText
-    ? hasIncludedOptions
-      ? resolvePackageItemsWithSelections(
-          rawItemsText,
-          selections,
-          optionGroups,
-          language,
-        )
-      : rawItemsText
+  const fixedItemsDisplay = pkg.id
+    ? formatDisplayableFixedPackageItemsText(
+        pkg.id,
+        packageItems,
+        language,
+        choiceContext,
+      )
     : ''
 
-  const fixedItemsDisplay = itemsText
-    ? formatPackageInventoryList(itemsText.split(' • '))
-    : ''
-
-  const highlightItems = getPackageHighlights(pkg, 'pt')
-    .split(' • ')
-    .map((item) => item.trim())
-    .filter(Boolean)
+  const highlightItems = parsePackageHighlightsText(pkg.package_highlights_pt)
 
   const sidesDisplay =
     configuredSides.length > 0
@@ -236,7 +228,7 @@ export default function QuotePackageSummary({
 
         <div>
           <p className="text-sm font-bold text-neutral-900">Itens do pacote:</p>
-          {configuredItems.length > 0 ? (
+          {displayableFixedItems.length > 0 ? (
             <p className="mt-2 text-sm leading-relaxed text-neutral-700">
               {fixedItemsDisplay}
             </p>
@@ -279,8 +271,7 @@ export default function QuotePackageSummary({
               </p>
             ) : (
               <p className="mt-2 rounded-lg border border-amber-300 bg-amber-100/80 px-3 py-2 text-sm font-semibold text-amber-950">
-                Atenção: pacote com guarnições ainda não possui guarnições
-                configuradas.
+                Pacote com guarnições ainda não possui guarnições configuradas.
               </p>
             )}
           </div>

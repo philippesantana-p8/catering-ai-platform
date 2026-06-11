@@ -256,6 +256,7 @@ export function getBlockedAdditionalItemIds(
     packageItems: options?.packageItems ?? [],
     packageSideItems: options?.packageSideItems ?? [],
     optionGroups: mergedGroups,
+    optionGroupItems: options?.groupItems,
     customPackage,
   })
 }

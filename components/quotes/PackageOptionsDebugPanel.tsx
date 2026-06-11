@@ -2,10 +2,12 @@
 
 import type { PackageOptionQueryDebug } from '@/Lib/fetchPackageOptionGroups'
 import {
+  getDisplayableFixedPackageItems,
   getPackageItemLabel,
   getPackageItemsForPackage,
   getPackageSideItemLabel,
   getPackageSideItemsForPackage,
+  isGarnishMisplacedPackageItem,
   type PackageItem,
   type PackageSideItem,
 } from '@/Lib/packageConfiguration'
@@ -86,9 +88,18 @@ export default function PackageOptionsDebugPanel({
     { includeEmptyGroups: true },
   )
 
-  const configuredItems = getPackageItemsForPackage(
+  const allConfiguredItems = getPackageItemsForPackage(
     selectedPackage.id,
     packageItems,
+  )
+  const choiceContext = { optionGroups, optionGroupItems }
+  const configuredItems = getDisplayableFixedPackageItems(
+    selectedPackage.id,
+    packageItems,
+    choiceContext,
+  )
+  const excludedItems = allConfiguredItems.filter(
+    (item) => !configuredItems.some((row) => row.id === item.id),
   )
   const configuredSides = getPackageSideItemsForPackage(
     selectedPackage.id,
@@ -132,7 +143,8 @@ export default function PackageOptionsDebugPanel({
 
       <div className="mt-4 rounded-lg bg-white/80 px-3 py-2 text-xs">
         <p className="font-bold">
-          package_items: {configuredItems.length}
+          package_items (fixos exibidos): {configuredItems.length} / raw:{' '}
+          {allConfiguredItems.length}
         </p>
         {configuredItems.length > 0 ? (
           <ul className="mt-1 space-y-0.5 text-neutral-700">
@@ -148,6 +160,20 @@ export default function PackageOptionsDebugPanel({
             Atenção: pacote ainda não possui itens fixos configurados.
           </p>
         )}
+        {excludedItems.length > 0 ? (
+          <ul className="mt-2 space-y-0.5 text-neutral-500">
+            <li className="font-semibold text-neutral-600">
+              Ocultos do card (guarnição/escolha/placeholder):
+            </li>
+            {excludedItems.map((item) => (
+              <li key={item.id}>
+                · {item.item_key} / {getPackageItemLabel(item)}
+                {isGarnishMisplacedPackageItem(item) ? ' [guarnição]' : ''}
+                {item.is_choice_placeholder ? ' [placeholder]' : ''}
+              </li>
+            ))}
+          </ul>
+        ) : null}
       </div>
 
       <div className="mt-3 rounded-lg bg-white/80 px-3 py-2 text-xs">

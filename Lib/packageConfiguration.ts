@@ -181,6 +181,139 @@ export function getPackageSideItemsForPackage(
   )
 }
 
+function normalizeInventoryKey(value: string | null | undefined): string {
+  return (
+    value
+      ?.trim()
+      .toLowerCase()
+      .replace(/[\s-]+/g, '_')
+      .replace(/[^a-z0-9_]/g, '') ?? ''
+  )
+}
+
+/** Guarnições não pertencem a package_items. */
+export function isGarnishMisplacedPackageItem(item: PackageItem): boolean {
+  const key = normalizeInventoryKey(item.item_key)
+  if (!key) return false
+  return (
+    key === 'guarnicoes' ||
+    key.startsWith('guarnicoes_') ||
+    key.includes('guarnicao')
+  )
+}
+
+type ChoiceLinkContext = {
+  optionGroups?: ReadonlyArray<
+    PackageOptionGroupRecord & { items?: PackageOptionGroupItem[] }
+  >
+  optionGroupItems?: ReadonlyArray<PackageOptionGroupItem>
+}
+
+function collectChoiceLinksForPackage(
+  packageId: string,
+  context?: ChoiceLinkContext,
+): { additionalItemIds: Set<string>; itemKeys: Set<string> } {
+  const additionalItemIds = new Set<string>()
+  const itemKeys = new Set<string>()
+  if (!packageId?.trim() || !context) {
+    return { additionalItemIds, itemKeys }
+  }
+
+  const normalizedPackageId = packageId.trim()
+  const groups =
+    context.optionGroups?.filter(
+      (group) =>
+        group.package_id?.trim() === normalizedPackageId &&
+        group.active !== false,
+    ) ?? []
+
+  const groupIds = new Set(groups.map((group) => group.id))
+
+  for (const group of groups) {
+    for (const item of group.items ?? []) {
+      if (item.active === false) continue
+      const additionalId = item.additional_item_id?.trim()
+      if (additionalId) additionalItemIds.add(additionalId)
+      const key = normalizeInventoryKey(item.option_item_key)
+      if (key) itemKeys.add(key)
+    }
+  }
+
+  for (const item of context.optionGroupItems ?? []) {
+    if (item.active === false) continue
+    if (!groupIds.has(item.option_group_id?.trim() ?? '')) continue
+    const additionalId = item.additional_item_id?.trim()
+    if (additionalId) additionalItemIds.add(additionalId)
+    const key = normalizeInventoryKey(item.option_item_key)
+    if (key) itemKeys.add(key)
+  }
+
+  return { additionalItemIds, itemKeys }
+}
+
+function isConfiguredPackageChoiceItem(
+  item: PackageItem,
+  choiceLinks: { additionalItemIds: Set<string>; itemKeys: Set<string> },
+): boolean {
+  const additionalId = item.additional_item_id?.trim()
+  if (additionalId && choiceLinks.additionalItemIds.has(additionalId)) {
+    return true
+  }
+
+  const itemKey = normalizeInventoryKey(item.item_key)
+  if (!itemKey || choiceLinks.itemKeys.size === 0) return false
+
+  if (choiceLinks.itemKeys.has(itemKey)) return true
+
+  const choiceAliases: Record<string, string[]> = {
+    salmao: ['salmao', 'salmon'],
+    camarao: ['camarao', 'shrimp', 'camarão'],
+    costela_boi: ['costela_boi', 'costela_bovina', 'costela_angus', 'costela_bovina_angus'],
+    costela_porco: ['costela_porco', 'costela_pork'],
+  }
+
+  for (const [choiceKey, aliases] of Object.entries(choiceAliases)) {
+    if (!choiceLinks.itemKeys.has(choiceKey)) continue
+    if (aliases.some((alias) => normalizeInventoryKey(alias) === itemKey)) {
+      return true
+    }
+  }
+
+  return false
+}
+
+/**
+ * Itens fixos exibíveis no card — exclui guarnições, placeholders e escolhas inclusas.
+ */
+export function getDisplayableFixedPackageItems(
+  packageId: string,
+  packageItems: ReadonlyArray<PackageItem>,
+  context?: ChoiceLinkContext,
+): PackageItem[] {
+  const choiceLinks = collectChoiceLinksForPackage(packageId, context)
+
+  return getPackageItemsForPackage(packageId, packageItems).filter((item) => {
+    if (item.is_choice_placeholder === true) return false
+    if (isGarnishMisplacedPackageItem(item)) return false
+    if (isConfiguredPackageChoiceItem(item, choiceLinks)) return false
+    return true
+  })
+}
+
+export function formatDisplayableFixedPackageItemsText(
+  packageId: string,
+  packageItems: ReadonlyArray<PackageItem>,
+  language: QuoteLanguage = 'pt',
+  context?: ChoiceLinkContext,
+): string {
+  const labels = getDisplayableFixedPackageItems(
+    packageId,
+    packageItems,
+    context,
+  ).map((item) => getPackageItemLabel(item, language))
+  return formatPackageInventoryList(labels)
+}
+
 export function formatPackageItemsText(
   items: ReadonlyArray<PackageItem>,
   language: QuoteLanguage = 'pt',
@@ -231,19 +364,24 @@ export function getBlockedAdditionalItemIdsFromConfig({
   packageItems,
   packageSideItems,
   optionGroups,
+  optionGroupItems,
   customPackage,
 }: {
   packageId: string
   packageItems: ReadonlyArray<PackageItem>
   packageSideItems: ReadonlyArray<PackageSideItem>
   optionGroups: ReadonlyArray<PackageOptionGroupRecord & { items?: PackageOptionGroupItem[] }>
+  optionGroupItems?: ReadonlyArray<PackageOptionGroupItem>
   customPackage: boolean
 }): string[] {
   if (customPackage || !packageId?.trim()) return []
 
   const blocked = new Set<string>()
 
-  for (const item of getPackageItemsForPackage(packageId, packageItems)) {
+  for (const item of getDisplayableFixedPackageItems(packageId, packageItems, {
+    optionGroups,
+    optionGroupItems,
+  })) {
     if (item.blocks_additional_item && item.additional_item_id?.trim()) {
       blocked.add(item.additional_item_id.trim())
     }
