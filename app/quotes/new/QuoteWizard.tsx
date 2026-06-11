@@ -2845,6 +2845,8 @@ export default function QuoteWizard({
               selectedPackage={selectedPackage}
               optionGroups={flatOptionGroups}
               optionGroupItems={flatOptionGroupItems}
+              packageItems={packageItems}
+              packageSideItems={packageSideItems}
               queryDebug={packageOptionQueryDebugForPanel}
               flatGroupsTotal={flatOptionGroups.length}
             />

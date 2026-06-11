@@ -211,7 +211,7 @@ export default function PackageConfigEditor({
       ) : null}
 
       <InventorySection
-        title="Itens do pacote"
+        title="Itens fixos do pacote"
         rows={items}
         additionalItems={additionalItems}
         savingId={savingId}

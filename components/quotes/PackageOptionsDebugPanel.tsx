@@ -1,9 +1,14 @@
 'use client'
 
-import type {
-  PackageOptionQueryDebug,
-  PackageOptionQueryErrorInfo,
-} from '@/Lib/fetchPackageOptionGroups'
+import type { PackageOptionQueryDebug } from '@/Lib/fetchPackageOptionGroups'
+import {
+  getPackageItemLabel,
+  getPackageItemsForPackage,
+  getPackageSideItemLabel,
+  getPackageSideItemsForPackage,
+  type PackageItem,
+  type PackageSideItem,
+} from '@/Lib/packageConfiguration'
 import {
   mergeOptionGroupsForPackage,
   type PackageOptionGroupItem,
@@ -15,7 +20,12 @@ function QueryErrorBlock({
   error,
 }: {
   title: string
-  error: PackageOptionQueryErrorInfo | null | undefined
+  error: {
+    message?: string
+    details?: string | null
+    hint?: string | null
+    code?: string | null
+  } | null | undefined
 }) {
   if (!error?.message) return null
 
@@ -49,6 +59,8 @@ export default function PackageOptionsDebugPanel({
   selectedPackage,
   optionGroups,
   optionGroupItems,
+  packageItems = [],
+  packageSideItems = [],
   queryDebug,
   flatGroupsTotal,
 }: {
@@ -60,6 +72,8 @@ export default function PackageOptionsDebugPanel({
   } | null
   optionGroups: ReadonlyArray<PackageOptionGroupRecord>
   optionGroupItems: ReadonlyArray<PackageOptionGroupItem>
+  packageItems?: ReadonlyArray<PackageItem>
+  packageSideItems?: ReadonlyArray<PackageSideItem>
   queryDebug?: PackageOptionQueryDebug | null
   flatGroupsTotal?: number
 }) {
@@ -72,9 +86,16 @@ export default function PackageOptionsDebugPanel({
     { includeEmptyGroups: true },
   )
 
-  const itemsForPackage = optionGroupItems.filter((item) =>
-    merged.some((group) => group.id === item.option_group_id?.trim()),
+  const configuredItems = getPackageItemsForPackage(
+    selectedPackage.id,
+    packageItems,
   )
+  const configuredSides = getPackageSideItemsForPackage(
+    selectedPackage.id,
+    packageSideItems,
+  )
+  const packageHasSides =
+    selectedPackage.package_key?.trim().endsWith('+') ?? false
 
   const groupsForPackageInFlat = optionGroups.filter(
     (group) => group.package_id?.trim() === selectedPackage.id.trim(),
@@ -88,7 +109,7 @@ export default function PackageOptionsDebugPanel({
   return (
     <div className="mt-4 rounded-xl border-2 border-dashed border-amber-400 bg-amber-50 p-4 text-sm text-neutral-900">
       <p className="text-xs font-black uppercase tracking-wider text-amber-900">
-        Debug escolhas do pacote
+        Debug configuração do pacote
       </p>
 
       <div className="mt-3 space-y-1 font-mono text-xs">
@@ -100,29 +121,94 @@ export default function PackageOptionsDebugPanel({
           {queryDebug?.queryCompanyId ?? '—'}
         </p>
         <p>
-          <span className="font-bold">currentBranchId:</span>{' '}
-          {queryDebug?.currentBranchId ?? '—'}
+          <span className="font-bold">Pacote:</span>{' '}
+          {selectedPackage.package_key ?? '—'} ·{' '}
+          {selectedPackage.label_pt ?? '—'}
         </p>
         <p>
-          <span className="font-bold">branch filter ativo:</span>{' '}
-          {queryDebug?.branchFilterActive === true ? 'sim' : 'não'}
+          <span className="font-bold">package_id:</span> {selectedPackage.id}
         </p>
-        <p>
-          <span className="font-bold">packageIds (array):</span>{' '}
-          {queryDebug?.packageIds?.length
-            ? `[${queryDebug.packageIdsCount ?? queryDebug.packageIds.length}] ${queryDebug.packageIds.join(', ')}`
-            : '—'}
+      </div>
+
+      <div className="mt-4 rounded-lg bg-white/80 px-3 py-2 text-xs">
+        <p className="font-bold">
+          package_items: {configuredItems.length}
         </p>
-        <p>
-          <span className="font-bold">groups query ran:</span>{' '}
-          {queryDebug?.groupsQueryRan === true ? 'sim' : 'não'}
+        {configuredItems.length > 0 ? (
+          <ul className="mt-1 space-y-0.5 text-neutral-700">
+            {configuredItems.map((item) => (
+              <li key={item.id}>
+                · {getPackageItemLabel(item)} /{' '}
+                {item.additional_item_id?.trim() || 'sem additional_item_id'}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-1 font-semibold text-amber-800">
+            Atenção: pacote ainda não possui itens fixos configurados.
+          </p>
+        )}
+      </div>
+
+      <div className="mt-3 rounded-lg bg-white/80 px-3 py-2 text-xs">
+        <p className="font-bold">
+          package_side_items: {configuredSides.length}
         </p>
-        <p>
-          <span className="font-bold">items query ran:</span>{' '}
-          {queryDebug?.itemsQueryRan === true ? 'sim' : 'não'}
+        {configuredSides.length > 0 ? (
+          <ul className="mt-1 space-y-0.5 text-neutral-700">
+            {configuredSides.map((side) => (
+              <li key={side.id}>
+                · {getPackageSideItemLabel(side)} /{' '}
+                {side.additional_item_id?.trim() || 'sem additional_item_id'}
+              </li>
+            ))}
+          </ul>
+        ) : packageHasSides ? (
+          <p className="mt-1 font-semibold text-amber-800">
+            Atenção: pacote com guarnições ainda não possui guarnições
+            configuradas.
+          </p>
+        ) : (
+          <p className="mt-1 text-neutral-600">Pacote sem guarnições (+).</p>
+        )}
+      </div>
+
+      <div className="mt-3 rounded-lg bg-white/80 px-3 py-2 text-xs">
+        <p className="font-bold">
+          option groups: {merged.length} (flat:{' '}
+          {groupsForPackageInFlat.length})
         </p>
+        {merged.length > 0 ? (
+          <ul className="mt-1 space-y-2">
+            {merged.map((group) => (
+              <li key={group.id}>
+                <p className="font-semibold">
+                  {group.option_group_key} / {group.label_pt ?? '—'} /{' '}
+                  {group.items.length} itens
+                </p>
+                <ul className="mt-0.5 space-y-0.5 text-neutral-700">
+                  {group.items.map((item) => (
+                    <li key={item.id}>
+                      · {item.option_item_key ?? '—'} / {item.label_pt ?? '—'}{' '}
+                      /{' '}
+                      {item.additional_item_id?.trim() ||
+                        'sem additional_item_id'}
+                    </li>
+                  ))}
+                </ul>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-1 text-neutral-600">
+            Nenhum grupo de escolha para este package_id.
+          </p>
+        )}
+      </div>
+
+      <div className="mt-3 space-y-1 font-mono text-xs">
         <p>
-          <span className="font-bold">fetch grupos/itens:</span>{' '}
+          <span className="font-bold">fetch grupos/opções:</span>{' '}
           {queryDebug
             ? `${queryDebug.groupsFetched} / ${queryDebug.itemsFetched}`
             : '—'}
@@ -131,25 +217,6 @@ export default function PackageOptionsDebugPanel({
           <span className="font-bold">flat groups (total):</span>{' '}
           {flatGroupsTotal ?? optionGroups.length}
         </p>
-        <p>
-          <span className="font-bold">flat groups (este package_id):</span>{' '}
-          {groupsForPackageInFlat.length}
-        </p>
-        <p>
-          <span className="font-bold">Pacote:</span>{' '}
-          {selectedPackage.package_key ?? '—'} ·{' '}
-          {selectedPackage.label_pt ?? '—'}
-        </p>
-        <p>
-          <span className="font-bold">package_id:</span> {selectedPackage.id}
-        </p>
-        <p>
-          <span className="font-bold">Grupos (merge):</span> {merged.length}
-        </p>
-        <p>
-          <span className="font-bold">Itens (total):</span>{' '}
-          {itemsForPackage.length}
-        </p>
       </div>
 
       <QueryErrorBlock title="groupsError" error={queryDebug?.groupsError} />
@@ -157,44 +224,9 @@ export default function PackageOptionsDebugPanel({
 
       {zeroRowsWithoutError ? (
         <p className="mt-3 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-xs font-semibold text-red-800">
-          Query executou sem erro, mas retornou 0 grupos. Suspeitas: RLS
-          bloqueando SELECT (anon key), schema cache, ou dados ausentes para
-          company_id/package_id.
+          Query de option groups executou sem erro, mas retornou 0 grupos.
         </p>
       ) : null}
-
-      {merged.length > 0 ? (
-        <ul className="mt-3 space-y-2 text-xs">
-          {merged.map((group) => (
-            <li key={group.id} className="rounded-lg bg-white/80 px-3 py-2">
-              <p className="font-bold">
-                {group.option_group_key} / {group.label_pt ?? '—'} /{' '}
-                {group.items.length} itens
-              </p>
-              <p className="font-mono text-[10px] text-neutral-500">
-                group.id: {group.id}
-              </p>
-              {group.items.length === 0 ? (
-                <p className="mt-1 font-semibold text-red-700">
-                  Grupo encontrado, mas sem itens carregados.
-                </p>
-              ) : (
-                <ul className="mt-1 space-y-0.5 text-neutral-700">
-                  {group.items.map((item) => (
-                    <li key={item.id}>
-                      · {item.option_item_key ?? '—'} / {item.label_pt ?? '—'}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="mt-2 text-xs font-semibold text-neutral-600">
-          Nenhum grupo para este package_id.
-        </p>
-      )}
     </div>
   )
 }

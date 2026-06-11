@@ -1,6 +1,7 @@
 import { getCdlCompanyId } from '@/Lib/cdlCompany'
 import {
   loadPackageOptionChoices,
+  resolvePackageIdsForQuery,
   type PackageOptionQueryDebug,
 } from '@/Lib/fetchPackageOptionGroups'
 import type {
@@ -8,7 +9,7 @@ import type {
   PackageOptionGroupRecord,
 } from '@/Lib/packageOptionGroups'
 import type { QuoteLanguage } from '@/Lib/quoteWizardTypes'
-import { supabase } from '@/Lib/supabase'
+import { getSupabaseServerClient } from '@/Lib/supabaseServer'
 
 export type PackageItem = {
   id: string
@@ -200,6 +201,13 @@ export function formatPackageSideItemsText(
   return labels.filter(Boolean).join(' • ')
 }
 
+/** Lista legível com separador · (itens fixos / guarnições). */
+export function formatPackageInventoryList(
+  labels: ReadonlyArray<string>,
+): string {
+  return labels.filter(Boolean).join(' · ')
+}
+
 function optionGroupsForPackage(
   packageId: string,
   groups: ReadonlyArray<PackageOptionGroupRecord & { items?: PackageOptionGroupItem[] }>,
@@ -261,21 +269,24 @@ export function getBlockedAdditionalItemIdsFromConfig({
 
 export async function fetchPackageItems(options?: {
   packageId?: string | null
+  packageIds?: string[] | null
 }) {
-  const companyId = getCdlCompanyId()
+  const companyId = getCdlCompanyId().trim()
+  const packageIds = resolvePackageIdsForQuery(options)
+  const supabase = getSupabaseServerClient()
 
   let query = supabase
     .from('package_items')
-    .select(buildPackageItemsSelect())
+    .select('*')
     .eq('active', true)
     .order('display_order', { ascending: true })
 
-  if (companyId?.trim()) {
+  if (companyId) {
     query = query.eq('company_id', companyId)
   }
 
-  if (options?.packageId?.trim()) {
-    query = query.eq('package_id', options.packageId.trim())
+  if (packageIds.length > 0) {
+    query = query.in('package_id', packageIds)
   }
 
   const { data, error } = await query
@@ -292,21 +303,24 @@ export async function fetchPackageItems(options?: {
 
 export async function fetchPackageSideItems(options?: {
   packageId?: string | null
+  packageIds?: string[] | null
 }) {
-  const companyId = getCdlCompanyId()
+  const companyId = getCdlCompanyId().trim()
+  const packageIds = resolvePackageIdsForQuery(options)
+  const supabase = getSupabaseServerClient()
 
   let query = supabase
     .from('package_side_items')
-    .select(buildPackageSideItemsSelect())
+    .select('*')
     .eq('active', true)
     .order('display_order', { ascending: true })
 
-  if (companyId?.trim()) {
+  if (companyId) {
     query = query.eq('company_id', companyId)
   }
 
-  if (options?.packageId?.trim()) {
-    query = query.eq('package_id', options.packageId.trim())
+  if (packageIds.length > 0) {
+    query = query.in('package_id', packageIds)
   }
 
   const { data, error } = await query
@@ -326,12 +340,12 @@ export async function loadPackageConfiguration(options?: {
 }) {
   const packageIds = options?.packageIds?.filter((id) => id?.trim()) ?? null
 
+  const queryScope = packageIds?.length ? { packageIds } : undefined
+
   const [itemsRes, sidesRes, choicesRes] = await Promise.all([
-    fetchPackageItems(),
-    fetchPackageSideItems(),
-    loadPackageOptionChoices(
-      packageIds?.length ? { packageIds } : undefined,
-    ),
+    fetchPackageItems(queryScope),
+    fetchPackageSideItems(queryScope),
+    loadPackageOptionChoices(queryScope),
   ])
 
   const error =

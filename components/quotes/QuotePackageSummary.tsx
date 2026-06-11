@@ -13,6 +13,7 @@ import {
   type PackageCatalogFields,
 } from '@/Lib/packageCatalogVisual'
 import {
+  formatPackageInventoryList,
   formatPackageItemsText,
   formatPackageSideItemsText,
   getPackageItemsForPackage,
@@ -21,15 +22,13 @@ import {
   type PackageSideItem,
 } from '@/Lib/packageConfiguration'
 import {
-  formatPackageBulletText,
   getPackageDetailTitle,
-  getPackageGarnishDisplayText,
   getPackageHighlights,
-  getPackageItemsDescription,
 } from '@/Lib/packageDisplay'
 import PackageIncludedOptions from '@/components/quotes/PackageIncludedOptions'
 import {
   hasPackageIncludedChoices,
+  isCustomPackage,
   resolvePackageItemsWithSelections,
   type PackageOptionGroup,
 } from '@/Lib/packageOptionGroups'
@@ -79,6 +78,7 @@ export default function QuotePackageSummary({
       ? resolvePackageSidesPricing(pkg, basePackage, sidesPricePerPerson)
       : null
 
+  const isCustom = isCustomPackage(pkg)
   const hasIncludedOptions = hasPackageIncludedChoices(pkg.id, optionGroups, pkg)
   const showOptionGroups =
     hasIncludedOptions &&
@@ -93,36 +93,36 @@ export default function QuotePackageSummary({
     ? getPackageSideItemsForPackage(pkg.id, packageSideItems)
     : []
 
-  const rawItems =
+  const rawItemsText =
     configuredItems.length > 0
       ? formatPackageItemsText(configuredItems, language)
-      : getPackageItemsDescription(pkg, language)
-  const itemsText = rawItems
-    ? formatPackageBulletText(
-        hasIncludedOptions
-          ? resolvePackageItemsWithSelections(
-              rawItems,
-              selections,
-              optionGroups,
-              language,
-            )
-          : rawItems,
-      )
-    : 'Descrição não cadastrada'
+      : ''
+  const itemsText = rawItemsText
+    ? hasIncludedOptions
+      ? resolvePackageItemsWithSelections(
+          rawItemsText,
+          selections,
+          optionGroups,
+          language,
+        )
+      : rawItemsText
+    : ''
+
+  const fixedItemsDisplay = itemsText
+    ? formatPackageInventoryList(itemsText.split(' • '))
+    : ''
 
   const highlightItems = getPackageHighlights(pkg, 'pt')
     .split(' • ')
     .map((item) => item.trim())
     .filter(Boolean)
 
-  const garnishText =
-    variant === 'with_sides'
-      ? configuredSides.length > 0
-        ? formatPackageBulletText(
-            formatPackageSideItemsText(configuredSides, language),
-          )
-        : formatPackageBulletText(getPackageGarnishDisplayText(pkg, language))
-      : 'Não inclusas'
+  const sidesDisplay =
+    configuredSides.length > 0
+      ? formatPackageInventoryList(
+          formatPackageSideItemsText(configuredSides, language).split(' • '),
+        )
+      : ''
 
   const packagePrice = getPackageCatalogPrice(pkg)
 
@@ -234,6 +234,23 @@ export default function QuotePackageSummary({
           </div>
         ) : null}
 
+        <div>
+          <p className="text-sm font-bold text-neutral-900">Itens do pacote:</p>
+          {configuredItems.length > 0 ? (
+            <p className="mt-2 text-sm leading-relaxed text-neutral-700">
+              {fixedItemsDisplay}
+            </p>
+          ) : isCustom ? (
+            <p className="mt-2 text-sm leading-relaxed text-neutral-600">
+              Pacote personalizado — itens definidos manualmente na cotação.
+            </p>
+          ) : (
+            <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-900">
+              Atenção: pacote ainda não possui itens fixos configurados.
+            </p>
+          )}
+        </div>
+
         {showOptionGroups ? (
           <PackageIncludedOptions
             optionGroups={optionGroups}
@@ -253,25 +270,24 @@ export default function QuotePackageSummary({
           />
         ) : null}
 
-        <div>
-          <p className="text-sm leading-relaxed text-neutral-700">
-            <span className="font-bold text-neutral-900">Itens do pacote:</span>
-            <br />
-            {itemsText}
-          </p>
-        </div>
-
         {variant === 'with_sides' ? (
           <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-4">
             <p className="text-sm font-bold text-amber-950">Guarnições:</p>
-            <p className="mt-2 text-sm leading-relaxed text-amber-950/90">
-              {garnishText}
-            </p>
+            {configuredSides.length > 0 ? (
+              <p className="mt-2 text-sm leading-relaxed text-amber-950/90">
+                {sidesDisplay}
+              </p>
+            ) : (
+              <p className="mt-2 rounded-lg border border-amber-300 bg-amber-100/80 px-3 py-2 text-sm font-semibold text-amber-950">
+                Atenção: pacote com guarnições ainda não possui guarnições
+                configuradas.
+              </p>
+            )}
           </div>
         ) : (
           <p className="text-sm leading-relaxed text-neutral-700">
             <span className="font-bold text-neutral-900">Guarnições:</span>{' '}
-            {garnishText}
+            Não inclusas
           </p>
         )}
 
