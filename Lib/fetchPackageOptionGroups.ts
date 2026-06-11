@@ -5,11 +5,47 @@ import type {
   PackageOptionGroupRecord,
 } from '@/Lib/packageOptionGroups'
 import { mergeOptionGroupsForPackage } from '@/Lib/packageOptionGroups'
-import {
-  PACKAGE_OPTION_GROUP_COLUMNS,
-  PACKAGE_OPTION_GROUP_ITEM_COLUMNS,
-} from '@/Lib/packageOptionGroupsSchema'
 import { supabase } from '@/Lib/supabase'
+
+/** CDL pilot: grupos/itens são por company_id + package_id apenas. */
+export const PACKAGE_OPTION_BRANCH_FILTER_ENABLED = false
+
+export type PackageOptionQueryDebug = {
+  queryCompanyId: string
+  packageIds: string[]
+  currentBranchId: string | null
+  branchFilterActive: boolean
+  groupsFetched: number
+  itemsFetched: number
+}
+
+function resolvePackageIdsForQuery(options?: {
+  packageId?: string | null
+  packageIds?: string[] | null
+}): string[] {
+  if (options?.packageId?.trim()) {
+    return [options.packageId.trim()]
+  }
+  return [...new Set((options?.packageIds ?? []).map((id) => id?.trim()).filter(Boolean) as string[])]
+}
+
+function buildQueryDebug(
+  options: {
+    packageId?: string | null
+    packageIds?: string[] | null
+    currentBranchId?: string | null
+  },
+  counts: { groupsFetched: number; itemsFetched: number },
+): PackageOptionQueryDebug {
+  return {
+    queryCompanyId: getCdlCompanyId(),
+    packageIds: resolvePackageIdsForQuery(options),
+    currentBranchId: options.currentBranchId?.trim() || null,
+    branchFilterActive: PACKAGE_OPTION_BRANCH_FILTER_ENABLED,
+    groupsFetched: counts.groupsFetched,
+    itemsFetched: counts.itemsFetched,
+  }
+}
 
 function mapGroupRecord(row: PackageOptionGroupRecord): PackageOptionGroupRecord {
   return {
@@ -24,12 +60,15 @@ export async function fetchPackageOptionGroupsOnly(options?: {
   packageId?: string | null
   packageIds?: string[] | null
   includeInactive?: boolean
+  /** Apenas para debug — não filtra enquanto PACKAGE_OPTION_BRANCH_FILTER_ENABLED = false */
+  currentBranchId?: string | null
 }) {
   const companyId = getCdlCompanyId()
+  const packageIds = resolvePackageIdsForQuery(options)
 
   let query = supabase
     .from('package_option_groups')
-    .select(PACKAGE_OPTION_GROUP_COLUMNS.join(', '))
+    .select('*')
     .order('display_order', { ascending: true })
 
   if (!options?.includeInactive) {
@@ -40,10 +79,15 @@ export async function fetchPackageOptionGroupsOnly(options?: {
     query = query.eq('company_id', companyId)
   }
 
+  // Não usar .eq('branch_id', currentBranchId) no piloto CDL.
+  // Futuro: if (PACKAGE_OPTION_BRANCH_FILTER_ENABLED && branchId) {
+  //   query = query.or(`branch_id.is.null,branch_id.eq.${branchId}`)
+  // }
+
   if (options?.packageId?.trim()) {
     query = query.eq('package_id', options.packageId.trim())
-  } else if (options?.packageIds?.length) {
-    query = query.in('package_id', options.packageIds)
+  } else if (packageIds.length > 0) {
+    query = query.in('package_id', packageIds)
   }
 
   const { data, error } = await query
@@ -72,7 +116,7 @@ export async function fetchPackageOptionGroupItems(
 
   let query = supabase
     .from('package_option_group_items')
-    .select(PACKAGE_OPTION_GROUP_ITEM_COLUMNS.join(', '))
+    .select('*')
     .in('option_group_id', ids)
     .order('display_order', { ascending: true })
 
@@ -83,6 +127,8 @@ export async function fetchPackageOptionGroupItems(
   if (companyId?.trim()) {
     query = query.eq('company_id', companyId)
   }
+
+  // Mesma regra do piloto CDL: sem filtro branch_id em package_option_group_items.
 
   const { data, error } = await query
   if (error) {
@@ -100,6 +146,7 @@ export async function loadPackageOptionChoices(options?: {
   packageId?: string | null
   packageIds?: string[] | null
   includeInactive?: boolean
+  currentBranchId?: string | null
 }) {
   const groupsRes = await fetchPackageOptionGroupsOnly(options)
   if (groupsRes.error) {
@@ -107,6 +154,10 @@ export async function loadPackageOptionChoices(options?: {
       groups: [] as PackageOptionGroupRecord[],
       groupItems: [] as PackageOptionGroupItem[],
       error: groupsRes.error,
+      queryDebug: buildQueryDebug(options ?? {}, {
+        groupsFetched: 0,
+        itemsFetched: 0,
+      }),
     }
   }
 
@@ -114,17 +165,31 @@ export async function loadPackageOptionChoices(options?: {
   const groupIds = groups.map((group) => group.id)
 
   if (groupIds.length === 0) {
-    return { groups, groupItems: [] as PackageOptionGroupItem[], error: null }
+    return {
+      groups,
+      groupItems: [] as PackageOptionGroupItem[],
+      error: null,
+      queryDebug: buildQueryDebug(options ?? {}, {
+        groupsFetched: groups.length,
+        itemsFetched: 0,
+      }),
+    }
   }
 
   const itemsRes = await fetchPackageOptionGroupItems(groupIds, {
     includeInactive: options?.includeInactive,
   })
 
+  const groupItems = itemsRes.data ?? []
+
   return {
     groups,
-    groupItems: itemsRes.data ?? [],
+    groupItems,
     error: itemsRes.error ?? null,
+    queryDebug: buildQueryDebug(options ?? {}, {
+      groupsFetched: groups.length,
+      itemsFetched: groupItems.length,
+    }),
   }
 }
 

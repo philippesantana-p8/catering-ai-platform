@@ -12,6 +12,7 @@ import QuoteHeroBanner from '../../../components/quotes/QuoteHeroBanner'
 import QuotePackageStepExplorer from '../../../components/quotes/QuotePackageStepExplorer'
 import PackageOptionsDebugPanel from '../../../components/quotes/PackageOptionsDebugPanel'
 import { CDL_DEFAULT_COMPANY_ID } from '../../../Lib/cdlCompany'
+import type { PackageOptionQueryDebug } from '../../../Lib/fetchPackageOptionGroups'
 import {
   getPackageDetailTitle,
   sortPackagesByCommercialTier,
@@ -1353,6 +1354,7 @@ export default function QuoteWizard({
   additionalItems,
   packageOptionGroups = [],
   packageOptionGroupItems = [],
+  packageOptionQueryDebug = null,
   packageItems = [],
   packageSideItems = [],
   commercialRules,
@@ -1370,6 +1372,7 @@ export default function QuoteWizard({
   additionalItems: AdditionalItem[]
   packageOptionGroups?: PackageOptionGroupRecord[]
   packageOptionGroupItems?: PackageOptionGroupItem[]
+  packageOptionQueryDebug?: PackageOptionQueryDebug | null
   packageItems?: PackageItem[]
   packageSideItems?: PackageSideItem[]
   commercialRules: CommercialRulesSnapshot
@@ -1424,9 +1427,17 @@ export default function QuoteWizard({
   const [flatOptionGroupItems, setFlatOptionGroupItems] = useState<
     PackageOptionGroupItem[]
   >(() => packageOptionGroupItems)
+  const [packageOptionQueryDebugState, setPackageOptionQueryDebugState] =
+    useState<PackageOptionQueryDebug | null>(() => packageOptionQueryDebug)
   const [packageExplorerKey, setPackageExplorerKey] = useState(0)
   const debugCompanyId =
     tenantCompanyId?.trim() || CDL_DEFAULT_COMPANY_ID
+  const debugBranchId =
+    state.branchId?.trim() || tenantBranchId?.trim() || null
+  const queryPackageIds = useMemo(
+    () => packages.map((pkg) => pkg.id).filter(Boolean),
+    [packages],
+  )
   const router = useRouter()
   const distanceInputRef = useRef<HTMLInputElement>(null)
   const previousStepRef = useRef(step)
@@ -1434,7 +1445,27 @@ export default function QuoteWizard({
   useEffect(() => {
     setFlatOptionGroups(packageOptionGroups)
     setFlatOptionGroupItems(packageOptionGroupItems)
-  }, [packageOptionGroups, packageOptionGroupItems])
+    setPackageOptionQueryDebugState(packageOptionQueryDebug)
+  }, [packageOptionGroups, packageOptionGroupItems, packageOptionQueryDebug])
+
+  const packageOptionQueryDebugForPanel = useMemo((): PackageOptionQueryDebug => {
+    const base = packageOptionQueryDebugState
+    return {
+      queryCompanyId: base?.queryCompanyId ?? debugCompanyId,
+      packageIds: base?.packageIds?.length ? base.packageIds : queryPackageIds,
+      currentBranchId: debugBranchId,
+      branchFilterActive: base?.branchFilterActive ?? false,
+      groupsFetched: base?.groupsFetched ?? flatOptionGroups.length,
+      itemsFetched: base?.itemsFetched ?? flatOptionGroupItems.length,
+    }
+  }, [
+    packageOptionQueryDebugState,
+    debugCompanyId,
+    queryPackageIds,
+    debugBranchId,
+    flatOptionGroups.length,
+    flatOptionGroupItems.length,
+  ])
 
   useEffect(() => {
     const packageId = state.packageId?.trim()
@@ -1442,14 +1473,19 @@ export default function QuoteWizard({
 
     let cancelled = false
 
-    fetch(
-      `/api/package-option-choices?package_id=${encodeURIComponent(packageId)}`,
-      { cache: 'no-store' },
-    )
+    const params = new URLSearchParams({ package_id: packageId })
+    if (debugBranchId) {
+      params.set('branch_id', debugBranchId)
+    }
+
+    fetch(`/api/package-option-choices?${params.toString()}`, {
+      cache: 'no-store',
+    })
       .then(async (res) => {
         const json = (await res.json()) as {
           groups?: PackageOptionGroupRecord[]
           groupItems?: PackageOptionGroupItem[]
+          queryDebug?: PackageOptionQueryDebug
           error?: string
         }
         if (!res.ok) {
@@ -1463,7 +1499,24 @@ export default function QuoteWizard({
         return json
       })
       .then((json) => {
-        if (cancelled || !json?.groups) return
+        if (cancelled || !json) return
+
+        if (json.queryDebug) {
+          setPackageOptionQueryDebugState(json.queryDebug)
+        }
+
+        if (!json.groups) return
+
+        if (json.groups.length === 0) {
+          console.warn(
+            '[package-option-choices] 0 grupos para package_id',
+            packageId,
+            '— mantendo cache SSR',
+            json.queryDebug,
+          )
+          return
+        }
+
         setFlatOptionGroups((prev) => {
           const rest = prev.filter(
             (group) => group.package_id?.trim() !== packageId,
@@ -1485,7 +1538,7 @@ export default function QuoteWizard({
     return () => {
       cancelled = true
     }
-  }, [state.packageId])
+  }, [state.packageId, debugBranchId])
 
   useEffect(() => {
     setLocalCustomers((current) => {
@@ -2780,6 +2833,8 @@ export default function QuoteWizard({
               selectedPackage={selectedPackage}
               optionGroups={flatOptionGroups}
               optionGroupItems={flatOptionGroupItems}
+              queryDebug={packageOptionQueryDebugForPanel}
+              flatGroupsTotal={flatOptionGroups.length}
             />
           </div>
         )}

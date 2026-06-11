@@ -13,9 +13,12 @@ export async function GET(request: Request) {
     ? packageIdsParam.split(',').map((id) => id.trim()).filter(Boolean)
     : null
 
-  const { groups, groupItems, error } = await loadPackageOptionChoices({
+  const branchId = url.searchParams.get('branch_id')
+
+  const { groups, groupItems, error, queryDebug } = await loadPackageOptionChoices({
     packageId,
     packageIds,
+    currentBranchId: branchId,
   })
 
   if (error) {
@@ -37,6 +40,7 @@ export async function GET(request: Request) {
       groups,
       groupItems,
       merged,
+      queryDebug,
     },
     { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' } },
   )

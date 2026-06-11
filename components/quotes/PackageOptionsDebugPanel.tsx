@@ -1,5 +1,6 @@
 'use client'
 
+import type { PackageOptionQueryDebug } from '@/Lib/fetchPackageOptionGroups'
 import {
   mergeOptionGroupsForPackage,
   type PackageOptionGroupItem,
@@ -11,6 +12,8 @@ export default function PackageOptionsDebugPanel({
   selectedPackage,
   optionGroups,
   optionGroupItems,
+  queryDebug,
+  flatGroupsTotal,
 }: {
   companyId: string
   selectedPackage: {
@@ -20,6 +23,8 @@ export default function PackageOptionsDebugPanel({
   } | null
   optionGroups: ReadonlyArray<PackageOptionGroupRecord>
   optionGroupItems: ReadonlyArray<PackageOptionGroupItem>
+  queryDebug?: PackageOptionQueryDebug | null
+  flatGroupsTotal?: number
 }) {
   if (!selectedPackage) return null
 
@@ -34,6 +39,10 @@ export default function PackageOptionsDebugPanel({
     merged.some((group) => group.id === item.option_group_id?.trim()),
   )
 
+  const groupsForPackageInFlat = optionGroups.filter(
+    (group) => group.package_id?.trim() === selectedPackage.id.trim(),
+  )
+
   return (
     <div className="mt-4 rounded-xl border-2 border-dashed border-amber-400 bg-amber-50 p-4 text-sm text-neutral-900">
       <p className="text-xs font-black uppercase tracking-wider text-amber-900">
@@ -42,7 +51,39 @@ export default function PackageOptionsDebugPanel({
 
       <div className="mt-3 space-y-1 font-mono text-xs">
         <p>
-          <span className="font-bold">company_id:</span> {companyId || '—'}
+          <span className="font-bold">company_id (UI):</span> {companyId || '—'}
+        </p>
+        <p>
+          <span className="font-bold">queryCompanyId:</span>{' '}
+          {queryDebug?.queryCompanyId ?? '—'}
+        </p>
+        <p>
+          <span className="font-bold">currentBranchId:</span>{' '}
+          {queryDebug?.currentBranchId ?? '—'}
+        </p>
+        <p>
+          <span className="font-bold">branch filter ativo:</span>{' '}
+          {queryDebug?.branchFilterActive === true ? 'sim' : 'não'}
+        </p>
+        <p>
+          <span className="font-bold">packageIds na query:</span>{' '}
+          {queryDebug?.packageIds?.length
+            ? queryDebug.packageIds.join(', ')
+            : '—'}
+        </p>
+        <p>
+          <span className="font-bold">fetch grupos/itens:</span>{' '}
+          {queryDebug
+            ? `${queryDebug.groupsFetched} / ${queryDebug.itemsFetched}`
+            : '—'}
+        </p>
+        <p>
+          <span className="font-bold">flat groups (total):</span>{' '}
+          {flatGroupsTotal ?? optionGroups.length}
+        </p>
+        <p>
+          <span className="font-bold">flat groups (este package_id):</span>{' '}
+          {groupsForPackageInFlat.length}
         </p>
         <p>
           <span className="font-bold">Pacote:</span>{' '}
@@ -53,7 +94,7 @@ export default function PackageOptionsDebugPanel({
           <span className="font-bold">package_id:</span> {selectedPackage.id}
         </p>
         <p>
-          <span className="font-bold">Grupos:</span> {merged.length}
+          <span className="font-bold">Grupos (merge):</span> {merged.length}
         </p>
         <p>
           <span className="font-bold">Itens (total):</span>{' '}

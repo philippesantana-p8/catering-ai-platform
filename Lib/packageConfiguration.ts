@@ -1,5 +1,8 @@
 import { getCdlCompanyId } from '@/Lib/cdlCompany'
-import { loadPackageOptionChoices } from '@/Lib/fetchPackageOptionGroups'
+import {
+  loadPackageOptionChoices,
+  type PackageOptionQueryDebug,
+} from '@/Lib/fetchPackageOptionGroups'
 import type {
   PackageOptionGroupItem,
   PackageOptionGroupRecord,
@@ -359,6 +362,7 @@ export async function loadPackageConfiguration(options?: {
       optionGroups,
       optionGroupItems,
     } satisfies PackageConfiguration,
+    optionQueryDebug: choicesRes.queryDebug,
     error,
   }
 }

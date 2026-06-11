@@ -19,7 +19,7 @@ const content = `// Gerado automaticamente por scripts/generate-build-info.mjs â
 export const BUILD_LABEL = ${JSON.stringify(buildLabel)}
 export const BUILD_TIME_ISO = ${JSON.stringify(buildTimeIso)}
 export const BUILD_SHA = ${JSON.stringify(sha)}
-export const BUILD_NOTE = "package-options-debug"
+export const BUILD_NOTE = "package-options-no-branch-filter"
 `
 
 fs.writeFileSync(outPath, content, 'utf8')

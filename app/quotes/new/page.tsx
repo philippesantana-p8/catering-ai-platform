@@ -85,6 +85,7 @@ export default async function NewQuotePage() {
       additionalItems={additionalItems}
       packageOptionGroups={packageConfiguration.optionGroups}
       packageOptionGroupItems={packageConfiguration.optionGroupItems}
+      packageOptionQueryDebug={packageConfigurationRes.optionQueryDebug ?? null}
       packageItems={packageConfiguration.packageItems}
       packageSideItems={packageConfiguration.packageSideItems}
       commercialRules={commercialRules}
