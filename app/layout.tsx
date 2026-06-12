@@ -4,7 +4,7 @@ import { TenantProvider } from "../components/tenant/TenantProvider";
 import { ThemeProvider } from "../components/ThemeProvider";
 import { ThemeScript } from "../components/ThemeScript";
 import { ThemeToggle } from "../components/ThemeToggle";
-import FloatingCateringHelp from "@/components/help/FloatingCateringHelp";
+import FloatingWhatsAppButton from "@/components/FloatingWhatsAppButton";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -51,7 +51,7 @@ export default function RootLayout({
               {children}
             </div>
 
-            <FloatingCateringHelp />
+            <FloatingWhatsAppButton />
           </TenantProvider>
         </ThemeProvider>
       </body>
