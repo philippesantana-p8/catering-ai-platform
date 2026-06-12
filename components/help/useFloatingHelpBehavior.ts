@@ -1,90 +1,59 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import {
-  helpHintStorageKey,
-  pickHintForRoute,
-} from '@/components/help/helpHints'
+import { getHelpHintGreeting } from '@/components/help/helpChat'
 
-const DISCREET_DELAY_MS = 5000
-const HINT_DELAY_MS = 8000
-const SCROLL_IDLE_MS = 700
+const HINT_SHOW_DELAY_MS = 2000
+const HINT_VISIBLE_MS = 5000
 
-export type FloatingHelpVisualState = 'normal' | 'discreet' | 'minimized'
+export function helpHintSeenKey(pathname: string): string {
+  return `help_hint_seen_${pathname.split('?')[0] ?? '/'}`
+}
 
 export function useFloatingHelpBehavior(pathname: string, panelOpen: boolean) {
-  const [visualState, setVisualState] = useState<FloatingHelpVisualState>('normal')
-  const [hintText, setHintText] = useState<string | null>(null)
   const [hintVisible, setHintVisible] = useState(false)
-  const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const discreetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const showTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
-    setVisualState('normal')
     setHintVisible(false)
-    setHintText(null)
 
-    discreetTimerRef.current = setTimeout(() => {
-      if (!panelOpen) setVisualState('discreet')
-    }, DISCREET_DELAY_MS)
+    if (panelOpen) return
 
-    const hintKey = helpHintStorageKey(pathname)
-    const dismissed =
+    const key = helpHintSeenKey(pathname)
+    const alreadySeen =
       typeof window !== 'undefined' &&
-      window.sessionStorage.getItem(hintKey) === '1'
+      window.sessionStorage.getItem(key) === '1'
 
-    if (!dismissed) {
-      hintTimerRef.current = setTimeout(() => {
-        if (!panelOpen) {
-          setHintText(pickHintForRoute(pathname))
-          setHintVisible(true)
+    if (alreadySeen) return
+
+    showTimerRef.current = setTimeout(() => {
+      setHintVisible(true)
+      hideTimerRef.current = setTimeout(() => {
+        setHintVisible(false)
+        if (typeof window !== 'undefined') {
+          window.sessionStorage.setItem(key, '1')
         }
-      }, HINT_DELAY_MS)
-    }
+      }, HINT_VISIBLE_MS)
+    }, HINT_SHOW_DELAY_MS)
 
     return () => {
-      if (discreetTimerRef.current) clearTimeout(discreetTimerRef.current)
-      if (hintTimerRef.current) clearTimeout(hintTimerRef.current)
+      if (showTimerRef.current) clearTimeout(showTimerRef.current)
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current)
     }
   }, [pathname, panelOpen])
-
-  useEffect(() => {
-    if (panelOpen) {
-      setHintVisible(false)
-      setVisualState('normal')
-      return
-    }
-
-    function onScroll() {
-      setVisualState('minimized')
-      setHintVisible(false)
-
-      if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current)
-      scrollTimerRef.current = setTimeout(() => {
-        setVisualState('discreet')
-      }, SCROLL_IDLE_MS)
-    }
-
-    window.addEventListener('scroll', onScroll, { passive: true })
-    return () => {
-      window.removeEventListener('scroll', onScroll)
-      if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current)
-    }
-  }, [panelOpen])
 
   function dismissHint() {
     setHintVisible(false)
     if (typeof window !== 'undefined') {
-      window.sessionStorage.setItem(helpHintStorageKey(pathname), '1')
+      window.sessionStorage.setItem(helpHintSeenKey(pathname), '1')
     }
   }
 
   return {
-    visualState,
-    hintText,
+    hintText: getHelpHintGreeting(),
     hintVisible,
     dismissHint,
-    clearHint: () => setHintVisible(false),
+    clearHint: dismissHint,
   }
 }

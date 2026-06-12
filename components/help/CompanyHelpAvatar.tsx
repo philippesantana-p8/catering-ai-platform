@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import type { CompanyBrand } from '@/Lib/help/companyBranding'
+import { CDL_LOGO_PLACEHOLDER } from '@/Lib/cdlLogo'
 
 const SIZE_MAP = {
   sm: 'h-9 w-9 text-[10px]',
@@ -54,6 +55,10 @@ export default function CompanyHelpAvatar({
           className="h-full w-full object-contain p-1"
           onError={() => setImageError(true)}
         />
+      ) : brand.initials === 'CDL' || /cdl/i.test(brand.displayName) ? (
+        <div className="flex h-full w-full items-center justify-center bg-neutral-900 px-1 text-[9px] font-black uppercase tracking-wide text-white">
+          {CDL_LOGO_PLACEHOLDER}
+        </div>
       ) : brand.initials && brand.initials !== '?' ? (
         <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-neutral-100 to-neutral-200 font-bold text-neutral-700 dark:from-neutral-800 dark:to-neutral-700 dark:text-neutral-100">
           {brand.initials}
