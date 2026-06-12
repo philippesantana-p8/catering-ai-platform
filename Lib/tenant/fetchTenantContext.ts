@@ -13,14 +13,28 @@ export async function fetchTenantContext(options?: {
   const companyId = options?.companyId?.trim() || getActiveCompanyId()
   const envBranchId = options?.branchId ?? getActiveBranchIdFromEnv()
 
-  const [companyRes, branchesRes, flagsRes] = await Promise.all([
-    supabase
+  const companyColumnsBase =
+    'id, franchise_group_id, company_name, company_code, legal_name, trade_name, slug, currency_code, default_language, timezone, subscription_status, google_calendar_enabled, google_calendar_id, google_calendar_timezone, active'
+  const companyColumnsWithLogo = `${companyColumnsBase}, logo_url, brand_logo_url`
+
+  let companyRes = await supabase
+    .from('companies')
+    .select(companyColumnsWithLogo)
+    .eq('id', companyId)
+    .maybeSingle()
+
+  if (
+    companyRes.error &&
+    /logo_url|brand_logo_url|schema cache/i.test(companyRes.error.message)
+  ) {
+    companyRes = await supabase
       .from('companies')
-      .select(
-        'id, franchise_group_id, company_name, company_code, legal_name, trade_name, slug, currency_code, default_language, timezone, subscription_status, google_calendar_enabled, google_calendar_id, google_calendar_timezone, active',
-      )
+      .select(companyColumnsBase)
       .eq('id', companyId)
-      .maybeSingle(),
+      .maybeSingle()
+  }
+
+  const [branchesRes, flagsRes] = await Promise.all([
     supabase
       .from('branches')
       .select(

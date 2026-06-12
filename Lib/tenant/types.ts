@@ -18,6 +18,8 @@ export type Company = {
   id: string
   franchise_group_id?: string | null
   company_name?: string | null
+  logo_url?: string | null
+  brand_logo_url?: string | null
   company_code?: string | null
   legal_name?: string | null
   trade_name?: string | null
