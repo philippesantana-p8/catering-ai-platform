@@ -4,6 +4,7 @@ import { TenantProvider } from "../components/tenant/TenantProvider";
 import { ThemeProvider } from "../components/ThemeProvider";
 import { ThemeScript } from "../components/ThemeScript";
 import { ThemeToggle } from "../components/ThemeToggle";
+import FloatingAIConcierge from "@/components/FloatingAIConcierge";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -36,15 +37,21 @@ export default function RootLayout({
       <head>
         <ThemeScript />
       </head>
+
       <body className="flex min-h-full flex-col bg-cdl-bg text-cdl-fg">
         <ThemeProvider>
           <TenantProvider>
-          <div className="no-print pointer-events-none fixed top-4 right-4 z-50 sm:top-6 sm:right-6">
-            <div className="pointer-events-auto">
-              <ThemeToggle />
+            <div className="no-print pointer-events-none fixed top-4 right-4 z-50 sm:top-6 sm:right-6">
+              <div className="pointer-events-auto">
+                <ThemeToggle />
+              </div>
             </div>
-          </div>
-          <div className="relative min-h-full pt-14">{children}</div>
+
+            <div className="relative min-h-full pt-14">
+              {children}
+            </div>
+
+            <FloatingAIConcierge />
           </TenantProvider>
         </ThemeProvider>
       </body>
