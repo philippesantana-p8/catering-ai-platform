@@ -9,7 +9,7 @@ const NAV_LINKS = [
   { href: '/quotes', label: 'Cotações' },
   { href: '/customers', label: 'Cadastros' },
   { href: '/packages', label: 'Pacotes' },
-  { href: '/additional-items', label: 'Itens adicionais' },
+  { href: '/additional-items', label: 'Cadastro de itens' },
   { href: '/commercial-rules', label: 'Regras' },
   { href: '/packages/images', label: 'Imagens' },
 ] as const

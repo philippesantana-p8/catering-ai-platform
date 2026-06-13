@@ -36,10 +36,10 @@ import {
   getAdditionalItemLabel,
   mapAdditionalItemDraftToDeployed,
 } from '@/Lib/additionalItemFieldAccess'
-import type { AdditionalItemListItem } from '@/Lib/fetchAdditionalItems'
+import type { CatalogItemListItem } from '@/Lib/fetchCatalogItems'
 import { formatUsd } from '@/Lib/backofficeFinance'
 import { getAdditionalItemPrice } from '@/Lib/getAdditionalItemPrice'
-import type { AdditionalItemsInsertPayload } from '@/Lib/additionalItemsTableSchema'
+import type { CatalogItemsInsertPayload } from '@/Lib/catalogItemsTableSchema'
 
 type ActiveFilter = 'active' | 'all'
 type MobileStep = 'categories' | 'items' | 'detail'
@@ -54,7 +54,7 @@ const ACCEPTED_IMAGE_TYPES = new Set([
 async function fetchItemsFromApi(
   query: string,
   activeFilter: ActiveFilter,
-): Promise<AdditionalItemListItem[]> {
+): Promise<CatalogItemListItem[]> {
   const params = new URLSearchParams({ _: String(Date.now()) })
   if (query.trim()) params.set('q', query.trim())
   params.set('active', activeFilter === 'all' ? 'all' : 'true')
@@ -64,7 +64,7 @@ async function fetchItemsFromApi(
     headers: { 'Cache-Control': 'no-cache' },
   })
   const result = (await response.json()) as {
-    data?: AdditionalItemListItem[]
+    data?: CatalogItemListItem[]
     error?: string
   }
   if (!response.ok) {
@@ -73,7 +73,23 @@ async function fetchItemsFromApi(
   return result.data ?? []
 }
 
-function chargeLabel(item: AdditionalItemListItem | AdditionalItemsInsertPayload) {
+function formatFlag(value: boolean | null | undefined): string {
+  if (value === true) return 'Sim'
+  if (value === false) return 'Não'
+  return '—'
+}
+
+function formatCatalogUsageFlags(item: CatalogItemListItem): string {
+  const parts: string[] = []
+  if (item.can_be_package_item !== false) parts.push('Pacote')
+  if (item.can_be_side_item) parts.push('Guarnição')
+  if (item.can_be_additional !== false) parts.push('Adicional')
+  if (item.can_be_option_choice !== false) parts.push('Escolha')
+  if (item.inventory_enabled) parts.push('Estoque')
+  return parts.length > 0 ? parts.join(' · ') : '—'
+}
+
+function chargeLabel(item: CatalogItemListItem | CatalogItemsInsertPayload) {
   if (item.pricing_type === 'PER_PERSON' || item.charge_type === 'PERSON') {
     return 'por pessoa'
   }
@@ -83,15 +99,15 @@ function chargeLabel(item: AdditionalItemListItem | AdditionalItemsInsertPayload
 export default function AdditionalItemsDashboard({
   initialItems,
 }: {
-  initialItems: AdditionalItemListItem[]
+  initialItems: CatalogItemListItem[]
 }) {
-  const [items, setItems] = useState<AdditionalItemListItem[]>(initialItems)
+  const [items, setItems] = useState<CatalogItemListItem[]>(initialItems)
   const [search, setSearch] = useState('')
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>('active')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | 'new' | null>(null)
-  const [draft, setDraft] = useState<AdditionalItemsInsertPayload>(EMPTY_ADDITIONAL_ITEM_ROW)
+  const [draft, setDraft] = useState<CatalogItemsInsertPayload>(EMPTY_ADDITIONAL_ITEM_ROW)
   const [saving, setSaving] = useState(false)
   const [uploadingId, setUploadingId] = useState<string | null>(null)
   const [uploadErrors, setUploadErrors] = useState<Record<string, string>>({})
@@ -204,7 +220,7 @@ export default function AdditionalItemsDashboard({
     setMobileStep('detail')
   }
 
-  function startEdit(item: AdditionalItemListItem) {
+  function startEdit(item: CatalogItemListItem) {
     setEditingId(item.id)
     setSelectedItemId(item.id)
     setDraft(additionalItemDraftFromListItem(item))
@@ -247,7 +263,7 @@ export default function AdditionalItemsDashboard({
       const result = (await response.json()) as {
         success?: boolean
         image_url?: string
-        item?: AdditionalItemListItem
+        item?: CatalogItemListItem
         error?: string
       }
 
@@ -321,7 +337,7 @@ export default function AdditionalItemsDashboard({
     }
   }
 
-  async function deactivate(item: AdditionalItemListItem) {
+  async function deactivate(item: CatalogItemListItem) {
     const label = getAdditionalItemLabel(item)
     if (!window.confirm(`Inativar "${label}"?`)) return
     const response = await fetch(`/api/additional-items/${item.id}`, {
@@ -342,7 +358,7 @@ export default function AdditionalItemsDashboard({
     if (editingId === 'new') {
       return (
         <BackofficeCascadePanel
-          title="Novo item adicional"
+          title="Novo item"
           className="lg:col-span-5"
           onBack={() => {
             cancelEdit()
@@ -472,7 +488,39 @@ export default function AdditionalItemsDashboard({
           </div>
           <h3 className="text-2xl font-bold text-neutral-900">{displayName}</h3>
           <BackofficeMetaRow label="Categoria" value={categoryLabel} />
-          <BackofficeMetaRow label="Preço" value={formatUsd(price)} />
+          <BackofficeMetaRow
+            label="Tipo"
+            value={selectedItem.item_type ?? 'PRODUCT'}
+          />
+          <BackofficeMetaRow
+            label="Preço vigente"
+            value={formatUsd(getAdditionalItemPrice(selectedItem))}
+          />
+          <BackofficeMetaRow
+            label="sale_price"
+            value={
+              selectedItem.sale_price != null
+                ? formatUsd(Number(selectedItem.sale_price))
+                : '—'
+            }
+          />
+          <BackofficeMetaRow
+            label="price (legado)"
+            value={
+              selectedItem.price != null
+                ? formatUsd(Number(selectedItem.price))
+                : '—'
+            }
+          />
+          <BackofficeMetaRow
+            label="Uso no sistema"
+            value={formatCatalogUsageFlags(selectedItem)}
+          />
+          <BackofficeMetaRow
+            label="Visível ao cliente"
+            value={formatFlag(selectedItem.customer_visible !== false)}
+          />
+          <BackofficeMetaRow label="Ativo" value={formatFlag(selectedItem.active !== false)} />
           <BackofficeMetaRow label="Cobrança" value={chargeLabel(selectedItem)} />
           <BackofficeMetaRow label="pricing_type" value={selectedItem.pricing_type ?? '—'} />
           <BackofficeMetaRow label="charge_type" value={selectedItem.charge_type ?? '—'} />
@@ -514,8 +562,8 @@ export default function AdditionalItemsDashboard({
 
   return (
     <BackofficeTableShell
-      title="Itens adicionais"
-      subtitle="Catálogo de adicionais · Catering AI"
+      title="Cadastro de itens"
+      subtitle="Catálogo mestre · Catering AI"
       search={search}
       onSearchChange={setSearch}
       searchPlaceholder="Nome, chave ou categoria"
@@ -531,10 +579,10 @@ export default function AdditionalItemsDashboard({
             onClick={startNew}
             className="cdl-btn-primary inline-flex min-h-[44px] items-center justify-center rounded-xl px-5 py-3 text-sm font-bold"
           >
-            Novo item adicional
+            Novo item
           </button>
           <Link
-            href="/packages/images#adicionais"
+            href="/packages/images#catalogo-itens"
             className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-neutral-200 bg-white px-5 py-3 text-sm font-bold text-neutral-800 shadow-sm"
           >
             Imagens
@@ -607,7 +655,7 @@ export default function AdditionalItemsDashboard({
                   >
                     <span>{getAdditionalItemLabel(item)}</span>
                     <span className="text-xs text-neutral-400">
-                      {formatUsd(getAdditionalItemPrice(item))}
+                      {item.item_type ?? 'PRODUCT'} · {formatUsd(getAdditionalItemPrice(item))}
                     </span>
                   </BackofficeCascadeListButton>
                 ))}

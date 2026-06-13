@@ -19,7 +19,7 @@ export default async function EditQuotePage({
     quote,
     linkedCustomer,
     packages,
-    additionalItems,
+    catalogItems,
     packageOptionGroups,
     packageOptionGroupItems,
     packageItems,
@@ -58,7 +58,7 @@ export default async function EditQuotePage({
       linkedCustomer={linkedCustomer}
       customers={[]}
       packages={packages}
-      additionalItems={additionalItems}
+      catalogItems={catalogItems}
       packageOptionGroups={packageOptionGroups}
       packageOptionGroupItems={packageOptionGroupItems}
       packageItems={packageItems}

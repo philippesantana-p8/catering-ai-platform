@@ -10,7 +10,15 @@ export type AdditionalItemOption = {
   label_pt?: string | null
   category_pt?: string | null
   price?: number | null
+  sale_price?: number | null
+  can_be_package_item?: boolean | null
+  can_be_side_item?: boolean | null
+  can_be_additional?: boolean | null
+  can_be_option_choice?: boolean | null
 }
+
+/** @deprecated Use AdditionalItemOption — alias semântico para o catálogo mestre. */
+export type CatalogItemOption = AdditionalItemOption
 
 function formatPickerLabel(item: AdditionalItemOption): string {
   const name = (item.item_name ?? item.label_pt ?? item.item_key ?? '—').trim()
@@ -20,17 +28,22 @@ function formatPickerLabel(item: AdditionalItemOption): string {
 }
 
 export default function AdditionalItemPicker({
+  catalogItems,
   additionalItems,
   value,
   onChange,
-  placeholder = 'Selecionar adicional…',
+  placeholder = 'Selecionar item do cadastro…',
 }: {
-  additionalItems: ReadonlyArray<AdditionalItemOption>
+  catalogItems?: ReadonlyArray<AdditionalItemOption>
+  /** @deprecated Use catalogItems */
+  additionalItems?: ReadonlyArray<AdditionalItemOption>
   value: string
-  onChange: (additionalItemId: string, item: AdditionalItemOption | null) => void
+  onChange: (catalogItemId: string, item: AdditionalItemOption | null) => void
   placeholder?: string
 }) {
-  const sorted = [...additionalItems].sort((a, b) => {
+  const items = catalogItems ?? additionalItems ?? []
+
+  const sorted = [...items].sort((a, b) => {
     const cat = (a.category_pt ?? '').localeCompare(b.category_pt ?? '', 'pt-BR')
     if (cat !== 0) return cat
     return (a.item_name ?? a.label_pt ?? '').localeCompare(

@@ -68,6 +68,7 @@ export default function PackagesDashboard({
   packageSideItems = [],
   packageOptionGroups = [],
   packageOptionGroupItems = [],
+  itemCatalog,
   additionalItems = [],
 }: {
   initialPackages: PackageListItem[]
@@ -75,8 +76,11 @@ export default function PackagesDashboard({
   packageSideItems?: PackageSideItem[]
   packageOptionGroups?: PackageOptionGroupRecord[]
   packageOptionGroupItems?: PackageOptionGroupItem[]
+  itemCatalog?: AdditionalItemOption[]
+  /** @deprecated Use itemCatalog */
   additionalItems?: AdditionalItemOption[]
 }) {
+  const catalogItems = itemCatalog ?? additionalItems
   const router = useRouter()
   const [packages, setPackages] = useState<PackageListItem[]>(initialPackages)
   const [search, setSearch] = useState('')
@@ -339,7 +343,7 @@ export default function PackagesDashboard({
                 <PackageConfigEditor
                   key={`${editingPackage.id}-${configVersion}`}
                   packageId={editingPackage.id}
-                  additionalItems={additionalItems}
+                  itemCatalog={catalogItems}
                   onChanged={() => {
                     setConfigVersion((v) => v + 1)
                     router.refresh()

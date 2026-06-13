@@ -1,9 +1,10 @@
 import { getCdlCompanyId } from './cdlCompany'
 import {
-  buildAdditionalItemsListSelect,
-  type AdditionalItemsTableColumn,
-} from './additionalItemsTableSchema'
-import type { AdditionalItemListItem } from './fetchAdditionalItems'
+  buildCatalogItemsListSelect,
+  CATALOG_ITEMS_TABLE,
+  type CatalogItemsTableColumn,
+} from './catalogItemsTableSchema'
+import type { CatalogItemListItem } from './fetchCatalogItems'
 import { getSupabaseServerClient } from './supabaseServer'
 
 export const ADDITIONAL_ITEM_IMAGES_BUCKET = 'additional-item-images'
@@ -21,11 +22,14 @@ export type AdditionalItemImageRow = {
   company_id?: string | null
 }
 
-export type UploadAdditionalItemImageResult = {
+export type UploadCatalogItemImageResult = {
   publicUrl: string | null
-  item: AdditionalItemListItem | null
+  item: CatalogItemListItem | null
   error: string | null
 }
+
+/** @deprecated Use UploadCatalogItemImageResult */
+export type UploadAdditionalItemImageResult = UploadCatalogItemImageResult
 
 export function isAllowedAdditionalItemImageType(type: string) {
   return ALLOWED_TYPES.has(type.toLowerCase())
@@ -61,13 +65,13 @@ export async function uploadAdditionalItemImage(
 
   const normalizedId = itemId?.trim()
   if (!normalizedId) {
-    return { publicUrl: null, item: null, error: 'ID do item adicional é obrigatório.' }
+    return { publicUrl: null, item: null, error: 'ID do item do catálogo é obrigatório.' }
   }
 
   const supabase = getSupabaseServerClient()
 
   const { data: row, error: fetchError } = await supabase
-    .from('additional_items')
+    .from(CATALOG_ITEMS_TABLE)
     .select('id, item_key, company_id')
     .eq('id', normalizedId)
     .maybeSingle()
@@ -76,7 +80,7 @@ export async function uploadAdditionalItemImage(
     return {
       publicUrl: null,
       item: null,
-      error: `Falha ao buscar item adicional: ${fetchError.message}`,
+      error: `Falha ao buscar item do catálogo: ${fetchError.message}`,
     }
   }
 
@@ -84,7 +88,7 @@ export async function uploadAdditionalItemImage(
     return {
       publicUrl: null,
       item: null,
-      error: 'Item adicional não encontrado.',
+      error: 'Item do catálogo não encontrado.',
     }
   }
 
@@ -139,7 +143,7 @@ export async function uploadAdditionalItemImage(
 
   const now = new Date().toISOString()
   const updatePayload: Partial<
-    Record<AdditionalItemsTableColumn, string | null>
+    Record<CatalogItemsTableColumn, string | null>
   > = {
     image_url: publicUrl,
     image_status: 'uploaded',
@@ -148,14 +152,14 @@ export async function uploadAdditionalItemImage(
   }
 
   const { data: updated, error: updateError } = await supabase
-    .from('additional_items')
+    .from(CATALOG_ITEMS_TABLE)
     .update(updatePayload)
     .eq('id', normalizedId)
-    .select(buildAdditionalItemsListSelect())
+    .select(buildCatalogItemsListSelect())
     .single()
 
   if (updateError) {
-    const message = updateError.message ?? 'Falha ao atualizar additional_items.'
+    const message = updateError.message ?? 'Falha ao atualizar catalog_items.'
     if (/column|schema|image_status|image_notes/i.test(message)) {
       return {
         publicUrl: null,
@@ -175,7 +179,7 @@ export async function uploadAdditionalItemImage(
 
   return {
     publicUrl,
-    item: (updated as unknown as AdditionalItemListItem | null) ?? null,
+    item: (updated as unknown as CatalogItemListItem | null) ?? null,
     error: null,
   }
 }

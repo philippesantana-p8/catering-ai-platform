@@ -44,7 +44,7 @@ export function buildQuoteFinancialLines(input: {
 
   if ((input.additionalTotal ?? 0) > 0) {
     lines.push({
-      label: 'Itens adicionais',
+      label: 'Extras na cotação',
       value: formatMoneyOrDash(input.additionalTotal),
     })
   }

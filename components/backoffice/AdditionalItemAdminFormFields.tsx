@@ -7,9 +7,9 @@ import {
 } from '@/components/backoffice/BackofficeCardPrimitives'
 import { BackofficeFormSectionTitle } from '@/components/backoffice/BackofficeSectionPrimitives'
 import { ADDITIONAL_ITEM_CATEGORY_ORDER } from '@/Lib/additionalItemCatalogAdmin'
-import type { AdditionalItemsInsertPayload } from '@/Lib/additionalItemsTableSchema'
+import type { CatalogItemsInsertPayload } from '@/Lib/catalogItemsTableSchema'
 
-export const EMPTY_ADDITIONAL_ITEM_ROW: AdditionalItemsInsertPayload = {
+export const EMPTY_CATALOG_ITEM_ROW: CatalogItemsInsertPayload = {
   item_key: '',
   item_name: '',
   label_pt: '',
@@ -33,11 +33,24 @@ export const EMPTY_ADDITIONAL_ITEM_ROW: AdditionalItemsInsertPayload = {
   quantity_2: 0,
   uom_2: '',
   active: true,
+  customer_visible: true,
+  item_type: 'PRODUCT',
+  operational_item: false,
+  can_be_package_item: true,
+  can_be_side_item: false,
+  can_be_additional: true,
+  can_be_option_choice: true,
+  inventory_enabled: false,
+  cost_price: 0,
+  sale_price: 0,
 }
 
-export function additionalItemDraftFromListItem(
+/** @deprecated Use EMPTY_CATALOG_ITEM_ROW */
+export const EMPTY_ADDITIONAL_ITEM_ROW = EMPTY_CATALOG_ITEM_ROW
+
+export function catalogItemDraftFromListItem(
   item: Record<string, unknown>,
-): AdditionalItemsInsertPayload {
+): CatalogItemsInsertPayload {
   return {
     item_key: String(item.item_key ?? ''),
     item_name: String(item.item_name ?? ''),
@@ -62,15 +75,28 @@ export function additionalItemDraftFromListItem(
     quantity_2: Number(item.quantity_2 ?? 0),
     uom_2: String(item.uom_2 ?? ''),
     active: item.active !== false,
+    customer_visible: item.customer_visible !== false,
+    item_type: String(item.item_type ?? 'PRODUCT'),
+    operational_item: item.operational_item === true,
+    can_be_package_item: item.can_be_package_item !== false,
+    can_be_side_item: item.can_be_side_item === true,
+    can_be_additional: item.can_be_additional !== false,
+    can_be_option_choice: item.can_be_option_choice !== false,
+    inventory_enabled: item.inventory_enabled === true,
+    cost_price: Number(item.cost_price ?? 0),
+    sale_price: Number(item.sale_price ?? item.price ?? 0),
   }
 }
+
+/** @deprecated Use catalogItemDraftFromListItem */
+export const additionalItemDraftFromListItem = catalogItemDraftFromListItem
 
 export function AdditionalItemAdminFormFields({
   draft,
   setDraft,
 }: {
-  draft: AdditionalItemsInsertPayload
-  setDraft: React.Dispatch<React.SetStateAction<AdditionalItemsInsertPayload>>
+  draft: CatalogItemsInsertPayload
+  setDraft: React.Dispatch<React.SetStateAction<CatalogItemsInsertPayload>>
 }) {
   return (
     <>
@@ -136,11 +162,24 @@ export function AdditionalItemAdminFormFields({
           onChange={(v) => setDraft((c) => ({ ...c, category_es: v }))}
         />
       </BackofficeField>
-      <BackofficeField label="Preço">
+      <BackofficeField label="Preço de venda">
         <BackofficeInput
           type="number"
-          value={draft.price ?? 0}
-          onChange={(v) => setDraft((c) => ({ ...c, price: Number(v) }))}
+          value={draft.sale_price ?? draft.price ?? 0}
+          onChange={(v) =>
+            setDraft((c) => ({
+              ...c,
+              sale_price: Number(v),
+              price: Number(v),
+            }))
+          }
+        />
+      </BackofficeField>
+      <BackofficeField label="Custo (futuro)">
+        <BackofficeInput
+          type="number"
+          value={draft.cost_price ?? 0}
+          onChange={(v) => setDraft((c) => ({ ...c, cost_price: Number(v) }))}
         />
       </BackofficeField>
       <BackofficeField label="Tipo de cobrança">
@@ -178,6 +217,96 @@ export function AdditionalItemAdminFormFields({
             setDraft((c) => ({ ...c, display_order: Number(v) }))
           }
         />
+      </BackofficeField>
+      <BackofficeFormSectionTitle>Uso no sistema</BackofficeFormSectionTitle>
+      <BackofficeField label="Tipo do item">
+        <BackofficeSelect
+          value={String(draft.item_type ?? 'PRODUCT')}
+          onChange={(v) => setDraft((c) => ({ ...c, item_type: v }))}
+        >
+          <option value="PRODUCT">Produto</option>
+          <option value="PACKAGE_ITEM">Item de pacote</option>
+          <option value="SIDE">Guarnição</option>
+          <option value="EQUIPMENT">Equipamento</option>
+          <option value="SUPPLY">Insumo</option>
+        </BackofficeSelect>
+      </BackofficeField>
+      <BackofficeField label="Visível para cliente">
+        <BackofficeSelect
+          value={draft.customer_visible === false ? 'false' : 'true'}
+          onChange={(v) =>
+            setDraft((c) => ({ ...c, customer_visible: v === 'true' }))
+          }
+        >
+          <option value="true">Sim</option>
+          <option value="false">Não (interno)</option>
+        </BackofficeSelect>
+      </BackofficeField>
+      <BackofficeField label="Item operacional">
+        <BackofficeSelect
+          value={draft.operational_item === true ? 'true' : 'false'}
+          onChange={(v) =>
+            setDraft((c) => ({ ...c, operational_item: v === 'true' }))
+          }
+        >
+          <option value="false">Não</option>
+          <option value="true">Sim</option>
+        </BackofficeSelect>
+      </BackofficeField>
+      <BackofficeField label="Pode ir em pacote (item fixo)">
+        <BackofficeSelect
+          value={draft.can_be_package_item === false ? 'false' : 'true'}
+          onChange={(v) =>
+            setDraft((c) => ({ ...c, can_be_package_item: v === 'true' }))
+          }
+        >
+          <option value="true">Sim</option>
+          <option value="false">Não</option>
+        </BackofficeSelect>
+      </BackofficeField>
+      <BackofficeField label="Pode ser guarnição">
+        <BackofficeSelect
+          value={draft.can_be_side_item === true ? 'true' : 'false'}
+          onChange={(v) =>
+            setDraft((c) => ({ ...c, can_be_side_item: v === 'true' }))
+          }
+        >
+          <option value="true">Sim</option>
+          <option value="false">Não</option>
+        </BackofficeSelect>
+      </BackofficeField>
+      <BackofficeField label="Pode ser adicional na cotação">
+        <BackofficeSelect
+          value={draft.can_be_additional === false ? 'false' : 'true'}
+          onChange={(v) =>
+            setDraft((c) => ({ ...c, can_be_additional: v === 'true' }))
+          }
+        >
+          <option value="true">Sim</option>
+          <option value="false">Não</option>
+        </BackofficeSelect>
+      </BackofficeField>
+      <BackofficeField label="Pode ser escolha inclusa">
+        <BackofficeSelect
+          value={draft.can_be_option_choice === false ? 'false' : 'true'}
+          onChange={(v) =>
+            setDraft((c) => ({ ...c, can_be_option_choice: v === 'true' }))
+          }
+        >
+          <option value="true">Sim</option>
+          <option value="false">Não</option>
+        </BackofficeSelect>
+      </BackofficeField>
+      <BackofficeField label="Controla estoque (futuro)">
+        <BackofficeSelect
+          value={draft.inventory_enabled === true ? 'true' : 'false'}
+          onChange={(v) =>
+            setDraft((c) => ({ ...c, inventory_enabled: v === 'true' }))
+          }
+        >
+          <option value="false">Não</option>
+          <option value="true">Sim</option>
+        </BackofficeSelect>
       </BackofficeField>
       <BackofficeField label="Status">
         <BackofficeSelect

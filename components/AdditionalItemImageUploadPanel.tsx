@@ -1,11 +1,11 @@
 'use client'
 
 import CatalogImageFrame from '@/components/CatalogImageFrame'
-import type { AdditionalItemListItem } from '@/Lib/fetchAdditionalItems'
+import type { CatalogItemListItem } from '@/Lib/fetchCatalogItems'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 
-function getItemLabel(item: AdditionalItemListItem) {
+function getItemLabel(item: CatalogItemListItem) {
   return (
     item.label_pt?.trim() ||
     item.item_name?.trim() ||
@@ -17,7 +17,7 @@ function getItemLabel(item: AdditionalItemListItem) {
 export default function AdditionalItemImageUploadPanel({
   items,
 }: {
-  items: AdditionalItemListItem[]
+  items: CatalogItemListItem[]
 }) {
   const router = useRouter()
   const [selectedId, setSelectedId] = useState(items[0]?.id ?? '')
@@ -48,7 +48,7 @@ export default function AdditionalItemImageUploadPanel({
       const result = (await response.json()) as {
         success?: boolean
         image_url?: string
-        item?: AdditionalItemListItem
+        item?: CatalogItemListItem
         error?: string
       }
 
@@ -127,7 +127,7 @@ export default function AdditionalItemImageUploadPanel({
 
       <p className="text-xs text-cdl-muted">
         Bucket Supabase: <code>additional-item-images</code> · salva em{' '}
-        <code>additional_items.image_url</code>
+        <code>catalog_items.image_url</code>
       </p>
 
       {uploading ? (

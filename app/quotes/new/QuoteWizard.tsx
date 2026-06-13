@@ -37,6 +37,7 @@ import {
   getCustomerDisplayName,
 } from '../../../Lib/getCustomerDisplayName'
 import { getAdditionalItemPrice } from '../../../Lib/getAdditionalItemPrice'
+import { filterCatalogItems } from '../../../Lib/itemCatalog'
 import { isUsablePhone, normalizePhone } from '../../../Lib/normalizePhone'
 import {
   dedupeCustomersList,
@@ -143,6 +144,9 @@ export type AdditionalItem = {
   image_url?: string | null
   active?: boolean | null
 }
+
+/** Item do catálogo mestre (`catalog_items`). */
+export type CatalogItem = AdditionalItem
 
 const STEPS = [
   'Cliente',
@@ -1351,6 +1355,7 @@ export { getStepVisualStatus } from './wizardStepStatus'
 export default function QuoteWizard({
   customers,
   packages,
+  catalogItems,
   additionalItems,
   packageOptionGroups = [],
   packageOptionGroupItems = [],
@@ -1369,7 +1374,9 @@ export default function QuoteWizard({
 }: {
   customers: Customer[]
   packages: Package[]
-  additionalItems: AdditionalItem[]
+  catalogItems?: CatalogItem[]
+  /** @deprecated Use catalogItems */
+  additionalItems?: AdditionalItem[]
   packageOptionGroups?: PackageOptionGroupRecord[]
   packageOptionGroupItems?: PackageOptionGroupItem[]
   packageOptionQueryDebug?: PackageOptionQueryDebug | null
@@ -1385,6 +1392,7 @@ export default function QuoteWizard({
   linkedCustomer?: Customer | null
   initialStep?: number
 }) {
+  const itemCatalog = catalogItems ?? additionalItems ?? []
   const isEditMode = mode === 'edit' && Boolean(quoteId)
   const { branchId: tenantBranchId, companyId: tenantCompanyId } = useTenant()
   const [step, setStep] = useState(() =>
@@ -1701,10 +1709,10 @@ export default function QuoteWizard({
 
   const visibleAdditionalItems = useMemo(
     () =>
-      additionalItems.filter(
+      filterCatalogItems(itemCatalog, 'additional', 'customer').filter(
         (item) => !blockedAdditionalItemIds.includes(item.id),
       ),
-    [additionalItems, blockedAdditionalItemIds],
+    [itemCatalog, blockedAdditionalItemIds],
   )
 
   const additionalItemsByCategory = useMemo(() => {
@@ -1783,7 +1791,7 @@ export default function QuoteWizard({
     const additionals = Object.entries(state.additionals)
       .filter(([, quantity]) => quantity > 0)
       .map(([itemId, quantity]) => {
-        const item = additionalItems.find((row) => row.id === itemId)
+        const item = itemCatalog.find((row) => row.id === itemId)
         if (!item) return null
         const normalizedQty = normalizeAdditionalQuantity(item, quantity)
         return {
@@ -1817,7 +1825,7 @@ export default function QuoteWizard({
     state.reservationPercentage,
     state.reservationAmount,
     selectedPackage,
-    additionalItems,
+    itemCatalog,
     reservationAmountCustomized,
     commercialRules,
   ])
@@ -2090,7 +2098,7 @@ export default function QuoteWizard({
   }, [step])
 
   function setAdditionalQty(itemId: string, quantity: number) {
-    const item = additionalItems.find((row) => row.id === itemId)
+    const item = itemCatalog.find((row) => row.id === itemId)
     const normalizedQty = item
       ? normalizeAdditionalQuantity(item, quantity)
       : Math.max(0, quantity)

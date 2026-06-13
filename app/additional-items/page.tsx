@@ -1,11 +1,14 @@
 import AdditionalItemsDashboard from '@/components/AdditionalItemsDashboard'
-import { fetchAdditionalItems } from '@/Lib/fetchAdditionalItems'
+import { fetchCatalogItems } from '@/Lib/fetchCatalogItems'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 export default async function AdditionalItemsPage() {
-  const { data, error } = await fetchAdditionalItems({ includeInactive: false })
+  const { data, error } = await fetchCatalogItems({
+    includeInactive: false,
+    audience: 'admin',
+  })
 
   if (error) {
     return (

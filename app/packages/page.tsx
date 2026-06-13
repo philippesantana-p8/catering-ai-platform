@@ -1,5 +1,5 @@
 import PackagesDashboard from '@/components/PackagesDashboard'
-import { fetchAdditionalItems } from '@/Lib/fetchAdditionalItems'
+import { fetchCatalogItems } from '@/Lib/fetchCatalogItems'
 import { fetchPackages } from '@/Lib/fetchPackages'
 import { loadPackageConfiguration } from '@/Lib/packageConfiguration'
 
@@ -9,7 +9,7 @@ export const revalidate = 0
 export default async function PackagesPage() {
   const [packagesRes, additionalRes] = await Promise.all([
     fetchPackages({ includeInactive: false }),
-    fetchAdditionalItems({ activeOnly: true }),
+    fetchCatalogItems({ activeOnly: true, audience: 'admin' }),
   ])
 
   const { data, error } = packagesRes
@@ -43,7 +43,7 @@ export default async function PackagesPage() {
       packageSideItems={packageConfiguration.packageSideItems}
       packageOptionGroups={packageConfiguration.optionGroups}
       packageOptionGroupItems={packageConfiguration.optionGroupItems}
-      additionalItems={additionalRes.data ?? []}
+      itemCatalog={additionalRes.data ?? []}
     />
   )
 }

@@ -1,10 +1,11 @@
 import { getCdlCompanyId } from '@/Lib/cdlCompany'
-import { fetchAdditionalItems } from '@/Lib/fetchAdditionalItems'
-import { getAdditionalItemPrice } from '@/Lib/getAdditionalItemPrice'
+import { fetchCatalogItems } from '@/Lib/fetchCatalogItems'
+import { getCatalogItemSalePrice } from '@/Lib/getAdditionalItemPrice'
 import {
-  pickAdditionalItemsInsertPayload,
-  type AdditionalItemsInsertPayload,
-} from '@/Lib/additionalItemsTableSchema'
+  CATALOG_ITEMS_TABLE,
+  pickCatalogItemsInsertPayload,
+  type CatalogItemsInsertPayload,
+} from '@/Lib/catalogItemsTableSchema'
 import { supabase } from '@/Lib/supabase'
 
 export const dynamic = 'force-dynamic'
@@ -37,14 +38,35 @@ export async function GET(request: Request) {
   const activeFilter = url.searchParams.get('active')
   const category = url.searchParams.get('category')?.trim() ?? ''
 
-  const { data, error } = await fetchAdditionalItems({
+  const usageParam = url.searchParams.get('usage')?.trim() as
+    | 'package_item'
+    | 'side_item'
+    | 'additional'
+    | 'option_choice'
+    | 'inventory'
+    | ''
+    | undefined
+  const audienceParam = url.searchParams.get('audience')?.trim()
+  const audience =
+    audienceParam === 'customer' ? ('customer' as const) : ('admin' as const)
+
+  const { data, error } = await fetchCatalogItems({
     includeInactive: activeFilter === 'all',
     activeOnly: activeFilter === 'true',
+    audience,
+    usage:
+      usageParam === 'package_item' ||
+      usageParam === 'side_item' ||
+      usageParam === 'additional' ||
+      usageParam === 'option_choice' ||
+      usageParam === 'inventory'
+        ? usageParam
+        : undefined,
   })
 
   if (error || !data) {
     return Response.json(
-      { error: error?.message ?? 'Não foi possível buscar itens adicionais.' },
+      { error: error?.message ?? 'Não foi possível buscar o catálogo de itens.' },
       { status: 500, headers: { 'Cache-Control': 'no-store' } },
     )
   }
@@ -71,9 +93,9 @@ export async function POST(request: Request) {
     return Response.json({ error: 'company_id não configurado.' }, { status: 500 })
   }
 
-  let body: AdditionalItemsInsertPayload
+  let body: CatalogItemsInsertPayload
   try {
-    body = (await request.json()) as AdditionalItemsInsertPayload
+    body = (await request.json()) as CatalogItemsInsertPayload
   } catch {
     return Response.json({ error: 'Payload inválido.' }, { status: 400 })
   }
@@ -86,19 +108,29 @@ export async function POST(request: Request) {
   }
 
   const now = new Date().toISOString()
-  const price = getAdditionalItemPrice(body)
+  const salePrice = getCatalogItemSalePrice(body)
   const payload = {
-    ...pickAdditionalItemsInsertPayload(body),
+    ...pickCatalogItemsInsertPayload(body),
     company_id: companyId,
-    price,
+    price: salePrice,
+    sale_price: salePrice,
     active: body.active !== false,
     display_order: Number(body.display_order) || 0,
+    customer_visible: body.customer_visible !== false,
+    item_type: String(body.item_type ?? 'PRODUCT').trim() || 'PRODUCT',
+    operational_item: body.operational_item === true,
+    can_be_package_item: body.can_be_package_item !== false,
+    can_be_side_item: body.can_be_side_item === true,
+    can_be_additional: body.can_be_additional !== false,
+    can_be_option_choice: body.can_be_option_choice !== false,
+    inventory_enabled: body.inventory_enabled === true,
+    cost_price: Number(body.cost_price) || 0,
     created_at: now,
     updated_at: now,
   }
 
   const { data, error } = await supabase
-    .from('additional_items')
+    .from(CATALOG_ITEMS_TABLE)
     .insert(payload)
     .select('id')
     .single()

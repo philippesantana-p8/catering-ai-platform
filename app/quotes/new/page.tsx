@@ -1,11 +1,11 @@
-import { buildAdditionalItemsListSelect } from '../../../Lib/additionalItemsTableSchema'
 import { getCdlCompanyId } from '../../../Lib/cdlCompany'
 import { fetchActiveCustomers } from '../../../Lib/fetchCustomers'
+import { fetchCatalogItems } from '../../../Lib/fetchCatalogItems'
 import { loadPackageConfiguration } from '../../../Lib/packageConfiguration'
 import { buildPackagesListSelect } from '../../../Lib/packagesTableSchema'
 import { fetchSupabaseCommercialRules } from '../../../Lib/supabaseCommercialRules'
 import QuoteWizard, {
-  type AdditionalItem,
+  type CatalogItem,
   type Customer,
   type Package,
 } from './QuoteWizard'
@@ -29,22 +29,15 @@ export default async function NewQuotePage() {
     packagesQuery = packagesQuery.eq('company_id', companyId)
   }
 
-  let additionalQuery = supabase
-    .from('additional_items')
-    .select(buildAdditionalItemsListSelect())
-    .eq('active', true)
-    .order('category_pt', { ascending: true })
-    .order('display_order', { ascending: true })
-
-  if (companyId?.trim()) {
-    additionalQuery = additionalQuery.eq('company_id', companyId)
-  }
-
-  const [customersRes, packagesRes, additionalRes, commercialRules] =
+  const [customersRes, packagesRes, catalogRes, commercialRules] =
     await Promise.all([
       fetchActiveCustomers(),
       packagesQuery,
-      additionalQuery,
+      fetchCatalogItems({
+        activeOnly: true,
+        usage: 'additional',
+        audience: 'customer',
+      }),
       fetchSupabaseCommercialRules(),
     ])
 
@@ -59,8 +52,8 @@ export default async function NewQuotePage() {
   if (packagesRes.error) {
     fetchErrors.push(`Pacotes: ${packagesRes.error.message}`)
   }
-  if (additionalRes.error) {
-    fetchErrors.push(`Adicionais: ${additionalRes.error.message}`)
+  if (catalogRes.error) {
+    fetchErrors.push(`Catálogo de itens: ${catalogRes.error.message}`)
   }
   if (packageConfigurationRes.error) {
     fetchErrors.push(
@@ -87,13 +80,13 @@ export default async function NewQuotePage() {
   }
 
   const customers = (customersRes.data ?? []) as Customer[]
-  const additionalItems = (additionalRes.data ?? []) as unknown as AdditionalItem[]
+  const catalogItems = (catalogRes.data ?? []) as unknown as CatalogItem[]
 
   return (
     <QuoteWizard
       customers={customers}
       packages={packages}
-      additionalItems={additionalItems}
+      catalogItems={catalogItems}
       packageOptionGroups={packageConfiguration.optionGroups}
       packageOptionGroupItems={packageConfiguration.optionGroupItems}
       packageOptionQueryDebug={packageConfigurationRes.optionQueryDebug ?? null}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   BackofficeBtnDanger,
   BackofficeBtnOutline,
@@ -13,6 +13,7 @@ import AdditionalItemPicker, {
   type AdditionalItemOption,
 } from '@/components/packages/AdditionalItemPicker'
 import { slugFromItemName } from '@/Lib/packageConfigKeys'
+import { filterCatalogItems } from '@/Lib/itemCatalog'
 import type { PackageItem, PackageSideItem } from '@/Lib/packageConfiguration'
 import type { PackageOptionGroup, PackageOptionGroupItem } from '@/Lib/packageOptionGroups'
 
@@ -47,13 +48,25 @@ function applyAdditionalDefaults(
 
 export default function PackageConfigEditor({
   packageId,
-  additionalItems,
+  itemCatalog,
   onChanged,
 }: {
   packageId: string
-  additionalItems: AdditionalItemOption[]
+  itemCatalog: AdditionalItemOption[]
   onChanged?: () => void
 }) {
+  const packageItemCatalog = useMemo(
+    () => filterCatalogItems(itemCatalog, 'package_item', 'customer'),
+    [itemCatalog],
+  )
+  const sideItemCatalog = useMemo(
+    () => filterCatalogItems(itemCatalog, 'side_item', 'customer'),
+    [itemCatalog],
+  )
+  const optionChoiceCatalog = useMemo(
+    () => filterCatalogItems(itemCatalog, 'option_choice', 'customer'),
+    [itemCatalog],
+  )
   const [items, setItems] = useState<PackageItem[]>([])
   const [sides, setSides] = useState<PackageSideItem[]>([])
   const [groups, setGroups] = useState<PackageOptionGroup[]>([])
@@ -213,7 +226,8 @@ export default function PackageConfigEditor({
       <InventorySection
         title="Itens fixos do pacote"
         rows={items}
-        additionalItems={additionalItems}
+        catalogItems={packageItemCatalog}
+        pickerPlaceholder="Selecionar item do cadastro…"
         savingId={savingId}
         onSave={(id, payload) => void saveRow('item', id, payload)}
         onDelete={(id) => void deleteRow('item', id)}
@@ -233,7 +247,8 @@ export default function PackageConfigEditor({
       <InventorySection
         title="Guarnições"
         rows={sides}
-        additionalItems={additionalItems}
+        catalogItems={sideItemCatalog}
+        pickerPlaceholder="Selecionar guarnição do cadastro…"
         savingId={savingId}
         onSave={(id, payload) => void saveRow('side', id, payload)}
         onDelete={(id) => void deleteRow('side', id)}
@@ -252,7 +267,7 @@ export default function PackageConfigEditor({
 
       <OptionGroupsSection
         groups={groups}
-        additionalItems={additionalItems}
+        catalogItems={optionChoiceCatalog}
         savingId={savingId}
         onSaveGroup={(id, payload) => void saveRow('group', id, payload)}
         onDeleteGroup={(id) => void deleteRow('group', id)}
@@ -296,7 +311,8 @@ export default function PackageConfigEditor({
 function InventorySection({
   title,
   rows,
-  additionalItems,
+  catalogItems,
+  pickerPlaceholder,
   savingId,
   onSave,
   onDelete,
@@ -304,7 +320,8 @@ function InventorySection({
 }: {
   title: string
   rows: Array<PackageItem | PackageSideItem>
-  additionalItems: AdditionalItemOption[]
+  catalogItems: AdditionalItemOption[]
+  pickerPlaceholder?: string
   savingId: string | null
   onSave: (id: string, payload: Record<string, unknown>) => void
   onDelete: (id: string) => void
@@ -320,7 +337,8 @@ function InventorySection({
           <InventoryRowEditor
             key={row.id}
             row={row}
-            additionalItems={additionalItems}
+            catalogItems={catalogItems}
+            pickerPlaceholder={pickerPlaceholder}
             saving={savingId === row.id}
             onSave={(payload) => onSave(row.id, payload)}
             onDelete={() => onDelete(row.id)}
@@ -334,13 +352,15 @@ function InventorySection({
 
 function InventoryRowEditor({
   row,
-  additionalItems,
+  catalogItems,
+  pickerPlaceholder,
   saving,
   onSave,
   onDelete,
 }: {
   row: PackageItem | PackageSideItem
-  additionalItems: AdditionalItemOption[]
+  catalogItems: AdditionalItemOption[]
+  pickerPlaceholder?: string
   saving: boolean
   onSave: (payload: Record<string, unknown>) => void
   onDelete: () => void
@@ -353,9 +373,10 @@ function InventoryRowEditor({
 
   return (
     <div className="grid gap-3 rounded-xl border border-neutral-200 bg-neutral-50/80 p-4 sm:grid-cols-2 lg:grid-cols-3">
-      <BackofficeField label="Adicional vinculado" className="sm:col-span-2 lg:col-span-3">
+      <BackofficeField label="Item do cadastro" className="sm:col-span-2 lg:col-span-3">
         <AdditionalItemPicker
-          additionalItems={additionalItems}
+          catalogItems={catalogItems}
+          placeholder={pickerPlaceholder}
           value={String(draft.additional_item_id ?? '')}
           onChange={(id, item) => {
             const next = applyAdditionalDefaults(item, draft)
@@ -438,7 +459,7 @@ function InventoryRowEditor({
 
 function OptionGroupsSection({
   groups,
-  additionalItems,
+  catalogItems,
   savingId,
   onSaveGroup,
   onDeleteGroup,
@@ -448,7 +469,7 @@ function OptionGroupsSection({
   onAddOption,
 }: {
   groups: PackageOptionGroup[]
-  additionalItems: AdditionalItemOption[]
+  catalogItems: AdditionalItemOption[]
   savingId: string | null
   onSaveGroup: (id: string, payload: Record<string, unknown>) => void
   onDeleteGroup: (id: string) => void
@@ -471,7 +492,7 @@ function OptionGroupsSection({
           <OptionGroupEditor
             key={group.id}
             group={group}
-            additionalItems={additionalItems}
+            catalogItems={catalogItems}
             savingId={savingId}
             onSaveGroup={(payload) => onSaveGroup(group.id, payload)}
             onDeleteGroup={() => onDeleteGroup(group.id)}
@@ -490,7 +511,7 @@ function OptionGroupsSection({
 
 function OptionGroupEditor({
   group,
-  additionalItems,
+  catalogItems,
   savingId,
   onSaveGroup,
   onDeleteGroup,
@@ -499,7 +520,7 @@ function OptionGroupEditor({
   onAddOption,
 }: {
   group: PackageOptionGroup
-  additionalItems: AdditionalItemOption[]
+  catalogItems: AdditionalItemOption[]
   savingId: string | null
   onSaveGroup: (payload: Record<string, unknown>) => void
   onDeleteGroup: () => void
@@ -589,7 +610,7 @@ function OptionGroupEditor({
           <OptionItemEditor
             key={item.id}
             item={item}
-            additionalItems={additionalItems}
+            catalogItems={catalogItems}
             saving={savingId === item.id}
             onSave={(payload) => onSaveOption(item.id, payload)}
             onDelete={() => onDeleteOption(item.id)}
@@ -605,13 +626,13 @@ function OptionGroupEditor({
 
 function OptionItemEditor({
   item,
-  additionalItems,
+  catalogItems,
   saving,
   onSave,
   onDelete,
 }: {
   item: PackageOptionGroupItem
-  additionalItems: AdditionalItemOption[]
+  catalogItems: AdditionalItemOption[]
   saving: boolean
   onSave: (payload: Record<string, unknown>) => void
   onDelete: () => void
@@ -624,9 +645,10 @@ function OptionItemEditor({
 
   return (
     <div className="grid gap-3 rounded-lg border border-neutral-200 bg-white p-3 sm:grid-cols-2 lg:grid-cols-3">
-      <BackofficeField label="Adicional vinculado" className="sm:col-span-2 lg:col-span-3">
+      <BackofficeField label="Item do cadastro" className="sm:col-span-2 lg:col-span-3">
         <AdditionalItemPicker
-          additionalItems={additionalItems}
+          catalogItems={catalogItems}
+          placeholder="Selecionar escolha do cadastro…"
           value={String(draft.additional_item_id ?? '')}
           onChange={(id, additional) => {
             const name = (

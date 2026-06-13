@@ -1,8 +1,8 @@
-import { buildAdditionalItemsListSelect } from '@/Lib/additionalItemsTableSchema'
+import { fetchCatalogItems } from '@/Lib/fetchCatalogItems'
 import { buildCustomersListSelect } from '@/Lib/customersTableSchema'
 import { buildPackagesListSelect } from '@/Lib/packagesTableSchema'
 import type { QuoteAdditionalItem, QuoteDetail } from '@/app/quotes/[id]/quoteDetailTypes'
-import type { AdditionalItem, Customer, Package } from '@/app/quotes/new/QuoteWizard'
+import type { CatalogItem, Customer, Package } from '@/app/quotes/new/QuoteWizard'
 import { loadPackageConfiguration } from './packageConfiguration'
 import { fetchQuotePackageSelections } from './fetchPackageOptionGroups'
 import { fetchQuoteDetail } from './fetchQuoteDetail'
@@ -99,7 +99,7 @@ export type FetchQuoteForEditResult = {
   quote: QuoteDetail | null
   linkedCustomer: Customer | null
   packages: Package[]
-  additionalItems: AdditionalItem[]
+  catalogItems: CatalogItem[]
   packageOptionGroups: import('@/Lib/packageOptionGroups').PackageOptionGroupRecord[]
   packageOptionGroupItems: import('@/Lib/packageOptionGroups').PackageOptionGroupItem[]
   packageItems: import('@/Lib/packageConfiguration').PackageItem[]
@@ -124,7 +124,7 @@ export async function fetchQuoteForEdit(
       quote: null,
       linkedCustomer: null,
       packages: [],
-      additionalItems: [],
+      catalogItems: [],
       packageOptionGroups: [],
       packageOptionGroupItems: [],
       packageItems: [],
@@ -159,7 +159,7 @@ export async function fetchQuoteForEdit(
     quoteSelectionsRes,
     packageConfigurationRes,
     packagesRes,
-    additionalRes,
+    catalogRes,
   ] = await Promise.all([
     eventId
       ? supabase.from('events').select('*').eq('id', eventId).maybeSingle()
@@ -189,12 +189,11 @@ export async function fetchQuoteForEdit(
       .select(buildPackagesListSelect())
       .eq('active', true)
       .order('display_order', { ascending: true }),
-    supabase
-      .from('additional_items')
-      .select(buildAdditionalItemsListSelect())
-      .eq('active', true)
-      .order('category_pt', { ascending: true })
-      .order('display_order', { ascending: true }),
+    fetchCatalogItems({
+      activeOnly: true,
+      usage: 'additional',
+      audience: 'customer',
+    }),
   ])
 
   if (eventRes.error) fetchErrors.push(`Evento: ${eventRes.error.message}`)
@@ -223,8 +222,8 @@ export async function fetchQuoteForEdit(
     optionGroupItems: [],
   }
   if (packagesRes.error) fetchErrors.push(`Pacotes: ${packagesRes.error.message}`)
-  if (additionalRes.error) {
-    fetchErrors.push(`Catálogo de adicionais: ${additionalRes.error.message}`)
+  if (catalogRes.error) {
+    fetchErrors.push(`Catálogo de itens: ${catalogRes.error.message}`)
   }
 
   const mappedAdditionals = mapQuoteAdditionalRows(
@@ -271,7 +270,7 @@ export async function fetchQuoteForEdit(
     quote,
     linkedCustomer,
     packages,
-    additionalItems: (additionalRes.data ?? []) as unknown as AdditionalItem[],
+    catalogItems: (catalogRes.data ?? []) as unknown as CatalogItem[],
     packageOptionGroups: packageConfiguration.optionGroups,
     packageOptionGroupItems: packageConfiguration.optionGroupItems,
     packageItems: packageConfiguration.packageItems,

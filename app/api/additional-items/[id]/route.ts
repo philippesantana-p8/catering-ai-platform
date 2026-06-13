@@ -1,10 +1,11 @@
 import { getCdlCompanyId } from '@/Lib/cdlCompany'
 import { getAdditionalItemPrice } from '@/Lib/getAdditionalItemPrice'
 import {
-  buildAdditionalItemsListSelect,
-  pickAdditionalItemsUpdatePayload,
-  type AdditionalItemsInsertPayload,
-} from '@/Lib/additionalItemsTableSchema'
+  buildCatalogItemsListSelect,
+  CATALOG_ITEMS_TABLE,
+  pickCatalogItemsUpdatePayload,
+  type CatalogItemsInsertPayload,
+} from '@/Lib/catalogItemsTableSchema'
 import { supabase } from '@/Lib/supabase'
 
 export const dynamic = 'force-dynamic'
@@ -16,9 +17,9 @@ export async function PATCH(
 ) {
   const { id } = await context.params
 
-  let body: AdditionalItemsInsertPayload & { active?: boolean }
+  let body: CatalogItemsInsertPayload & { active?: boolean }
   try {
-    body = (await request.json()) as AdditionalItemsInsertPayload & {
+    body = (await request.json()) as CatalogItemsInsertPayload & {
       active?: boolean
     }
   } catch {
@@ -31,15 +32,20 @@ export async function PATCH(
   const updatePayload: Record<string, unknown> = isDeactivateOnly
     ? { active: false, updated_at: new Date().toISOString() }
     : {
-        ...pickAdditionalItemsUpdatePayload(body),
-        ...(body.price != null ? { price: getAdditionalItemPrice(body) } : {}),
+        ...pickCatalogItemsUpdatePayload(body),
+        ...(body.price != null || body.sale_price != null
+          ? {
+              price: getAdditionalItemPrice(body),
+              sale_price: getAdditionalItemPrice(body),
+            }
+          : {}),
         ...(body.active !== undefined ? { active: body.active } : {}),
         updated_at: new Date().toISOString(),
       }
 
   const companyId = getCdlCompanyId()
   let query = supabase
-    .from('additional_items')
+    .from(CATALOG_ITEMS_TABLE)
     .update(updatePayload)
     .eq('id', id)
 
@@ -67,8 +73,8 @@ export async function GET(
   const companyId = getCdlCompanyId()
 
   let query = supabase
-    .from('additional_items')
-    .select(buildAdditionalItemsListSelect())
+    .from(CATALOG_ITEMS_TABLE)
+    .select(buildCatalogItemsListSelect())
     .eq('id', id)
 
   if (companyId?.trim()) {

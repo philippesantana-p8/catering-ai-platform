@@ -1,6 +1,10 @@
-/** Campos de preço possíveis no catálogo `additional_items`. */
+import { getCatalogItemSalePrice } from '@/Lib/itemCatalog'
+
+/** Campos de preço possíveis no catálogo mestre (`catalog_items`). */
 export type AdditionalItemPriceSource = {
   price?: unknown
+  sale_price?: unknown
+  current_price?: unknown
 }
 
 function toNumber(value: unknown): number | null {
@@ -10,14 +14,13 @@ function toNumber(value: unknown): number | null {
 }
 
 /**
- * Preço do item adicional no catálogo.
- * Usa `price` como fonte principal; fallback 0.
+ * Preço de venda do item no catálogo.
+ * Usa `sale_price` com fallback em `price`.
  */
 export function getAdditionalItemPrice(
   item: AdditionalItemPriceSource | null | undefined,
 ): number {
-  if (!item) return 0
-  return toNumber(item.price) ?? 0
+  return getCatalogItemSalePrice(item)
 }
 
 /** @deprecated Use getAdditionalItemPrice */
@@ -26,3 +29,9 @@ export function getAdditionalItemUnitPrice(
 ): number {
   return getAdditionalItemPrice(item)
 }
+
+/** @deprecated Use getCatalogItemSalePrice from itemCatalog */
+export { getCatalogItemSalePrice } from '@/Lib/itemCatalog'
+
+/** Preço vigente com fallback catalog_items. */
+export { resolveCatalogItemSalePrice } from '@/Lib/catalogItemPrices'
