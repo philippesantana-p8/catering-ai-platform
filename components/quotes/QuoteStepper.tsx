@@ -3,7 +3,7 @@
 import type { StepVisualStatus } from '@/app/quotes/new/wizardStepStatus'
 
 function stepSegmentClass(status: StepVisualStatus, isCurrent: boolean) {
-  if (isCurrent) return 'bg-cdl-accent'
+  if (isCurrent) return 'bg-[var(--brand-primary)]'
   if (status === 'complete') return 'bg-emerald-500'
   if (status === 'error') return 'bg-red-500'
   return 'bg-cdl-border'
@@ -14,7 +14,7 @@ function stepButtonClass(status: StepVisualStatus, isCurrent: boolean) {
     return 'bg-red-50 text-red-800 ring-1 ring-red-200'
   }
   if (isCurrent) {
-    return 'bg-cdl-hover text-cdl-title ring-1 ring-cdl-accent-border'
+    return 'bg-[color-mix(in_srgb,var(--brand-primary)_8%,white)] text-[var(--brand-primary)] ring-1 ring-[color-mix(in_srgb,var(--brand-primary-2)_30%,transparent)]'
   }
   if (status === 'complete') {
     return 'bg-cdl-surface text-cdl-muted hover:bg-cdl-hover'
@@ -23,7 +23,7 @@ function stepButtonClass(status: StepVisualStatus, isCurrent: boolean) {
 }
 
 function stepBadgeClass(status: StepVisualStatus, isCurrent: boolean) {
-  if (isCurrent) return 'bg-cdl-accent text-cdl-on-accent'
+  if (isCurrent) return 'bg-[var(--brand-primary)] text-white'
   if (status === 'complete') return 'bg-emerald-500 text-white'
   if (status === 'error') return 'bg-red-500 text-white'
   return 'bg-cdl-inset text-cdl-muted'

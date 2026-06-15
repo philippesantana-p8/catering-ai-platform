@@ -7,6 +7,9 @@ import {
 import { isRequiredOptionGroup, type PackageOptionGroup } from '@/Lib/packageOptionGroups'
 import type { QuoteLanguage } from '@/Lib/quoteWizardTypes'
 
+const SELECTED_OPTION_CLASS =
+  'border-[var(--brand-primary-2)] bg-[color-mix(in_srgb,var(--brand-primary)_10%,white)] text-[var(--brand-primary)] ring-1 ring-[color-mix(in_srgb,var(--brand-primary-2)_35%,transparent)]'
+
 export default function PackageIncludedOptions({
   optionGroups,
   selections,
@@ -14,6 +17,7 @@ export default function PackageIncludedOptions({
   language = 'pt',
   mode = 'select',
   pendingGroupIds = [],
+  onlyGroupKeys,
 }: {
   optionGroups: ReadonlyArray<PackageOptionGroup>
   selections: Record<string, string>
@@ -21,8 +25,15 @@ export default function PackageIncludedOptions({
   language?: QuoteLanguage
   mode?: 'select' | 'summary'
   pendingGroupIds?: string[]
+  onlyGroupKeys?: ReadonlyArray<string>
 }) {
-  const activeGroups = sortOptionGroupsForQuote(optionGroups)
+  const allowedKeys = onlyGroupKeys?.map((key) => key.trim().toUpperCase()) ?? null
+
+  const activeGroups = sortOptionGroupsForQuote(optionGroups).filter((group) => {
+    if (!allowedKeys?.length) return true
+    const key = group.option_group_key?.trim().toUpperCase() ?? ''
+    return allowedKeys.includes(key)
+  })
 
   if (activeGroups.length === 0) return null
 
@@ -63,7 +74,9 @@ export default function PackageIncludedOptions({
           <div
             key={group.id}
             className={`rounded-xl border bg-white px-3 py-2.5 ${
-              isPending ? 'border-red-300 bg-red-50/40' : 'border-neutral-200'
+              isPending
+                ? 'border-[color-mix(in_srgb,var(--brand-primary-2)_35%,transparent)] bg-[color-mix(in_srgb,var(--brand-primary)_6%,white)]'
+                : 'border-neutral-200'
             }`}
           >
             <div className="mb-2 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
@@ -76,7 +89,7 @@ export default function PackageIncludedOptions({
             </div>
 
             {isPending ? (
-              <p className="mb-2 text-xs text-red-700">
+              <p className="mb-2 text-xs text-[var(--brand-primary)]">
                 Escolha uma opção para continuar.
               </p>
             ) : null}
@@ -101,7 +114,7 @@ export default function PackageIncludedOptions({
                       aria-pressed={active}
                       className={`min-h-[2.5rem] rounded-lg border px-2 py-2 text-center text-xs font-semibold leading-tight transition sm:text-sm ${
                         active
-                          ? 'border-amber-500 bg-amber-50 text-amber-950 ring-1 ring-amber-300'
+                          ? SELECTED_OPTION_CLASS
                           : 'border-neutral-200 bg-neutral-50 text-neutral-800 hover:border-neutral-300 hover:bg-white'
                       }`}
                     >

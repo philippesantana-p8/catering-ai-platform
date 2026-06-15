@@ -2394,7 +2394,7 @@ export default function QuoteWizard({
   }
 
   return (
-    <main className="min-h-screen bg-cdl-bg px-4 py-4 text-cdl-fg sm:px-8 sm:py-6">
+    <main className="quotes-pscs min-h-screen bg-cdl-bg px-4 py-4 text-cdl-fg sm:px-8 sm:py-6">
       <div className="mx-auto max-w-6xl">
         <div className="mb-3 flex flex-col gap-2">
           <AdminCompactMenu />
@@ -2741,6 +2741,16 @@ export default function QuoteWizard({
               onSelectionChange={handlePackageSelectionChange}
               pendingSelectionGroupIds={pendingSelectionGroupIds}
               onSelect={handlePackageSelect}
+              onNext={goNext}
+              nextDisabled={packageStepNextDisabled}
+              onNextBlockedClick={() => {
+                if (!state.packageId) {
+                  setPackageStepMessage('Selecione um pacote para continuar.')
+                  return
+                }
+                setPackageSelectionAttempted(true)
+              }}
+              stepMessage={packageStepMessage}
             />
 
             {process.env.NODE_ENV !== 'production' ? (
@@ -3043,8 +3053,8 @@ export default function QuoteWizard({
 
         {step !== 7 && (
         <div className="mt-8 space-y-3">
-          {step === 2 && packageStepMessage ? (
-            <p className="text-center text-sm font-medium text-red-600 sm:text-right">
+          {step === 2 && !state.packageId && packageStepMessage ? (
+            <p className="text-center text-sm font-medium text-[var(--brand-primary)] sm:text-right">
               {packageStepMessage}
             </p>
           ) : null}
@@ -3057,6 +3067,7 @@ export default function QuoteWizard({
             >
               Voltar
             </button>
+            {step === 2 && state.packageId ? null : (
             <span className="relative inline-flex w-full sm:w-auto">
               {step === 2 && packageStepNextDisabled ? (
                 <button
@@ -3086,6 +3097,7 @@ export default function QuoteWizard({
                 Próximo
               </button>
             </span>
+            )}
           </div>
         </div>
         )}

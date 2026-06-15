@@ -64,6 +64,10 @@ function PackageListWithInlineDetails({
   onSelectionChange,
   pendingSelectionGroupIds,
   onSelect,
+  onNext,
+  nextDisabled,
+  onNextBlockedClick,
+  stepMessage,
 }: {
   packages: PackageRow[]
   selectedPackageId: string | null
@@ -78,6 +82,10 @@ function PackageListWithInlineDetails({
   onSelectionChange: (groupId: string, itemId: string) => void
   pendingSelectionGroupIds: string[]
   onSelect: (id: string) => void
+  onNext?: () => void
+  nextDisabled?: boolean
+  onNextBlockedClick?: () => void
+  stepMessage?: string | null
 }) {
   return (
     <div className="space-y-3">
@@ -91,6 +99,7 @@ function PackageListWithInlineDetails({
               pkg={pkg}
               active={isSelected}
               hideTechnical
+              selectionTone="brand"
               onClick={() => onSelect(pkg.id)}
             />
             {isSelected ? (
@@ -104,6 +113,10 @@ function PackageListWithInlineDetails({
                 selections={selections}
                 onSelectionChange={onSelectionChange}
                 pendingSelectionGroupIds={pendingSelectionGroupIds}
+                onNext={onNext}
+                nextDisabled={nextDisabled}
+                onNextBlockedClick={onNextBlockedClick}
+                stepMessage={stepMessage}
               />
             ) : null}
           </div>
@@ -128,6 +141,10 @@ export default function QuotePackageStepExplorer({
   onSelectionChange,
   pendingSelectionGroupIds = [],
   onSelect,
+  onNext,
+  nextDisabled,
+  onNextBlockedClick,
+  stepMessage,
 }: {
   packagesWithoutSides: PackageRow[]
   packagesWithSides: PackageRow[]
@@ -143,6 +160,10 @@ export default function QuotePackageStepExplorer({
   onSelectionChange: (groupId: string, itemId: string) => void
   pendingSelectionGroupIds?: string[]
   onSelect: (id: string) => void
+  onNext?: () => void
+  nextDisabled?: boolean
+  onNextBlockedClick?: () => void
+  stepMessage?: string | null
 }) {
   const sortedWithSides = useMemo(
     () => sortPackagesByCommercialTier(packagesWithSides),
@@ -202,6 +223,10 @@ export default function QuotePackageStepExplorer({
     onSelectionChange,
     pendingSelectionGroupIds: pendingSelectionGroupIds ?? [],
     onSelect,
+    onNext,
+    nextDisabled,
+    onNextBlockedClick,
+    stepMessage,
   }
 
   const totalCount = packagesWithoutSides.length + packagesWithSides.length

@@ -104,7 +104,8 @@ export function getChatChipsForRoute(pathname: string): HelpChatChip[] {
       {
         id: 'sides',
         label: 'Ver guarnições',
-        response: 'Guarnições ficam em package_side_items, só para pacotes com +.',
+        response:
+          'Guarnições são configuradas dentro de cada pacote com +, em Pacotes.',
       },
     ]
   }

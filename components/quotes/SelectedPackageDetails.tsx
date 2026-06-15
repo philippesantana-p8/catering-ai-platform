@@ -36,6 +36,90 @@ type PackageWithHighlights = PackageCatalogFields & {
   package_highlights_pt?: string | null
 }
 
+function PackagePriceSummary({
+  pkg,
+  allPackages,
+  sidesPricePerPerson,
+  language,
+}: {
+  pkg: PackageWithHighlights
+  allPackages: ReadonlyArray<PackageCatalogFields>
+  sidesPricePerPerson: number
+  language: QuoteLanguage
+}) {
+  const variant = getPackageCatalogVariant(pkg)
+  const priceOnRequest = isPackageCatalogPriceOnRequest(pkg)
+  const basePackage = findBasePackage(pkg, allPackages)
+  const sidesPricing =
+    variant === 'with_sides'
+      ? resolvePackageSidesPricing(pkg, basePackage, sidesPricePerPerson)
+      : null
+  const packagePrice = getPackageCatalogPrice(pkg)
+  const totalPerPerson = sidesPricing?.totalPerPerson ?? packagePrice
+
+  if (priceOnRequest) {
+    return (
+      <div className="rounded-xl border border-[color-mix(in_srgb,var(--brand-primary-2)_22%,transparent)] bg-[color-mix(in_srgb,var(--brand-primary)_6%,white)] px-4 py-3">
+        <p className="text-sm font-bold text-[var(--brand-primary)]">
+          Resumo do pacote
+        </p>
+        <p className="mt-2 text-sm text-neutral-700">
+          {formatPackageCatalogPriceLabel(pkg, language, formatCurrency)}
+        </p>
+      </div>
+    )
+  }
+
+  const showBreakdown =
+    sidesPricing?.mode === 'breakdown' &&
+    sidesPricing.basePricePerPerson != null &&
+    sidesPricing.sidesPricePerPerson > 0
+
+  return (
+    <div className="rounded-xl border border-[color-mix(in_srgb,var(--brand-primary-2)_22%,transparent)] bg-[color-mix(in_srgb,var(--brand-primary)_6%,white)] px-4 py-3">
+      <p className="text-sm font-bold text-[var(--brand-primary)]">
+        Resumo do pacote
+      </p>
+      <div className="mt-2 space-y-1 text-sm text-neutral-700">
+        {showBreakdown ? (
+          <>
+            <p>
+              Preço do pacote:{' '}
+              <span className="font-semibold text-neutral-900">
+                {formatCurrency(sidesPricing.basePricePerPerson!)} / pessoa
+              </span>
+            </p>
+            <p>
+              Preço da guarnição:{' '}
+              <span className="font-semibold text-neutral-900">
+                {formatCurrency(sidesPricing.sidesPricePerPerson)} / pessoa
+              </span>
+            </p>
+          </>
+        ) : (
+          <>
+            <p>
+              Preço do pacote:{' '}
+              <span className="font-semibold text-neutral-900">
+                {formatCurrency(packagePrice)} / pessoa
+              </span>
+            </p>
+            {variant === 'with_sides' ? (
+              <p>
+                Guarnições:{' '}
+                <span className="font-semibold text-neutral-900">inclusas</span>
+              </p>
+            ) : null}
+          </>
+        )}
+        <p className="pt-1 text-lg font-black text-[var(--brand-primary)] sm:text-xl">
+          Total: {formatCurrency(totalPerPerson)} / pessoa
+        </p>
+      </div>
+    </div>
+  )
+}
+
 export default function SelectedPackageDetails({
   pkg,
   allPackages = [],
@@ -46,6 +130,10 @@ export default function SelectedPackageDetails({
   selections = {},
   onSelectionChange,
   pendingSelectionGroupIds = [],
+  onNext,
+  nextDisabled = false,
+  onNextBlockedClick,
+  stepMessage,
 }: {
   pkg: PackageWithHighlights
   allPackages?: ReadonlyArray<PackageCatalogFields>
@@ -56,17 +144,13 @@ export default function SelectedPackageDetails({
   selections?: Record<string, string>
   onSelectionChange?: (groupId: string, itemId: string) => void
   pendingSelectionGroupIds?: string[]
+  onNext?: () => void
+  nextDisabled?: boolean
+  onNextBlockedClick?: () => void
+  stepMessage?: string | null
 }) {
   const image = getPackageCatalogImage(pkg, allPackages)
   const variant = getPackageCatalogVariant(pkg)
-  const priceOnRequest = isPackageCatalogPriceOnRequest(pkg)
-  const basePackage = findBasePackage(pkg, allPackages)
-  const sidesPricing =
-    variant === 'with_sides'
-      ? resolvePackageSidesPricing(pkg, basePackage, sidesPricePerPerson)
-      : null
-  const packagePrice = getPackageCatalogPrice(pkg)
-  const totalPerPerson = sidesPricing?.totalPerPerson ?? packagePrice
   const hasOptions =
     pkg.id && hasPackageIncludedChoices(pkg.id, optionGroups, pkg)
 
@@ -74,18 +158,32 @@ export default function SelectedPackageDetails({
     parsePackageHighlightsText(pkg.package_highlights_pt),
   )
 
+  const optionProps =
+    hasOptions && onSelectionChange
+      ? {
+          optionGroups,
+          selections,
+          onChange: onSelectionChange,
+          language,
+          mode: 'select' as const,
+          pendingGroupIds: pendingSelectionGroupIds,
+        }
+      : null
+
   return (
     <div className="mt-2 space-y-2.5 border-t border-cdl-border-subtle pt-2.5">
-      <p className="text-xl font-black text-red-600 sm:text-2xl">
-        {priceOnRequest
-          ? formatPackageCatalogPriceLabel(pkg, language, formatCurrency)
-          : formatCurrency(totalPerPerson)}
-        {!priceOnRequest ? (
-          <span className="ml-1 text-sm font-semibold text-neutral-500">
-            / pessoa
-          </span>
-        ) : null}
-      </p>
+      <div className="overflow-hidden rounded-xl bg-neutral-50">
+        <div className="aspect-[16/10] w-full max-h-48 overflow-hidden sm:max-h-56">
+          <CatalogImageFrame
+            src={image}
+            alt={pkg.label_pt?.trim() || pkg.package_key || 'Pacote'}
+            variant="package"
+            fallbackLabel="Imagem do pacote"
+            rounded="all"
+            className="!h-full !min-h-0 !max-h-none !w-full object-contain"
+          />
+        </div>
+      </div>
 
       {highlightItems.length > 0 ? (
         <div className="rounded-xl bg-gradient-to-br from-amber-100 via-amber-50 to-yellow-50 px-3 py-2.5 ring-1 ring-amber-200/80">
@@ -105,36 +203,60 @@ export default function SelectedPackageDetails({
         </div>
       ) : null}
 
-      <div className="overflow-hidden rounded-xl bg-neutral-50">
-        <div className="aspect-[16/10] w-full max-h-44 overflow-hidden sm:max-h-52">
-          <CatalogImageFrame
-            src={image}
-            alt={pkg.label_pt?.trim() || pkg.package_key || 'Pacote'}
-            variant="package"
-            fallbackLabel="Imagem do pacote"
-            rounded="all"
-            className="!h-full !min-h-0 !max-h-none !w-full object-contain"
-          />
-        </div>
-      </div>
+      {optionProps ? (
+        <PackageIncludedOptions {...optionProps} onlyGroupKeys={['SEAFOOD_OPTION']} />
+      ) : null}
 
-      {hasOptions && onSelectionChange ? (
-        <PackageIncludedOptions
-          optionGroups={optionGroups}
-          selections={selections}
-          onChange={onSelectionChange}
-          language={language}
-          mode="select"
-          pendingGroupIds={pendingSelectionGroupIds}
-        />
+      {optionProps ? (
+        <PackageIncludedOptions {...optionProps} onlyGroupKeys={['COSTELA_OPTION']} />
       ) : null}
 
       {variant === 'with_sides' && pkg.id ? (
         <PackageIncludedSidesSummary
           packageId={pkg.id}
           packageSideItems={packageSideItems}
+          optionGroups={optionGroups}
           language={language}
         />
+      ) : null}
+
+      {optionProps ? (
+        <PackageIncludedOptions {...optionProps} onlyGroupKeys={['SIDE_OPTION']} />
+      ) : null}
+
+      <PackagePriceSummary
+        pkg={pkg}
+        allPackages={allPackages}
+        sidesPricePerPerson={sidesPricePerPerson}
+        language={language}
+      />
+
+      {onNext ? (
+        <div className="space-y-2 pt-1">
+          {stepMessage ? (
+            <p className="text-center text-sm font-medium text-[var(--brand-primary)] sm:text-right">
+              {stepMessage}
+            </p>
+          ) : null}
+          <div className="relative">
+            {nextDisabled && onNextBlockedClick ? (
+              <button
+                type="button"
+                aria-label="Próximo — complete as opções obrigatórias"
+                className="absolute inset-0 z-10 cursor-not-allowed rounded-xl"
+                onClick={onNextBlockedClick}
+              />
+            ) : null}
+            <button
+              type="button"
+              onClick={onNext}
+              disabled={nextDisabled}
+              className="cdl-btn-primary w-full disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Próximo
+            </button>
+          </div>
+        </div>
       ) : null}
     </div>
   )

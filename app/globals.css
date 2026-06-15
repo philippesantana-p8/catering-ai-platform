@@ -375,6 +375,17 @@
     background: var(--brand-primary);
   }
 
+  .quotes-pscs .cdl-btn-primary {
+    background: var(--brand-primary-2);
+    color: #ffffff;
+    transition: opacity 0.15s, background 0.15s;
+  }
+
+  .quotes-pscs .cdl-btn-primary:hover {
+    opacity: 0.92;
+    background: var(--brand-primary);
+  }
+
   .quotes-pscs .pscs-btn-outline {
     border: 1px solid var(--brand-border);
     background: var(--brand-card);

@@ -9,7 +9,6 @@ const NAV_LINKS = [
   { href: '/quotes', label: 'Cotações' },
   { href: '/customers', label: 'Cadastros' },
   { href: '/packages', label: 'Pacotes' },
-  { href: '/guarnicoes', label: 'Guarnições' },
   { href: '/additional-items', label: 'Cadastro de itens' },
   { href: '/commercial-rules', label: 'Regras' },
   { href: '/packages/images', label: 'Imagens' },
@@ -33,9 +32,6 @@ function isNavActive(pathname: string, href: string) {
   }
   if (href === '/packages/images') {
     return pathname.startsWith('/packages/images')
-  }
-  if (href === '/guarnicoes') {
-    return pathname === '/guarnicoes' || pathname.startsWith('/guarnicoes/')
   }
   if (href === '/additional-items') {
     return (

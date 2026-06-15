@@ -101,15 +101,22 @@ export function PackageCodeOption({
   active,
   onClick,
   hideTechnical = false,
+  selectionTone = 'default',
 }: {
   pkg: PackageFieldSource
   active?: boolean
   onClick: () => void
   hideTechnical?: boolean
+  selectionTone?: 'default' | 'brand'
 }) {
   const code = getPackageKey(pkg) || '—'
   const withSides = code.endsWith('+')
   const friendlyLabel = getPackageCascadeFriendlyLabel(pkg)
+
+  const activeClass =
+    selectionTone === 'brand'
+      ? 'border-[var(--brand-primary-2)] bg-[color-mix(in_srgb,var(--brand-primary)_8%,white)] shadow-sm ring-2 ring-[color-mix(in_srgb,var(--brand-primary-2)_28%,transparent)]'
+      : 'border-red-400 bg-red-50 shadow-sm ring-2 ring-red-200'
 
   return (
     <button
@@ -117,7 +124,7 @@ export function PackageCodeOption({
       onClick={onClick}
       className={`rounded-2xl border p-4 text-left transition ${
         active
-          ? 'border-red-400 bg-red-50 shadow-sm ring-2 ring-red-200'
+          ? activeClass
           : 'border-neutral-200 bg-white hover:border-neutral-300 hover:bg-neutral-50'
       }`}
     >
