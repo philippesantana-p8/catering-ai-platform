@@ -34,6 +34,8 @@ export type WizardSelectedAdditional = {
   unitPrice: number
   totalPrice: number
   imageUrl?: string | null
+  itemType?: string | null
+  categoryPt?: string | null
   perPerson?: boolean
 }
 
@@ -70,6 +72,8 @@ export function mapWizardToQuoteReview(
       unitPrice: item.unitPrice,
       totalPrice: item.totalPrice,
       imageUrl: item.imageUrl,
+      itemType: item.itemType,
+      categoryPt: item.categoryPt,
     }),
   )
 

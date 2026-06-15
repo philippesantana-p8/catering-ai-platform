@@ -468,7 +468,9 @@ export default function QuoteDetailView({ quote }: { quote: QuoteDetail }) {
                           <CatalogImageFrame
                             src={image}
                             alt={getAdditionalLabel(item, lang)}
-                            variant="additionalItem"
+                            variant="catalogItem"
+                            itemType={item.item_type}
+                            categoryPt={item.category_pt}
                             rounded="none"
                             className="quote-print-thumb quote-proposal-additional-image !min-h-0 !max-h-none !aspect-video"
                           />

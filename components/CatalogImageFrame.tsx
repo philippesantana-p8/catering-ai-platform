@@ -1,10 +1,16 @@
 'use client'
 
-export type CatalogImageVariant = 'package' | 'additionalItem'
+import {
+  getCatalogItemPlaceholderLabel,
+  normalizeCatalogItemPlaceholderType,
+  type CatalogItemPlaceholderType,
+} from '@/Lib/catalogItemVisual'
+
+export type CatalogImageVariant = 'package' | 'catalogItem'
 
 export type CatalogImageFrameSize = 'default' | 'thumbnail'
 
-const FRAME_BG = 'bg-[#f7f7f7]'
+const FRAME_BG = 'bg-gradient-to-br from-neutral-100 to-neutral-50'
 
 const VARIANT_FRAMES: Record<
   CatalogImageVariant,
@@ -15,7 +21,7 @@ const VARIANT_FRAMES: Record<
       'aspect-square w-full min-h-[12rem] max-h-[min(85vw,28rem)] sm:min-h-[14rem] md:max-h-[22rem]',
     thumbnail: 'aspect-square h-16 w-16 min-h-0 max-h-16 shrink-0 rounded-lg',
   },
-  additionalItem: {
+  catalogItem: {
     default:
       'aspect-[4/3] w-full min-h-[9rem] max-h-[min(70vw,16rem)] sm:min-h-[10rem] md:max-h-[13rem]',
     thumbnail: 'aspect-square h-14 w-14 min-h-0 max-h-14 shrink-0 rounded-lg',
@@ -23,12 +29,75 @@ const VARIANT_FRAMES: Record<
 }
 
 const DEFAULT_FALLBACK: Record<CatalogImageVariant, string> = {
-  package: 'SEM IMAGEM',
-  additionalItem: 'Sem imagem',
+  package: 'Imagem do pacote',
+  catalogItem: 'Sem imagem',
 }
 
 function joinClasses(...parts: Array<string | false | null | undefined>) {
   return parts.filter(Boolean).join(' ')
+}
+
+function PlaceholderIcon({ itemType }: { itemType: CatalogItemPlaceholderType }) {
+  const common = 'h-10 w-10 text-neutral-400 sm:h-12 sm:w-12'
+
+  switch (itemType) {
+    case 'SIDE':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" className={common} aria-hidden>
+          <ellipse cx="12" cy="14" rx="8" ry="4" stroke="currentColor" strokeWidth="1.5" />
+          <path
+            d="M6 10c2-2 4-3 6-3s4 1 6 3"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+          />
+        </svg>
+      )
+    case 'PACKAGE_ITEM':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" className={common} aria-hidden>
+          <path
+            d="M4 8l8-4 8 4v8l-8 4-8-4V8z"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinejoin="round"
+          />
+          <path d="M12 12v8M4 8l8 4 8-4" stroke="currentColor" strokeWidth="1.5" />
+        </svg>
+      )
+    case 'SUPPLY':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" className={common} aria-hidden>
+          <rect x="4" y="6" width="16" height="12" rx="2" stroke="currentColor" strokeWidth="1.5" />
+          <path d="M8 10h8M8 14h5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        </svg>
+      )
+    case 'EQUIPMENT':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" className={common} aria-hidden>
+          <path
+            d="M8 10V7a4 4 0 118 0v3"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+          />
+          <rect x="5" y="10" width="14" height="9" rx="2" stroke="currentColor" strokeWidth="1.5" />
+        </svg>
+      )
+    case 'PRODUCT':
+    default:
+      return (
+        <svg viewBox="0 0 24 24" fill="none" className={common} aria-hidden>
+          <path
+            d="M6 14c0-3 2.5-6 6-6s6 3 6 6"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+          />
+          <ellipse cx="12" cy="15" rx="7" ry="4" stroke="currentColor" strokeWidth="1.5" />
+        </svg>
+      )
+  }
 }
 
 export default function CatalogImageFrame({
@@ -36,6 +105,9 @@ export default function CatalogImageFrame({
   alt,
   variant = 'package',
   fallbackLabel,
+  itemType,
+  categoryPt,
+  imageStatus,
   size = 'default',
   className,
   rounded = 'top',
@@ -44,13 +116,20 @@ export default function CatalogImageFrame({
   alt: string
   variant?: CatalogImageVariant
   fallbackLabel?: string
+  itemType?: string | null
+  categoryPt?: string | null
+  imageStatus?: string | null
   size?: CatalogImageFrameSize
   className?: string
-  /** Cantos arredondados do frame — cards usam `top`, previews admin usam `all`. */
   rounded?: 'top' | 'all' | 'none'
 }) {
   const normalizedSrc = src?.trim() || null
-  const label = fallbackLabel ?? DEFAULT_FALLBACK[variant]
+  const placeholderType = normalizeCatalogItemPlaceholderType(itemType)
+  const label =
+    fallbackLabel ??
+    (variant === 'catalogItem'
+      ? getCatalogItemPlaceholderLabel(placeholderType, categoryPt)
+      : DEFAULT_FALLBACK[variant])
   const roundedClass =
     rounded === 'all'
       ? 'rounded-2xl'
@@ -58,21 +137,39 @@ export default function CatalogImageFrame({
         ? 'rounded-t-2xl'
         : ''
 
+  const showPendingBadge = imageStatus?.trim().toLowerCase() === 'missing'
+
   const frameClass = joinClasses(
-    'flex w-full items-center justify-center overflow-hidden',
+    'relative flex w-full flex-col items-center justify-center gap-2 overflow-hidden',
     FRAME_BG,
     VARIANT_FRAMES[variant][size],
     roundedClass,
     className,
   )
 
+  const pendingBadge = showPendingBadge ? (
+    <span
+      className={joinClasses(
+        'absolute z-10 rounded-full bg-neutral-900/75 px-2 py-0.5 font-semibold uppercase tracking-wide text-white backdrop-blur-sm',
+        size === 'thumbnail' ? 'bottom-1 right-1 text-[7px]' : 'bottom-2 right-2 text-[9px] sm:text-[10px]',
+      )}
+    >
+      Foto pendente
+    </span>
+  ) : null
+
   if (!normalizedSrc) {
     return (
       <div className={frameClass} role="img" aria-label={label}>
+        {pendingBadge}
+        {variant === 'catalogItem' ? <PlaceholderIcon itemType={placeholderType} /> : null}
         <span
           className={joinClasses(
-            'px-2 text-center font-semibold uppercase tracking-wider text-cdl-faint',
+            'px-2 text-center font-semibold text-neutral-500',
             size === 'thumbnail' ? 'text-[8px] leading-tight' : 'text-[10px] sm:text-xs',
+            variant === 'catalogItem'
+              ? 'uppercase tracking-wide'
+              : 'uppercase tracking-wider text-cdl-faint',
           )}
         >
           {label}
@@ -82,7 +179,8 @@ export default function CatalogImageFrame({
   }
 
   return (
-    <div className={frameClass}>
+    <div className={joinClasses(frameClass, 'bg-[#f7f7f7]')}>
+      {pendingBadge}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={normalizedSrc}

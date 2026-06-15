@@ -1,3 +1,6 @@
+import { getCatalogItemImageUrl } from '@/Lib/catalogItemVisual'
+import type { PackageCatalogRecord } from '@/Lib/packageCatalogVisual'
+
 export type QuoteAdditionalItem = {
   item_id: string
   item_key?: string
@@ -12,9 +15,8 @@ export type QuoteAdditionalItem = {
   total_price?: number | null
   image_url?: string | null
   image_status?: string | null
+  item_type?: string | null
 }
-
-import type { PackageCatalogRecord } from '@/Lib/packageCatalogVisual'
 
 export type QuoteDetailPackageCatalogRow = PackageCatalogRecord & {
   id?: string
@@ -176,7 +178,7 @@ export function getZipCode(quote: QuoteDetail) {
 
 export function getAdditionalImage(item: QuoteAdditionalItem) {
   if (item.image_status === 'missing') return null
-  return item.image_url ?? null
+  return getCatalogItemImageUrl(item)
 }
 
 export function groupAdditionalsByCategory(

@@ -33,6 +33,7 @@ export type PackageItem = {
   blocks_additional_item?: boolean | null
   display_order?: number | null
   active?: boolean | null
+  image_url?: string | null
 }
 
 export type PackageSideItem = {
@@ -56,6 +57,7 @@ export type PackageSideItem = {
   blocks_additional_item?: boolean | null
   display_order?: number | null
   active?: boolean | null
+  image_url?: string | null
 }
 
 export type PackageConfiguration = {
@@ -359,13 +361,14 @@ function optionGroupsForPackage(
     )
 }
 
-export function getBlockedAdditionalItemIdsFromConfig({
+export function getBlockedCatalogItemIdsFromConfig({
   packageId,
   packageItems,
   packageSideItems,
   optionGroups,
   optionGroupItems,
   customPackage,
+  selectedPackageOptions = {},
 }: {
   packageId: string
   packageItems: ReadonlyArray<PackageItem>
@@ -373,6 +376,8 @@ export function getBlockedAdditionalItemIdsFromConfig({
   optionGroups: ReadonlyArray<PackageOptionGroupRecord & { items?: PackageOptionGroupItem[] }>
   optionGroupItems?: ReadonlyArray<PackageOptionGroupItem>
   customPackage: boolean
+  /** groupId → package_option_group_items.id (escolha do cliente). */
+  selectedPackageOptions?: Record<string, string>
 }): string[] {
   if (customPackage || !packageId?.trim()) return []
 
@@ -388,6 +393,7 @@ export function getBlockedAdditionalItemIdsFromConfig({
   }
 
   for (const side of getPackageSideItemsForPackage(packageId, packageSideItems)) {
+    if (side.included === false) continue
     if (side.blocks_additional_item && side.additional_item_id?.trim()) {
       blocked.add(side.additional_item_id.trim())
     }
@@ -395,15 +401,35 @@ export function getBlockedAdditionalItemIdsFromConfig({
 
   for (const group of optionGroupsForPackage(packageId, optionGroups)) {
     if (group.blocks_additional_items === false) continue
-    for (const item of group.items ?? []) {
-      if (item.active === false) continue
-      const additionalId = item.additional_item_id?.trim()
-      if (additionalId) blocked.add(additionalId)
-    }
+
+    const selectedOptionId = selectedPackageOptions[group.id]?.trim()
+    if (!selectedOptionId) continue
+
+    const selectedOption =
+      (group.items ?? []).find(
+        (item) =>
+          item.active !== false &&
+          (item.id === selectedOptionId ||
+            item.option_item_key?.trim() === selectedOptionId),
+      ) ??
+      (optionGroupItems ?? []).find(
+        (item) =>
+          item.option_group_id?.trim() === group.id.trim() &&
+          item.active !== false &&
+          (item.id === selectedOptionId ||
+            item.option_item_key?.trim() === selectedOptionId),
+      )
+
+    const catalogItemId = selectedOption?.additional_item_id?.trim()
+    if (catalogItemId) blocked.add(catalogItemId)
   }
 
   return [...blocked]
 }
+
+/** @deprecated Use getBlockedCatalogItemIdsFromConfig */
+export const getBlockedAdditionalItemIdsFromConfig =
+  getBlockedCatalogItemIdsFromConfig
 
 export async function fetchPackageItems(options?: {
   packageId?: string | null

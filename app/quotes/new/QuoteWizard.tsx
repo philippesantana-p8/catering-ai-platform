@@ -37,6 +37,7 @@ import {
   getCustomerDisplayName,
 } from '../../../Lib/getCustomerDisplayName'
 import { getAdditionalItemPrice } from '../../../Lib/getAdditionalItemPrice'
+import { getCatalogItemImageUrl } from '../../../Lib/catalogItemVisual'
 import { filterCatalogItems } from '../../../Lib/itemCatalog'
 import { isUsablePhone, normalizePhone } from '../../../Lib/normalizePhone'
 import {
@@ -56,7 +57,7 @@ import type {
 } from '../../../Lib/packageConfiguration'
 import {
   flattenPackageOptionGroupItems,
-  getBlockedAdditionalItemIds,
+  getBlockedCatalogItemIds,
   getPendingPackageSelectionGroupIds,
   getPackageOptionGroupsForPackage,
   mergeOptionGroupsForPackage,
@@ -122,6 +123,8 @@ export type Package = {
   display_order?: number | null
   active?: boolean | null
   image_url?: string | null
+  item_type?: string | null
+  category_pt?: string | null
 }
 
 export type AdditionalItem = {
@@ -133,6 +136,8 @@ export type AdditionalItem = {
   label_es?: string | null
   category_pt?: string | null
   price?: number | null
+  sale_price?: number | null
+  current_price?: number | null
   pricing_type?: string | null
   charge_type?: string | null
   quantity?: number | null
@@ -142,6 +147,8 @@ export type AdditionalItem = {
   unit_label?: string | null
   display_order?: number | null
   image_url?: string | null
+  image_status?: string | null
+  item_type?: string | null
   active?: boolean | null
 }
 
@@ -783,10 +790,6 @@ function getAdditionalTotalWeight(
   }
 }
 
-function getAdditionalImage(item: AdditionalItem) {
-  return item.image_url ?? null
-}
-
 const ADDITIONAL_CATEGORY_ORDER = [
   'Bovino Tradicional',
   'Bovino Nobre',
@@ -866,7 +869,7 @@ function AdditionalItemCard({
   billableGuestCount: number
   onChangeQty: (qty: number) => void
 }) {
-  const image = getAdditionalImage(item)
+  const image = getCatalogItemImageUrl(item)
   const unitPrice = getAdditionalUnitPrice(item)
   const perPerson = isPerPersonAdditional(item)
   const normalizedQty = normalizeAdditionalQuantity(item, quantity)
@@ -885,7 +888,10 @@ function AdditionalItemCard({
     <CatalogImageFrame
       src={image}
       alt={getAdditionalLabel(item)}
-      variant="additionalItem"
+      variant="catalogItem"
+      itemType={item.item_type}
+      categoryPt={item.category_pt}
+      imageStatus={item.image_status}
       className="shrink-0"
     />
   )
@@ -1690,16 +1696,22 @@ export default function QuoteWizard({
     [activePackageOptionGroups],
   )
 
-  const blockedAdditionalItemIds = useMemo(() => {
+  const blockedCatalogItemIds = useMemo(() => {
     if (!state.packageId || !selectedPackage) return []
-    return getBlockedAdditionalItemIds(
+    return getBlockedCatalogItemIds(
       state.packageId,
       flatOptionGroups,
       isCustomPackage(selectedPackage),
-      { packageItems, packageSideItems, groupItems: flatOptionGroupItems },
+      {
+        packageItems,
+        packageSideItems,
+        groupItems: flatOptionGroupItems,
+        selectedPackageOptions: state.packageSelections,
+      },
     )
   }, [
     state.packageId,
+    state.packageSelections,
     flatOptionGroups,
     flatOptionGroupItems,
     packageItems,
@@ -1710,9 +1722,9 @@ export default function QuoteWizard({
   const visibleAdditionalItems = useMemo(
     () =>
       filterCatalogItems(itemCatalog, 'additional', 'customer').filter(
-        (item) => !blockedAdditionalItemIds.includes(item.id),
+        (item) => !blockedCatalogItemIds.includes(item.id),
       ),
-    [itemCatalog, blockedAdditionalItemIds],
+    [itemCatalog, blockedCatalogItemIds],
   )
 
   const additionalItemsByCategory = useMemo(() => {
@@ -1754,11 +1766,11 @@ export default function QuoteWizard({
   }, [additionalItemsByCategory, state.additionals])
 
   useEffect(() => {
-    if (blockedAdditionalItemIds.length === 0) return
+    if (blockedCatalogItemIds.length === 0) return
     setState((prev) => {
       let changed = false
       const nextAdditionals = { ...prev.additionals }
-      for (const itemId of blockedAdditionalItemIds) {
+      for (const itemId of blockedCatalogItemIds) {
         if (nextAdditionals[itemId]) {
           delete nextAdditionals[itemId]
           changed = true
@@ -1767,7 +1779,7 @@ export default function QuoteWizard({
       if (!changed) return prev
       return { ...prev, additionals: nextAdditionals }
     })
-  }, [blockedAdditionalItemIds])
+  }, [blockedCatalogItemIds])
 
   useEffect(() => {
     if (step !== 4) {
@@ -1866,7 +1878,9 @@ export default function QuoteWizard({
           quantity,
           unitPrice,
           totalPrice,
-          imageUrl: getAdditionalImage(item),
+          imageUrl: getCatalogItemImageUrl(item),
+          itemType: item.item_type,
+          categoryPt: item.category_pt,
           perPerson,
         })),
       ),
@@ -2205,7 +2219,7 @@ export default function QuoteWizard({
   )
 
   useEffect(() => {
-    if (step !== 2) return
+    if (step !== 2 || process.env.NODE_ENV !== 'development') return
     console.log('[Etapa Pacote] packages', packages)
     console.log('[Etapa Pacote] packageOptionGroups', flatOptionGroups)
     console.log('[Etapa Pacote] packageOptionGroupItems', allOptionGroupItems)
@@ -2220,7 +2234,7 @@ export default function QuoteWizard({
     )
     console.log('[Etapa Pacote] selectedPackage', selectedPackage)
     console.log('[Etapa Pacote] selectedPackageOptions', state.packageSelections)
-    console.log('[Etapa Pacote] blockedAdditionalItemIds', blockedAdditionalItemIds)
+    console.log('[Etapa Pacote] blockedCatalogItemIds', blockedCatalogItemIds)
     if (
       activePackageOptionGroups.length > 0 &&
       activePackageOptionGroupItems.length === 0
@@ -2239,7 +2253,7 @@ export default function QuoteWizard({
     activePackageOptionGroupItems,
     selectedPackage,
     state.packageSelections,
-    blockedAdditionalItemIds,
+    blockedCatalogItemIds,
   ])
 
   const packageStepNextDisabled = useMemo(() => {
@@ -2842,22 +2856,25 @@ export default function QuoteWizard({
               optionGroupsForPackage={optionGroupsForPackage}
               packageItems={packageItems}
               packageSideItems={packageSideItems}
+              catalogItems={itemCatalog}
               selections={state.packageSelections}
               onSelectionChange={handlePackageSelectionChange}
               pendingSelectionGroupIds={pendingSelectionGroupIds}
               onSelect={handlePackageSelect}
             />
 
-            <PackageOptionsDebugPanel
-              companyId={debugCompanyId}
-              selectedPackage={selectedPackage}
-              optionGroups={flatOptionGroups}
-              optionGroupItems={flatOptionGroupItems}
-              packageItems={packageItems}
-              packageSideItems={packageSideItems}
-              queryDebug={packageOptionQueryDebugForPanel}
-              flatGroupsTotal={flatOptionGroups.length}
-            />
+            {process.env.NODE_ENV === 'development' ? (
+              <PackageOptionsDebugPanel
+                companyId={debugCompanyId}
+                selectedPackage={selectedPackage}
+                optionGroups={flatOptionGroups}
+                optionGroupItems={flatOptionGroupItems}
+                packageItems={packageItems}
+                packageSideItems={packageSideItems}
+                queryDebug={packageOptionQueryDebugForPanel}
+                flatGroupsTotal={flatOptionGroups.length}
+              />
+            ) : null}
           </div>
         )}
 

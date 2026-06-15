@@ -11,7 +11,6 @@ import {
   BackofficeCascadeLayout,
   BackofficeCascadePanel,
 } from '@/components/backoffice/BackofficeSectionPrimitives'
-import PackageIncludedOptions from '@/components/quotes/PackageIncludedOptions'
 import QuotePackageSummary from '@/components/quotes/QuotePackageSummary'
 import { PackageCodeOption } from '@/components/premium/PremiumPrimitives'
 import { sortPackagesByCommercialTier } from '@/Lib/packageDisplay'
@@ -23,6 +22,7 @@ import type {
   PackageSideItem,
 } from '@/Lib/packageConfiguration'
 import type { PackageOptionGroup } from '@/Lib/packageOptionGroups'
+import type { CatalogItemListItem } from '@/Lib/itemCatalog'
 import type { QuoteLanguage } from '@/Lib/quoteWizardTypes'
 
 type PackageRow = PackageCatalogFields & { id: string }
@@ -126,6 +126,7 @@ function MobilePackageList({
   optionGroupsForPackage,
   packageItems = [],
   packageSideItems = [],
+  catalogItems = [],
   selections,
   onSelectionChange,
   pendingSelectionGroupIds = [],
@@ -141,6 +142,7 @@ function MobilePackageList({
   optionGroupsForPackage: (packageId: string) => PackageOptionGroup[]
   packageItems?: ReadonlyArray<PackageItem>
   packageSideItems?: ReadonlyArray<PackageSideItem>
+  catalogItems?: ReadonlyArray<CatalogItemListItem>
   selections: Record<string, string>
   onSelectionChange: (groupId: string, itemId: string) => void
   pendingSelectionGroupIds?: string[]
@@ -160,20 +162,11 @@ function MobilePackageList({
             <PackageCodeOption
               pkg={pkg}
               active={isSelected}
+              hideTechnical
               onClick={() => onPackageClick(pkg)}
             />
             {isExpanded ? (
-              <div className="mt-2 space-y-2 md:hidden">
-                {hasIncludedChoices ? (
-                  <PackageIncludedOptions
-                    optionGroups={packageOptionGroups}
-                    selections={selections}
-                    onChange={onSelectionChange}
-                    language={language}
-                    mode="select"
-                    pendingGroupIds={pendingSelectionGroupIds}
-                  />
-                ) : null}
+              <div className="mt-3 space-y-3 md:hidden">
                 <div
                   ref={(el) => {
                     packageDetailRefs.current[code] = el
@@ -190,8 +183,11 @@ function MobilePackageList({
                     optionGroups={packageOptionGroups}
                     packageItems={packageItems}
                     packageSideItems={packageSideItems}
+                    catalogItems={catalogItems}
                     selections={selections}
-                    showIncludedOptionsSummary
+                    onSelectionChange={onSelectionChange}
+                    showIncludedOptionsEditor={hasIncludedChoices}
+                    pendingSelectionGroupIds={pendingSelectionGroupIds}
                   />
                 </div>
               </div>
@@ -220,6 +216,7 @@ export default function QuotePackageStepExplorer({
   optionGroupsForPackage,
   packageItems = [],
   packageSideItems = [],
+  catalogItems = [],
   selections = {},
   onSelectionChange,
   pendingSelectionGroupIds = [],
@@ -234,6 +231,7 @@ export default function QuotePackageStepExplorer({
   optionGroupsForPackage: (packageId: string) => PackageOptionGroup[]
   packageItems?: ReadonlyArray<PackageItem>
   packageSideItems?: ReadonlyArray<PackageSideItem>
+  catalogItems?: ReadonlyArray<CatalogItemListItem>
   selections?: Record<string, string>
   onSelectionChange: (groupId: string, itemId: string) => void
   pendingSelectionGroupIds?: string[]
@@ -363,7 +361,7 @@ export default function QuotePackageStepExplorer({
           <BackofficeCascadePanel
             title={groupTitle}
             subtitle={`${groupPackages.length} opções`}
-            className={hasIncludedChoices ? 'lg:col-span-2' : 'lg:col-span-3'}
+            className="lg:col-span-4"
           >
             <div className="space-y-3">
               {groupPackages.map((pkg) => (
@@ -371,30 +369,14 @@ export default function QuotePackageStepExplorer({
                   key={pkg.id}
                   pkg={pkg}
                   active={selectedPackageId === pkg.id}
+                  hideTechnical
                   onClick={() => onSelect(pkg.id)}
                 />
               ))}
             </div>
           </BackofficeCascadePanel>
 
-          {hasIncludedChoices ? (
-            <BackofficeCascadePanel
-              title="Escolhas inclusas"
-              subtitle="Opções do pacote"
-              className="lg:col-span-3"
-            >
-              <PackageIncludedOptions
-                optionGroups={activeOptionGroups}
-                selections={selections}
-                onChange={onSelectionChange}
-                language={language}
-                mode="select"
-                pendingGroupIds={pendingSelectionGroupIds}
-              />
-            </BackofficeCascadePanel>
-          ) : null}
-
-          <div className={hasIncludedChoices ? 'lg:col-span-4' : 'lg:col-span-6'}>
+          <div className="lg:col-span-5">
             {selectedPackage ? (
               <QuotePackageSummary
                 pkg={selectedPackage}
@@ -405,8 +387,11 @@ export default function QuotePackageStepExplorer({
                 optionGroups={activeOptionGroups}
                 packageItems={packageItems}
                 packageSideItems={packageSideItems}
+                catalogItems={catalogItems}
                 selections={selections}
-                showIncludedOptionsSummary
+                onSelectionChange={onSelectionChange}
+                showIncludedOptionsEditor={hasIncludedChoices}
+                pendingSelectionGroupIds={pendingSelectionGroupIds}
               />
             ) : (
               <div className="rounded-2xl border border-neutral-200 bg-white p-6 text-sm text-neutral-500 shadow-sm">
@@ -441,6 +426,7 @@ export default function QuotePackageStepExplorer({
                 optionGroupsForPackage={optionGroupsForPackage}
                 packageItems={packageItems}
                 packageSideItems={packageSideItems}
+                catalogItems={catalogItems}
                 selections={selections}
                 onSelectionChange={onSelectionChange}
                 pendingSelectionGroupIds={pendingSelectionGroupIds}
@@ -472,6 +458,7 @@ export default function QuotePackageStepExplorer({
                 optionGroupsForPackage={optionGroupsForPackage}
                 packageItems={packageItems}
                 packageSideItems={packageSideItems}
+                catalogItems={catalogItems}
                 selections={selections}
                 onSelectionChange={onSelectionChange}
                 pendingSelectionGroupIds={pendingSelectionGroupIds}

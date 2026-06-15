@@ -3,6 +3,8 @@ import { buildCustomersListSelect } from '@/Lib/customersTableSchema'
 import { buildPackagesListSelect } from '@/Lib/packagesTableSchema'
 import type { QuoteAdditionalItem, QuoteDetail } from '@/app/quotes/[id]/quoteDetailTypes'
 import type { CatalogItem, Customer, Package } from '@/app/quotes/new/QuoteWizard'
+import { enrichQuoteAdditionalsFromCatalog } from '@/Lib/catalogItemVisual'
+import type { CatalogItemListItem } from '@/Lib/itemCatalog'
 import { loadPackageConfiguration } from './packageConfiguration'
 import { fetchQuotePackageSelections } from './fetchPackageOptionGroups'
 import { fetchQuoteDetail } from './fetchQuoteDetail'
@@ -46,8 +48,9 @@ type QuoteAdditionalRow = {
 
 function mapQuoteAdditionalRows(
   rows: QuoteAdditionalRow[],
+  catalogItems: CatalogItemListItem[] = [],
 ): QuoteAdditionalItem[] {
-  return rows
+  const mapped = rows
     .filter((row) => row.additional_item_id && (row.quantity ?? 0) > 0)
     .map((row) => ({
       item_id: row.additional_item_id,
@@ -55,6 +58,10 @@ function mapQuoteAdditionalRows(
       unit_price: row.unit_price,
       total_price: row.total_price,
     }))
+  return enrichQuoteAdditionalsFromCatalog(
+    mapped,
+    catalogItems,
+  ) as QuoteAdditionalItem[]
 }
 
 function mergeEventIntoQuote(quote: QuoteDetail, event: EventRow | null): QuoteDetail {
@@ -228,6 +235,7 @@ export async function fetchQuoteForEdit(
 
   const mappedAdditionals = mapQuoteAdditionalRows(
     (quoteAdditionalsRes.data ?? []) as QuoteAdditionalRow[],
+    (catalogRes.data ?? []) as CatalogItemListItem[],
   )
 
   let quote = mergeEventIntoQuote(

@@ -59,17 +59,20 @@ export async function fetchCatalogItems(
   if (options.usage) {
     switch (options.usage) {
       case 'package_item':
-        query = query.eq('can_be_package_item', true)
+        query = query
+          .eq('can_be_package_item', true)
+          .in('item_type', ['PRODUCT', 'PACKAGE_ITEM'])
         break
       case 'side_item':
-        query = query.eq('can_be_side_item', true)
+        query = query.eq('can_be_side_item', true).eq('item_type', 'SIDE')
         break
       case 'option_choice':
-        query = query.eq('can_be_option_choice', true)
+        query = query.eq('can_be_option_choice', true).eq('item_type', 'PRODUCT')
         break
       case 'additional':
         query = query
           .eq('can_be_additional', true)
+          .in('item_type', ['PRODUCT', 'PACKAGE_ITEM', 'SIDE', 'EQUIPMENT'])
           .or('operational_item.is.null,operational_item.eq.false')
         break
       case 'inventory':

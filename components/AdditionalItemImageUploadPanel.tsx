@@ -106,7 +106,9 @@ export default function AdditionalItemImageUploadPanel({
         <CatalogImageFrame
           src={previewUrl}
           alt={selected ? getItemLabel(selected) : 'Item adicional'}
-          variant="additionalItem"
+          variant="catalogItem"
+          itemType={selected?.item_type}
+          categoryPt={selected?.category_pt}
           rounded="none"
         />
       </div>

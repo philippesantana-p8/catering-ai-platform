@@ -387,7 +387,9 @@ export default function QuoteReviewLayout({
                         <CatalogImageFrame
                           src={item.imageUrl}
                           alt={item.label}
-                          variant="additionalItem"
+                          variant="catalogItem"
+                          itemType={item.itemType}
+                          categoryPt={item.categoryPt}
                           rounded="none"
                           className="quote-print-thumb quote-proposal-additional-image !min-h-0 !max-h-none !aspect-video"
                         />

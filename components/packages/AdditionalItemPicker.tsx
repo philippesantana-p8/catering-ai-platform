@@ -9,6 +9,8 @@ export type AdditionalItemOption = {
   item_name?: string | null
   label_pt?: string | null
   category_pt?: string | null
+  image_url?: string | null
+  item_type?: string | null
   price?: number | null
   sale_price?: number | null
   can_be_package_item?: boolean | null

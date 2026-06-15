@@ -1,5 +1,7 @@
 import type { AdditionalItemsInsertPayload } from '@/Lib/additionalItemsTableSchema'
 import { pickAdditionalItemsInsertPayload } from '@/Lib/additionalItemsTableSchema'
+import { getCatalogItemImageUrl as resolveCatalogImageUrl } from '@/Lib/catalogItemVisual'
+import { getCatalogItemSalePrice } from '@/Lib/itemCatalog'
 
 export type AdditionalItemFieldSource = {
   item_key?: string | null
@@ -12,6 +14,8 @@ export type AdditionalItemFieldSource = {
   category_en?: string | null
   category_es?: string | null
   price?: number | null
+  sale_price?: number | null
+  current_price?: number | null
   charge_type?: string | null
   pricing_type?: string | null
   unit_label?: string | null
@@ -48,21 +52,19 @@ export function getAdditionalItemLabel(
     item?.label_en?.trim() ||
     item?.label_es?.trim() ||
     item?.item_key?.trim() ||
-    'Item adicional'
+    'Item do catálogo'
   )
 }
 
 export function getAdditionalItemPrice(
   item: AdditionalItemFieldSource | null | undefined,
 ): number {
-  return Number(item?.price ?? 0)
+  return getCatalogItemSalePrice(item)
 }
-
 export function getAdditionalItemImageUrl(
   item: AdditionalItemFieldSource | null | undefined,
 ): string | null {
-  const url = item?.image_url?.trim()
-  return url || null
+  return resolveCatalogImageUrl(item)
 }
 
 export function getAdditionalItemCurrencyCode(

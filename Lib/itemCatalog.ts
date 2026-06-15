@@ -81,12 +81,20 @@ export function normalizeCatalogItemType(
 function itemTypeMatches(
   item: CatalogItemListItem,
   allowed: readonly CatalogItemType[],
-  /** Itens legados sem item_type contam como PRODUCT. */
-  legacyAsProduct = false,
 ): boolean {
   const type = normalizeCatalogItemType(item)
-  if (!type) return legacyAsProduct && allowed.includes('PRODUCT')
+  if (!type) return false
   return allowed.includes(type)
+}
+
+/** Condimentos de pacote — só composição interna, não guarnição nem adicional. */
+export function isInternalPackageCondiment(
+  item: { item_type?: string | null; category_key?: string | null } | null | undefined,
+): boolean {
+  return (
+    normalizeCatalogItemType(item) === 'PACKAGE_ITEM' &&
+    item?.category_key?.trim().toUpperCase() === 'CONDIMENTOS'
+  )
 }
 
 export function isCatalogItemUsageAllowed(
@@ -101,21 +109,24 @@ export function isCatalogItemUsageAllowed(
   switch (usage) {
     case 'package_item':
       return (
-        item.can_be_package_item !== false &&
-        itemTypeMatches(item, PACKAGE_ITEM_TYPES, true)
+        item.can_be_package_item === true &&
+        itemTypeMatches(item, PACKAGE_ITEM_TYPES)
       )
     case 'side_item':
+      if (isInternalPackageCondiment(item)) return false
       return item.can_be_side_item === true && itemTypeMatches(item, ['SIDE'])
     case 'option_choice':
       return (
-        item.can_be_option_choice !== false &&
-        itemTypeMatches(item, ['PRODUCT'], true)
+        item.can_be_option_choice === true &&
+        itemTypeMatches(item, ['PRODUCT'])
       )
     case 'additional':
       if (item.operational_item === true) return false
+      if (normalizeCatalogItemType(item) === 'SUPPLY') return false
+      if (isInternalPackageCondiment(item)) return false
       return (
-        item.can_be_additional !== false &&
-        itemTypeMatches(item, ADDITIONAL_ITEM_TYPES, true)
+        item.can_be_additional === true &&
+        itemTypeMatches(item, ADDITIONAL_ITEM_TYPES)
       )
     case 'inventory':
       return (

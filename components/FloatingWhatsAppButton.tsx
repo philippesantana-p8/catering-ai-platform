@@ -36,6 +36,7 @@ function getWhatsappMessage(pathname: string) {
 
 export default function FloatingWhatsAppButton() {
   const pathname = usePathname();
+  const isQuoteWizard = pathname.includes("/quotes/new");
   const [showHint, setShowHint] = useState(false);
 
   useEffect(() => {
@@ -68,10 +69,12 @@ export default function FloatingWhatsAppButton() {
 
   return (
     <div
-      className="no-print fixed z-[9999] md:bottom-6 md:right-5"
+      className={`no-print fixed ${isQuoteWizard ? "z-40" : "z-[9999]"} md:bottom-6 md:right-5`}
       style={{
-        right: "10px",
-        bottom: "calc(env(safe-area-inset-bottom) + 82px)",
+        right: "12px",
+        bottom: isQuoteWizard
+          ? "calc(env(safe-area-inset-bottom) + 18px)"
+          : "calc(env(safe-area-inset-bottom) + 82px)",
       }}
     >
       {showHint && (

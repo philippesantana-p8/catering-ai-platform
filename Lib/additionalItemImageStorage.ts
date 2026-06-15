@@ -146,8 +146,8 @@ export async function uploadAdditionalItemImage(
     Record<CatalogItemsTableColumn, string | null>
   > = {
     image_url: publicUrl,
-    image_status: 'uploaded',
-    image_notes: null,
+    image_status: 'ready',
+    image_notes: 'Imagem atualizada pelo cadastro de itens.',
     updated_at: now,
   }
 

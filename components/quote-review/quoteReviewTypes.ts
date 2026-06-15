@@ -10,6 +10,8 @@ export type QuoteReviewAdditional = {
   unitPrice: number | null
   totalPrice: number | null
   imageUrl?: string | null
+  itemType?: string | null
+  categoryPt?: string | null
 }
 
 export type QuoteReviewData = {

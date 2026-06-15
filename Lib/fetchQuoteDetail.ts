@@ -1,6 +1,12 @@
-import type { QuoteDetail } from '@/app/quotes/[id]/quoteDetailTypes'
+import type { QuoteDetail, QuoteAdditionalItem } from '@/app/quotes/[id]/quoteDetailTypes'
+import { enrichQuoteAdditionalsFromCatalog } from '@/Lib/catalogItemVisual'
+import {
+  buildCatalogItemsListSelect,
+  CATALOG_ITEMS_TABLE,
+} from '@/Lib/catalogItemsTableSchema'
 import { fetchQuoteLinkedPackageCatalog } from '@/Lib/fetchQuoteLinkedPackageCatalog'
 import type { CustomerNameSource } from '@/Lib/getCustomerDisplayName'
+import type { CatalogItemListItem } from '@/Lib/itemCatalog'
 import { getActiveCompanyId } from '@/Lib/tenant/resolveTenant'
 import { supabase } from './supabase'
 
@@ -82,7 +88,7 @@ export async function fetchQuoteDetail(id: string) {
 
   const linkedPackage = packageCatalog.linkedPackage
 
-  const data: QuoteDetail = {
+  let data: QuoteDetail = {
     ...quote,
     package_key: quote.package_key ?? linkedPackage?.package_key ?? null,
     package_name_pt:
@@ -109,6 +115,33 @@ export async function fetchQuoteDetail(id: string) {
       linkedPackage?.image_url?.trim() ||
       null,
     packageCatalogPackages: packageCatalog.catalogPackages,
+  }
+
+  const additionalItems = data.additional_items ?? []
+  if (additionalItems.length > 0) {
+    const catalogIds = [
+      ...new Set(
+        additionalItems
+          .map((row) => row.item_id?.trim())
+          .filter((id): id is string => Boolean(id)),
+      ),
+    ]
+    if (catalogIds.length > 0) {
+      const catalogRes = await supabase
+        .from(CATALOG_ITEMS_TABLE)
+        .select(buildCatalogItemsListSelect())
+        .in('id', catalogIds)
+
+      if (!catalogRes.error && catalogRes.data?.length) {
+        data = {
+          ...data,
+          additional_items: enrichQuoteAdditionalsFromCatalog(
+            additionalItems as QuoteAdditionalItem[],
+            catalogRes.data as unknown as CatalogItemListItem[],
+          ),
+        }
+      }
+    }
   }
 
   return { data, error: null }

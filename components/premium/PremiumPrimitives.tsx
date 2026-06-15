@@ -100,10 +100,12 @@ export function PackageCodeOption({
   pkg,
   active,
   onClick,
+  hideTechnical = false,
 }: {
   pkg: PackageFieldSource
   active?: boolean
   onClick: () => void
+  hideTechnical?: boolean
 }) {
   const code = getPackageKey(pkg) || '—'
   const withSides = code.endsWith('+')
@@ -119,17 +121,25 @@ export function PackageCodeOption({
           : 'border-neutral-200 bg-white hover:border-neutral-300 hover:bg-neutral-50'
       }`}
     >
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="font-mono text-xs font-bold uppercase tracking-wider text-neutral-500">
-          {code}
-        </span>
-        {withSides ? (
-          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-900">
-            + guarnições
+      {!hideTechnical ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="font-mono text-xs font-bold uppercase tracking-wider text-neutral-500">
+            {code}
           </span>
-        ) : null}
-      </div>
-      <p className="mt-2 text-lg font-extrabold tracking-tight text-neutral-900">
+          {withSides ? (
+            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-900">
+              + guarnições
+            </span>
+          ) : null}
+        </div>
+      ) : withSides ? (
+        <span className="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-900">
+          Com guarnições
+        </span>
+      ) : null}
+      <p
+        className={`${hideTechnical ? '' : 'mt-2 '}text-lg font-extrabold tracking-tight text-neutral-900`}
+      >
         {friendlyLabel}
       </p>
     </button>

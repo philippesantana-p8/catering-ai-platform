@@ -12,6 +12,8 @@ import { BackofficeFormSectionTitle } from '@/components/backoffice/BackofficeSe
 import AdditionalItemPicker, {
   type AdditionalItemOption,
 } from '@/components/packages/AdditionalItemPicker'
+import CatalogImageFrame from '@/components/CatalogImageFrame'
+import { resolveCatalogItemImageForLink } from '@/Lib/catalogItemVisual'
 import { slugFromItemName } from '@/Lib/packageConfigKeys'
 import { filterCatalogItems } from '@/Lib/itemCatalog'
 import type { PackageItem, PackageSideItem } from '@/Lib/packageConfiguration'
@@ -227,6 +229,7 @@ export default function PackageConfigEditor({
         title="Itens fixos do pacote"
         rows={items}
         catalogItems={packageItemCatalog}
+        linkedItemType="PRODUCT"
         pickerPlaceholder="Selecionar item do cadastro…"
         savingId={savingId}
         onSave={(id, payload) => void saveRow('item', id, payload)}
@@ -248,6 +251,7 @@ export default function PackageConfigEditor({
         title="Guarnições"
         rows={sides}
         catalogItems={sideItemCatalog}
+        linkedItemType="SIDE"
         pickerPlaceholder="Selecionar guarnição do cadastro…"
         savingId={savingId}
         onSave={(id, payload) => void saveRow('side', id, payload)}
@@ -312,6 +316,7 @@ function InventorySection({
   title,
   rows,
   catalogItems,
+  linkedItemType,
   pickerPlaceholder,
   savingId,
   onSave,
@@ -321,6 +326,7 @@ function InventorySection({
   title: string
   rows: Array<PackageItem | PackageSideItem>
   catalogItems: AdditionalItemOption[]
+  linkedItemType: 'PRODUCT' | 'SIDE' | 'PACKAGE_ITEM'
   pickerPlaceholder?: string
   savingId: string | null
   onSave: (id: string, payload: Record<string, unknown>) => void
@@ -338,6 +344,7 @@ function InventorySection({
             key={row.id}
             row={row}
             catalogItems={catalogItems}
+            linkedItemType={linkedItemType}
             pickerPlaceholder={pickerPlaceholder}
             saving={savingId === row.id}
             onSave={(payload) => onSave(row.id, payload)}
@@ -353,6 +360,7 @@ function InventorySection({
 function InventoryRowEditor({
   row,
   catalogItems,
+  linkedItemType,
   pickerPlaceholder,
   saving,
   onSave,
@@ -360,6 +368,7 @@ function InventoryRowEditor({
 }: {
   row: PackageItem | PackageSideItem
   catalogItems: AdditionalItemOption[]
+  linkedItemType: 'PRODUCT' | 'SIDE' | 'PACKAGE_ITEM'
   pickerPlaceholder?: string
   saving: boolean
   onSave: (payload: Record<string, unknown>) => void
@@ -371,8 +380,28 @@ function InventoryRowEditor({
     setDraft(row)
   }, [row])
 
+  const visual = resolveCatalogItemImageForLink(catalogItems, {
+    additional_item_id: draft.additional_item_id,
+    image_url: draft.image_url,
+    item_type: linkedItemType,
+    category_pt: draft.label_pt,
+  })
+
   return (
     <div className="grid gap-3 rounded-xl border border-neutral-200 bg-neutral-50/80 p-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="sm:col-span-2 lg:col-span-3">
+        <CatalogImageFrame
+          src={visual.imageUrl}
+          alt={draft.label_pt?.trim() || draft.item_name?.trim() || 'Item'}
+          variant="catalogItem"
+          itemType={visual.itemType ?? linkedItemType}
+          categoryPt={visual.categoryPt}
+          imageStatus={visual.imageStatus}
+          size="thumbnail"
+          rounded="all"
+          className="!inline-flex !w-20"
+        />
+      </div>
       <BackofficeField label="Item do cadastro" className="sm:col-span-2 lg:col-span-3">
         <AdditionalItemPicker
           catalogItems={catalogItems}
@@ -643,8 +672,27 @@ function OptionItemEditor({
     setDraft(item)
   }, [item])
 
+  const visual = resolveCatalogItemImageForLink(catalogItems, {
+    additional_item_id: draft.additional_item_id,
+    item_type: 'PRODUCT',
+    category_pt: draft.label_pt,
+  })
+
   return (
     <div className="grid gap-3 rounded-lg border border-neutral-200 bg-white p-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="sm:col-span-2 lg:col-span-3">
+        <CatalogImageFrame
+          src={visual.imageUrl}
+          alt={draft.label_pt?.trim() || draft.option_item_key?.trim() || 'Opção'}
+          variant="catalogItem"
+          itemType={visual.itemType ?? 'PRODUCT'}
+          categoryPt={visual.categoryPt}
+          imageStatus={visual.imageStatus}
+          size="thumbnail"
+          rounded="all"
+          className="!inline-flex !w-20"
+        />
+      </div>
       <BackofficeField label="Item do cadastro" className="sm:col-span-2 lg:col-span-3">
         <AdditionalItemPicker
           catalogItems={catalogItems}

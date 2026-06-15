@@ -1,6 +1,6 @@
 import { getPackageKey, type PackageFieldSource } from '@/Lib/packageFieldAccess'
 import {
-  getBlockedAdditionalItemIdsFromConfig,
+  getBlockedCatalogItemIdsFromConfig,
   type PackageItem,
   type PackageSideItem,
 } from '@/Lib/packageConfiguration'
@@ -232,7 +232,7 @@ export function getPackageOptionGroupsForPackage(
   ).filter((group) => (group.items?.length ?? 0) > 0) as PackageOptionGroup[]
 }
 
-export function getBlockedAdditionalItemIds(
+export function getBlockedCatalogItemIds(
   packageId: string,
   groups: ReadonlyArray<PackageOptionGroupRecord>,
   customPackage: boolean,
@@ -240,6 +240,8 @@ export function getBlockedAdditionalItemIds(
     packageItems?: ReadonlyArray<PackageItem>
     packageSideItems?: ReadonlyArray<PackageSideItem>
     groupItems?: ReadonlyArray<PackageOptionGroupItem>
+    /** groupId → package_option_group_items.id */
+    selectedPackageOptions?: Record<string, string>
   },
 ): string[] {
   const mergedGroups: PackageOptionGroup[] = options?.groupItems
@@ -251,15 +253,19 @@ export function getBlockedAdditionalItemIds(
         items: group.items ?? [],
       }))
 
-  return getBlockedAdditionalItemIdsFromConfig({
+  return getBlockedCatalogItemIdsFromConfig({
     packageId,
     packageItems: options?.packageItems ?? [],
     packageSideItems: options?.packageSideItems ?? [],
     optionGroups: mergedGroups,
     optionGroupItems: options?.groupItems,
     customPackage,
+    selectedPackageOptions: options?.selectedPackageOptions ?? {},
   })
 }
+
+/** @deprecated Use getBlockedCatalogItemIds */
+export const getBlockedAdditionalItemIds = getBlockedCatalogItemIds
 
 export function getPendingPackageSelectionGroupIds(
   groups: ReadonlyArray<PackageOptionGroup>,
@@ -279,18 +285,11 @@ export function validatePackageSelections(
   groups: ReadonlyArray<PackageOptionGroup>,
   selections: Record<string, string>,
 ): string[] {
-  const issues: string[] = []
-
-  for (const group of sortGroups([...groups])) {
-    if (!isRequiredOptionGroup(group) || group.items.length === 0) continue
-    const selected = selections[group.id]?.trim()
-    if (!selected) {
-      const title = getOptionGroupTitle(group)
-      issues.push(`Escolha uma opção em: ${title}.`)
-    }
+  const pending = getPendingPackageSelectionGroupIds(groups, selections)
+  if (pending.length > 0) {
+    return ['Escolha uma opção para continuar.']
   }
-
-  return issues
+  return []
 }
 
 function buildGroupPlaceholderPattern(

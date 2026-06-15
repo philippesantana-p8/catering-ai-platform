@@ -279,8 +279,10 @@ export default function AdditionalItemsDashboard({
         setDraft((current) => ({
           ...current,
           image_url: result.item?.image_url ?? result.image_url ?? current.image_url,
-          image_status: result.item?.image_status ?? 'uploaded',
-          image_notes: null,
+          image_status: result.item?.image_status ?? 'ready',
+          image_notes:
+            result.item?.image_notes ??
+            'Imagem atualizada pelo cadastro de itens.',
         }))
       }
     } catch (uploadError) {
@@ -427,7 +429,20 @@ export default function AdditionalItemsDashboard({
             <CatalogImageFrame
               src={imageUrl}
               alt={displayName}
-              variant="additionalItem"
+              variant="catalogItem"
+              itemType={
+                (isEditing ? draft.item_type : selectedItem.item_type) as
+                  | string
+                  | null
+                  | undefined
+              }
+              categoryPt={
+                String(isEditing ? draft.category_pt ?? '' : selectedItem.category_pt ?? '') ||
+                null
+              }
+              imageStatus={
+                isEditing ? String(draft.image_status ?? '') : selectedItem.image_status
+              }
               fallbackLabel="Sem imagem cadastrada"
               rounded="all"
               className="!aspect-square !min-h-0 !max-h-none"
@@ -473,7 +488,10 @@ export default function AdditionalItemsDashboard({
           <CatalogImageFrame
             src={imageUrl}
             alt={displayName}
-            variant="additionalItem"
+            variant="catalogItem"
+            itemType={selectedItem.item_type}
+            categoryPt={selectedItem.category_pt}
+            imageStatus={selectedItem.image_status}
             fallbackLabel="Sem imagem cadastrada"
             rounded="none"
             className="!h-full !min-h-0 !max-h-none !w-full !rounded-none"
@@ -653,10 +671,25 @@ export default function AdditionalItemsDashboard({
                     active={selectedItemId === item.id}
                     onClick={() => selectItem(item.id)}
                   >
-                    <span>{getAdditionalItemLabel(item)}</span>
-                    <span className="text-xs text-neutral-400">
-                      {item.item_type ?? 'PRODUCT'} · {formatUsd(getAdditionalItemPrice(item))}
-                    </span>
+                    <div className="flex min-w-0 flex-1 items-center gap-3">
+                      <CatalogImageFrame
+                        src={getAdditionalItemImageUrl(item)}
+                        alt={getAdditionalItemLabel(item)}
+                        variant="catalogItem"
+                        itemType={item.item_type}
+                        categoryPt={item.category_pt}
+                        imageStatus={item.image_status}
+                        size="thumbnail"
+                        rounded="all"
+                        className="!h-12 !w-12"
+                      />
+                      <div className="min-w-0">
+                        <span className="block truncate">{getAdditionalItemLabel(item)}</span>
+                        <span className="text-xs text-neutral-400">
+                          {item.item_type ?? 'PRODUCT'} · {formatUsd(getAdditionalItemPrice(item))}
+                        </span>
+                      </div>
+                    </div>
                   </BackofficeCascadeListButton>
                 ))}
               </div>

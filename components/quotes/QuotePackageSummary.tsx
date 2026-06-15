@@ -1,7 +1,10 @@
 'use client'
 
 import CatalogImageFrame from '@/components/CatalogImageFrame'
-import { PriceBreakdownCard, PremiumCard, StatusBadge } from '@/components/premium/PremiumPrimitives'
+import { resolveCatalogItemImageForLink } from '@/Lib/catalogItemVisual'
+import { PriceBreakdownCard } from '@/components/premium/PremiumPrimitives'
+import PackageFixedItemsByCategory from '@/components/quotes/PackageFixedItemsByCategory'
+import PackageIncludedOptions from '@/components/quotes/PackageIncludedOptions'
 import {
   findBasePackage,
   formatPackageCatalogPriceLabel,
@@ -13,11 +16,7 @@ import {
   type PackageCatalogFields,
 } from '@/Lib/packageCatalogVisual'
 import {
-  formatDisplayableFixedPackageItemsText,
-  formatPackageInventoryList,
-  formatPackageSideItemsText,
   getDisplayableFixedPackageItems,
-  getPackageSideItemsForPackage,
   type PackageItem,
   type PackageSideItem,
 } from '@/Lib/packageConfiguration'
@@ -25,7 +24,10 @@ import {
   getPackageDetailTitle,
   parsePackageHighlightsText,
 } from '@/Lib/packageDisplay'
-import PackageIncludedOptions from '@/components/quotes/PackageIncludedOptions'
+import {
+  groupFixedPackageItemsForQuote,
+  getQuoteDisplaySideItems,
+} from '@/Lib/packageQuoteDisplay'
 import {
   hasPackageIncludedChoices,
   isCustomPackage,
@@ -52,10 +54,13 @@ export default function QuotePackageSummary({
   optionGroups = [],
   packageItems = [],
   packageSideItems = [],
+  catalogItems = [],
   selections = {},
   onSelectionChange,
   showIncludedOptionsEditor = false,
-  showIncludedOptionsSummary = true,
+  showIncludedOptionsSummary = false,
+  showImage = true,
+  pendingSelectionGroupIds = [],
 }: {
   pkg: PackageWithHighlights
   allPackages?: ReadonlyArray<PackageCatalogFields>
@@ -66,10 +71,13 @@ export default function QuotePackageSummary({
   optionGroups?: ReadonlyArray<PackageOptionGroup>
   packageItems?: ReadonlyArray<PackageItem>
   packageSideItems?: ReadonlyArray<PackageSideItem>
+  catalogItems?: ReadonlyArray<import('@/Lib/itemCatalog').CatalogItemListItem>
   selections?: Record<string, string>
   onSelectionChange?: (groupId: string, itemId: string) => void
   showIncludedOptionsEditor?: boolean
   showIncludedOptionsSummary?: boolean
+  showImage?: boolean
+  pendingSelectionGroupIds?: string[]
 }) {
   const image = getPackageCatalogImage(pkg, allPackages)
   const variant = getPackageCatalogVariant(pkg)
@@ -89,34 +97,31 @@ export default function QuotePackageSummary({
     hasIncludedOptions &&
     showIncludedOptionsEditor &&
     Boolean(onSelectionChange)
-  const showOptionsSummary = hasIncludedOptions && showIncludedOptionsSummary
-
-  const displayableFixedItems = pkg.id
-    ? getDisplayableFixedPackageItems(pkg.id, packageItems, choiceContext)
-    : []
-  const configuredSides = pkg.id
-    ? getPackageSideItemsForPackage(pkg.id, packageSideItems)
-    : []
-
-  const fixedItemsDisplay = pkg.id
-    ? formatDisplayableFixedPackageItemsText(
-        pkg.id,
-        packageItems,
-        language,
-        choiceContext,
-      )
-    : ''
-
-  const highlightItems = parsePackageHighlightsText(pkg.package_highlights_pt)
-
-  const sidesDisplay =
-    configuredSides.length > 0
-      ? formatPackageInventoryList(
-          formatPackageSideItemsText(configuredSides, language).split(' • '),
-        )
-      : ''
 
   const packagePrice = getPackageCatalogPrice(pkg)
+  const totalPerPerson =
+    sidesPricing?.totalPerPerson ?? packagePrice
+
+  const itemCategoryGroups = pkg.id
+    ? groupFixedPackageItemsForQuote({
+        packageId: pkg.id,
+        packageItems,
+        catalogItems,
+        choiceContext,
+        language,
+      })
+    : []
+
+  const hasFixedItems =
+    pkg.id &&
+    getDisplayableFixedPackageItems(pkg.id, packageItems, choiceContext).length >
+      0
+
+  const configuredSides = pkg.id
+    ? getQuoteDisplaySideItems(pkg.id, packageSideItems)
+    : []
+
+  const highlightItems = parsePackageHighlightsText(pkg.package_highlights_pt)
 
   const breakdownRows = priceOnRequest
     ? [
@@ -125,23 +130,11 @@ export default function QuotePackageSummary({
           value: formatPackageCatalogPriceLabel(pkg, language, formatCurrency),
           emphasis: true,
         },
-        {
-          label: 'Valor das guarnições',
-          value: 'Não inclusas',
-        },
       ]
     : variant === 'without_sides'
       ? [
           {
-            label: 'Valor do pacote',
-            value: `${formatCurrency(packagePrice)} / ${perPerson}`,
-          },
-          {
-            label: 'Valor das guarnições',
-            value: 'Não inclusas',
-          },
-          {
-            label: 'Total',
+            label: 'Total por pessoa',
             value: `${formatCurrency(packagePrice)} / ${perPerson}`,
             emphasis: true,
           },
@@ -150,143 +143,191 @@ export default function QuotePackageSummary({
           sidesPricing.basePricePerPerson != null
         ? [
             {
-              label: 'Valor do pacote',
+              label: 'Pacote',
               value: `${formatCurrency(sidesPricing.basePricePerPerson)} / ${perPerson}`,
             },
             {
-              label: 'Valor das guarnições',
+              label: 'Guarnições',
               value: `+ ${formatCurrency(sidesPricing.sidesPricePerPerson)} / ${perPerson}`,
             },
             {
-              label: 'Total',
+              label: 'Total por pessoa',
               value: `${formatCurrency(sidesPricing.totalPerPerson)} / ${perPerson}`,
               emphasis: true,
             },
           ]
         : [
             {
-              label: 'Total',
-              value: `${formatCurrency(sidesPricing?.totalPerPerson ?? packagePrice)} / ${perPerson}`,
+              label: 'Total por pessoa',
+              value: `${formatCurrency(totalPerPerson)} / ${perPerson}`,
               emphasis: true,
             },
           ]
 
+  const sectionClass = compact
+    ? 'rounded-xl border border-neutral-100 bg-white p-3'
+    : 'rounded-xl border border-neutral-100 bg-white p-4 sm:p-5'
+
   return (
-    <PremiumCard
-      className={
-        selected
-          ? 'overflow-hidden ring-2 ring-emerald-400 ring-offset-2'
-          : 'overflow-hidden'
-      }
+    <div
+      className={`space-y-3 ${selected ? 'rounded-2xl ring-2 ring-emerald-400 ring-offset-2' : ''}`}
     >
-      <div className={compact ? 'bg-neutral-50 p-2.5' : 'bg-neutral-50 p-3 sm:p-4'}>
+      {showImage ? (
         <div
-          className={`w-full overflow-hidden rounded-xl ${
-            compact
-              ? 'aspect-[3/2] max-h-52'
-              : 'aspect-[4/3] sm:aspect-[16/10] lg:aspect-[5/4]'
+          className={`overflow-hidden rounded-2xl bg-neutral-50 ${
+            compact ? 'p-2' : 'p-3'
           }`}
         >
-          <CatalogImageFrame
-            src={image}
-            alt={detailTitle}
-            variant="package"
-            fallbackLabel="Imagem do pacote não cadastrada"
-            rounded="all"
-            className="!h-full !min-h-0 !max-h-none !w-full !rounded-xl"
-          />
+          <div
+            className={`w-full overflow-hidden rounded-xl ${
+              compact ? 'aspect-[16/10] max-h-48' : 'aspect-[16/10] max-h-56 sm:max-h-64'
+            }`}
+          >
+            <CatalogImageFrame
+              src={image}
+              alt={detailTitle}
+              variant="package"
+              fallbackLabel="Imagem do pacote"
+              rounded="all"
+              className="!h-full !min-h-0 !max-h-none !w-full !rounded-xl"
+            />
+          </div>
         </div>
-      </div>
+      ) : null}
 
-      <div className={compact ? 'space-y-3 p-4' : 'space-y-4 p-5 sm:p-6'}>
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="font-mono text-xs font-bold uppercase tracking-wider text-neutral-500">
-            {pkg.package_key}
-          </span>
-          {variant === 'with_sides' ? (
-            <span className="inline-flex rounded-full bg-amber-50 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-900 ring-1 ring-amber-200">
-              + guarnições
-            </span>
-          ) : null}
-          {selected ? <StatusBadge active label="Selecionado" /> : null}
-        </div>
-
-        <h3 className="text-2xl font-black tracking-tight text-neutral-900 sm:text-3xl">
+      <section className={sectionClass}>
+        <h3
+          className={
+            compact
+              ? 'text-xl font-black tracking-tight text-neutral-900'
+              : 'text-2xl font-black tracking-tight text-neutral-900 sm:text-3xl'
+          }
+        >
           {detailTitle}
         </h3>
+        <p
+          className={
+            compact
+              ? 'mt-2 text-2xl font-black text-red-600'
+              : 'mt-3 text-3xl font-black text-red-600'
+          }
+        >
+          {priceOnRequest
+            ? formatPackageCatalogPriceLabel(pkg, language, formatCurrency)
+            : `${formatCurrency(totalPerPerson)}`}
+          {!priceOnRequest ? (
+            <span className="ml-1 text-sm font-semibold text-neutral-500">
+              / {perPerson}
+            </span>
+          ) : null}
+        </p>
+      </section>
 
-        {highlightItems.length > 0 ? (
-          <div className="package-highlights-box">
-            <p className="package-highlights-title">Diferenciais do pacote</p>
-            <div className="package-highlights-list">
-              {highlightItems.map((item) => (
-                <span key={item}>{item}</span>
-              ))}
-            </div>
+      {highlightItems.length > 0 ? (
+        <section className={sectionClass}>
+          <p className="text-sm font-bold text-neutral-900">Destaque</p>
+          <ul className="mt-2 space-y-1">
+            {highlightItems.map((item) => (
+              <li
+                key={item}
+                className="text-sm leading-relaxed text-neutral-700 before:mr-2 before:content-['•']"
+              >
+                {item}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      <section className={sectionClass}>
+        <p className="text-sm font-bold text-neutral-900">Itens inclusos</p>
+        {hasFixedItems ? (
+          <div className="mt-2">
+            <PackageFixedItemsByCategory
+              groups={itemCategoryGroups}
+              compact={compact}
+            />
           </div>
-        ) : null}
+        ) : isCustom ? (
+          <p className="mt-2 text-sm text-neutral-600">
+            Pacote personalizado — itens definidos na cotação.
+          </p>
+        ) : (
+          <p className="mt-2 text-sm text-amber-800">
+            Itens do pacote em configuração.
+          </p>
+        )}
+      </section>
 
-        <div>
-          <p className="text-sm font-bold text-neutral-900">Itens do pacote:</p>
-          {displayableFixedItems.length > 0 ? (
-            <p className="mt-2 text-sm leading-relaxed text-neutral-700">
-              {fixedItemsDisplay}
-            </p>
-          ) : isCustom ? (
-            <p className="mt-2 text-sm leading-relaxed text-neutral-600">
-              Pacote personalizado — itens definidos manualmente na cotação.
-            </p>
-          ) : (
-            <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-900">
-              Atenção: pacote ainda não possui itens fixos configurados.
-            </p>
-          )}
-        </div>
+      {variant === 'with_sides' && configuredSides.length > 0 ? (
+        <section className={`${sectionClass} border-amber-200 bg-amber-50/50`}>
+          <p className="text-sm font-bold text-amber-950">Guarnições inclusas</p>
+          <div className="mt-3 flex flex-wrap gap-3">
+            {configuredSides.map((side) => {
+              const label =
+                side.label_pt?.trim() || side.item_name?.trim() || '—'
+              const visual = resolveCatalogItemImageForLink(catalogItems, {
+                additional_item_id: side.additional_item_id,
+                image_url: side.image_url,
+                item_type: 'SIDE',
+                category_pt: side.label_pt,
+              })
+              return (
+                <div
+                  key={side.id}
+                  className="flex w-[4.5rem] flex-col items-center gap-1 text-center sm:w-24"
+                >
+                  <CatalogImageFrame
+                    src={visual.imageUrl}
+                    alt={label}
+                    variant="catalogItem"
+                    itemType={visual.itemType ?? 'SIDE'}
+                    categoryPt={visual.categoryPt}
+                    imageStatus={visual.imageStatus}
+                    size="thumbnail"
+                    rounded="all"
+                    className="!w-full"
+                  />
+                  <span className="text-[10px] font-semibold leading-tight text-amber-950 sm:text-[11px]">
+                    {label}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        </section>
+      ) : null}
 
-        {showOptionGroups ? (
+      {showOptionGroups ? (
+        <section className={sectionClass}>
           <PackageIncludedOptions
             optionGroups={optionGroups}
             selections={selections}
             onChange={onSelectionChange}
             language={language}
             mode="select"
+            catalogItems={catalogItems}
+            pendingGroupIds={pendingSelectionGroupIds}
           />
-        ) : null}
+        </section>
+      ) : null}
 
-        {showOptionsSummary && !showOptionGroups ? (
+      {showIncludedOptionsSummary && !showOptionGroups && hasIncludedOptions ? (
+        <section className={sectionClass}>
           <PackageIncludedOptions
             optionGroups={optionGroups}
             selections={selections}
             language={language}
             mode="summary"
+            catalogItems={catalogItems}
           />
-        ) : null}
+        </section>
+      ) : null}
 
-        {variant === 'with_sides' ? (
-          <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-4">
-            <p className="text-sm font-bold text-amber-950">Guarnições:</p>
-            {configuredSides.length > 0 ? (
-              <p className="mt-2 text-sm leading-relaxed text-amber-950/90">
-                {sidesDisplay}
-              </p>
-            ) : (
-              <p className="mt-2 rounded-lg border border-amber-300 bg-amber-100/80 px-3 py-2 text-sm font-semibold text-amber-950">
-                Pacote com guarnições ainda não possui guarnições configuradas.
-              </p>
-            )}
-          </div>
-        ) : (
-          <p className="text-sm leading-relaxed text-neutral-700">
-            <span className="font-bold text-neutral-900">Guarnições:</span>{' '}
-            Não inclusas
-          </p>
-        )}
-
-        <div>
-          <p className="mb-2 text-sm font-bold text-neutral-900">Valores:</p>
-          <PriceBreakdownCard rows={breakdownRows} />
-        </div>
-      </div>
-    </PremiumCard>
+      <section className={sectionClass}>
+        <p className="mb-2 text-sm font-bold text-neutral-900">Preço</p>
+        <PriceBreakdownCard rows={breakdownRows} />
+      </section>
+    </div>
   )
 }
