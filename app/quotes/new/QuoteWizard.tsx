@@ -2394,7 +2394,7 @@ export default function QuoteWizard({
   }
 
   return (
-    <main className="quotes-pscs min-h-screen bg-cdl-bg px-4 py-4 text-cdl-fg sm:px-8 sm:py-6">
+    <main className="quotes-pscs min-h-screen bg-cdl-bg px-4 py-4 pb-28 text-cdl-fg sm:px-8 sm:py-6 sm:pb-28">
       <div className="mx-auto max-w-6xl">
         <div className="mb-3 flex flex-col gap-2">
           <AdminCompactMenu />

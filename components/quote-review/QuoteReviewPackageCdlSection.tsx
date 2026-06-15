@@ -1,7 +1,7 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import CatalogImageFrame from '@/components/CatalogImageFrame'
+import PackageHeroImage from '@/components/quotes/PackageHeroImage'
 import { SectionHeader } from '@/components/premium/PremiumPrimitives'
 import {
   formatCountOrDash,
@@ -96,16 +96,12 @@ export default function QuoteReviewPackageCdlSection({
   return (
     <div className="space-y-5">
       <SectionHeader title="Pacote CDL" subtitle={displayValue(packageName)} />
-      <div className="flex w-full items-center justify-center overflow-hidden rounded-2xl border border-neutral-200 bg-white">
-        <CatalogImageFrame
-          src={packageImageUrl}
-          alt={packageName ?? 'Pacote'}
-          variant="package"
-          fallbackLabel="Imagem do pacote não cadastrada"
-          rounded="none"
-          className="!aspect-square !min-h-0 !max-h-[min(85vw,20rem)] !w-full !bg-white sm:!aspect-[4/3] sm:!max-h-[18rem]"
-        />
-      </div>
+      <PackageHeroImage
+        src={packageImageUrl}
+        alt={packageName ?? 'Pacote'}
+        fallbackLabel="Imagem do pacote não cadastrada"
+        expand={false}
+      />
       {packageSelections.length > 0 ? (
         <div className="space-y-1">
           <p className="quote-proposal-package-detail">

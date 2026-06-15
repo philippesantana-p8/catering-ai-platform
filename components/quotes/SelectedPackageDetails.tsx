@@ -1,6 +1,6 @@
 'use client'
 
-import CatalogImageFrame from '@/components/CatalogImageFrame'
+import PackageHeroImage from '@/components/quotes/PackageHeroImage'
 import PackageIncludedOptions from '@/components/quotes/PackageIncludedOptions'
 import PackageIncludedSidesSummary from '@/components/quotes/PackageIncludedSidesSummary'
 import {
@@ -172,18 +172,11 @@ export default function SelectedPackageDetails({
 
   return (
     <div className="mt-2 space-y-2.5 border-t border-cdl-border-subtle pt-2.5">
-      <div className="overflow-hidden rounded-xl bg-neutral-50">
-        <div className="aspect-[16/10] w-full max-h-48 overflow-hidden sm:max-h-56">
-          <CatalogImageFrame
-            src={image}
-            alt={pkg.label_pt?.trim() || pkg.package_key || 'Pacote'}
-            variant="package"
-            fallbackLabel="Imagem do pacote"
-            rounded="all"
-            className="!h-full !min-h-0 !max-h-none !w-full object-contain"
-          />
-        </div>
-      </div>
+      <PackageHeroImage
+        src={image}
+        alt={pkg.label_pt?.trim() || pkg.package_key || 'Pacote'}
+        fallbackLabel="Imagem do pacote"
+      />
 
       {highlightItems.length > 0 ? (
         <div className="rounded-xl bg-gradient-to-br from-amber-100 via-amber-50 to-yellow-50 px-3 py-2.5 ring-1 ring-amber-200/80">

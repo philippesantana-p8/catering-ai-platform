@@ -1,6 +1,7 @@
 'use client'
 
 import CatalogImageFrame from '@/components/CatalogImageFrame'
+import PackageHeroImage from '@/components/quotes/PackageHeroImage'
 import { resolveCatalogItemImageForLink } from '@/Lib/catalogItemVisual'
 import { PriceBreakdownCard } from '@/components/premium/PremiumPrimitives'
 import PackageFixedItemsByCategory from '@/components/quotes/PackageFixedItemsByCategory'
@@ -173,26 +174,12 @@ export default function QuotePackageSummary({
       className={`space-y-3 ${selected ? 'rounded-2xl ring-2 ring-emerald-400 ring-offset-2' : ''}`}
     >
       {showImage ? (
-        <div
-          className={`overflow-hidden rounded-2xl bg-neutral-50 ${
-            compact ? 'p-2' : 'p-3'
-          }`}
-        >
-          <div
-            className={`w-full overflow-hidden rounded-xl ${
-              compact ? 'aspect-[16/10] max-h-48' : 'aspect-[16/10] max-h-56 sm:max-h-64'
-            }`}
-          >
-            <CatalogImageFrame
-              src={image}
-              alt={detailTitle}
-              variant="package"
-              fallbackLabel="Imagem do pacote"
-              rounded="all"
-              className="!h-full !min-h-0 !max-h-none !w-full !rounded-xl"
-            />
-          </div>
-        </div>
+        <PackageHeroImage
+          src={image}
+          alt={detailTitle}
+          fallbackLabel="Imagem do pacote"
+          expand={!compact}
+        />
       ) : null}
 
       <section className={sectionClass}>

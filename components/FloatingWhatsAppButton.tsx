@@ -73,7 +73,7 @@ export default function FloatingWhatsAppButton() {
       style={{
         right: "12px",
         bottom: isQuoteWizard
-          ? "calc(env(safe-area-inset-bottom) + 18px)"
+          ? "calc(env(safe-area-inset-bottom) + 12px)"
           : "calc(env(safe-area-inset-bottom) + 82px)",
       }}
     >
