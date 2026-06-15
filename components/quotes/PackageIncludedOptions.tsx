@@ -101,7 +101,7 @@ export default function PackageIncludedOptions({
                       aria-pressed={active}
                       className={`min-h-[2.5rem] rounded-lg border px-2 py-2 text-center text-xs font-semibold leading-tight transition sm:text-sm ${
                         active
-                          ? 'border-red-500 bg-red-50 text-red-900 ring-1 ring-red-300'
+                          ? 'border-amber-500 bg-amber-50 text-amber-950 ring-1 ring-amber-300'
                           : 'border-neutral-200 bg-neutral-50 text-neutral-800 hover:border-neutral-300 hover:bg-white'
                       }`}
                     >

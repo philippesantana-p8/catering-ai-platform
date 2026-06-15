@@ -2174,7 +2174,7 @@ export default function QuoteWizard({
   )
 
   useEffect(() => {
-    if (step !== 2 || process.env.NODE_ENV !== 'development') return
+    if (step !== 2 || process.env.NODE_ENV === 'production') return
     console.log('[Etapa Pacote] packages', packages)
     console.log('[Etapa Pacote] packageOptionGroups', flatOptionGroups)
     console.log('[Etapa Pacote] packageOptionGroupItems', allOptionGroupItems)
@@ -2743,7 +2743,7 @@ export default function QuoteWizard({
               onSelect={handlePackageSelect}
             />
 
-            {process.env.NODE_ENV === 'development' ? (
+            {process.env.NODE_ENV !== 'production' ? (
               <PackageOptionsDebugPanel
                 companyId={debugCompanyId}
                 selectedPackage={selectedPackage}
@@ -3057,17 +3057,35 @@ export default function QuoteWizard({
             >
               Voltar
             </button>
-            <button
-              type="button"
-              onClick={goNext}
-              disabled={
-                step === STEPS.length - 1 ||
-                (step === 2 && packageStepNextDisabled)
-              }
-              className="cdl-btn-primary disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              Próximo
-            </button>
+            <span className="relative inline-flex w-full sm:w-auto">
+              {step === 2 && packageStepNextDisabled ? (
+                <button
+                  type="button"
+                  aria-label="Próximo — complete as opções obrigatórias"
+                  className="absolute inset-0 z-10 cursor-not-allowed rounded-xl"
+                  onClick={() => {
+                    if (!state.packageId) {
+                      setPackageStepMessage(
+                        'Selecione um pacote para continuar.',
+                      )
+                      return
+                    }
+                    setPackageSelectionAttempted(true)
+                  }}
+                />
+              ) : null}
+              <button
+                type="button"
+                onClick={goNext}
+                disabled={
+                  step === STEPS.length - 1 ||
+                  (step === 2 && packageStepNextDisabled)
+                }
+                className="cdl-btn-primary w-full disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto"
+              >
+                Próximo
+              </button>
+            </span>
           </div>
         </div>
         )}
