@@ -3,12 +3,11 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import AppMainNav from '../../../components/AppMainNav'
+import AdminCompactMenu from '../../../components/quotes/AdminCompactMenu'
 import { useTenant } from '../../../components/tenant/TenantProvider'
 import CatalogImageFrame from '../../../components/CatalogImageFrame'
-import BuildVersionBadge from '../../../components/BuildVersionBadge'
-import QuoteHeaderCompact from '../../../components/quotes/QuoteHeaderCompact'
-import QuoteHeroBanner from '../../../components/quotes/QuoteHeroBanner'
+import QuoteStepHeader from '../../../components/quotes/QuoteStepHeader'
+import QuoteStepper from '../../../components/quotes/QuoteStepper'
 import QuotePackageStepExplorer from '../../../components/quotes/QuotePackageStepExplorer'
 import PackageOptionsDebugPanel from '../../../components/quotes/PackageOptionsDebugPanel'
 import { CDL_DEFAULT_COMPANY_ID } from '../../../Lib/cdlCompany'
@@ -80,7 +79,6 @@ import {
   getStepVisualStatus,
   isQuoteReadyToSave,
   type StepStatusContext,
-  type StepVisualStatus,
 } from './wizardStepStatus'
 
 export type Customer = {
@@ -160,10 +158,10 @@ const STEPS = [
   'Evento',
   'Pacote',
   'Adicionais',
-  'Churrasqueira',
-  'Milhagem',
-  'Reserva',
+  'Churrasco',
+  'Dados',
   'Resumo',
+  'Confirmação',
 ] as const
 
 function formatCurrency(value: number) {
@@ -256,48 +254,6 @@ function FieldCheck({ show }: { show: boolean }) {
   )
 }
 
-function stepSegmentClass(status: StepVisualStatus) {
-  switch (status) {
-    case 'complete':
-      return 'bg-cdl-success'
-    case 'pending':
-      return 'bg-cdl-warning'
-    case 'error':
-      return 'bg-cdl-action'
-    default:
-      return 'bg-cdl-step-empty'
-  }
-}
-
-function stepButtonClass(status: StepVisualStatus, isCurrent: boolean) {
-  const currentRing = isCurrent
-    ? 'ring-2 ring-cdl-brand ring-offset-2 ring-offset-cdl-surface'
-    : ''
-
-  switch (status) {
-    case 'complete':
-      return `border border-cdl-success-border bg-cdl-success-soft text-cdl-success ${currentRing}`
-    case 'pending':
-      return `border border-cdl-warning-border bg-cdl-warning-soft text-cdl-warning ${currentRing}`
-    case 'error':
-      return `border border-cdl-action bg-cdl-red-soft text-cdl-action ${currentRing}`
-    default:
-      return `border border-cdl-border bg-cdl-inset text-cdl-muted ${currentRing}`
-  }
-}
-
-function stepBadgeClass(status: StepVisualStatus) {
-  switch (status) {
-    case 'complete':
-      return 'bg-cdl-success text-[#070707]'
-    case 'pending':
-      return 'bg-cdl-warning text-[#070707]'
-    case 'error':
-      return 'bg-cdl-action text-white'
-    default:
-      return 'bg-cdl-image text-cdl-muted'
-  }
-}
 const HOUR_OPTIONS = Array.from({ length: 24 }, (_, hour) => hour)
 const MINUTE_OPTIONS = [0, 15, 30, 45]
 
@@ -1443,7 +1399,6 @@ export default function QuoteWizard({
   >(() => packageOptionGroupItems)
   const [packageOptionQueryDebugState, setPackageOptionQueryDebugState] =
     useState<PackageOptionQueryDebug | null>(() => packageOptionQueryDebug)
-  const [packageExplorerKey, setPackageExplorerKey] = useState(0)
   const debugCompanyId =
     tenantCompanyId?.trim() || CDL_DEFAULT_COMPANY_ID
   const debugBranchId =
@@ -2277,7 +2232,6 @@ export default function QuoteWizard({
     previousStepRef.current = step
     if (step === 2 && previousStep === 1 && !isEditMode) {
       updateState({ packageId: null, packageSelections: {} })
-      setPackageExplorerKey((key) => key + 1)
     }
   }, [step, isEditMode])
 
@@ -2443,7 +2397,7 @@ export default function QuoteWizard({
     <main className="min-h-screen bg-cdl-bg px-4 py-4 text-cdl-fg sm:px-8 sm:py-6">
       <div className="mx-auto max-w-6xl">
         <div className="mb-3 flex flex-col gap-2">
-          <AppMainNav />
+          <AdminCompactMenu />
           <Link
             href={isEditMode && quoteId ? `/quotes/${quoteId}` : '/quotes'}
             className="inline-flex items-center text-sm text-cdl-muted transition-colors hover:text-cdl-brand"
@@ -2452,75 +2406,15 @@ export default function QuoteWizard({
           </Link>
         </div>
 
-        <QuoteHeaderCompact isEditMode={isEditMode} />
-        <QuoteHeroBanner isEditMode={isEditMode} />
-        <BuildVersionBadge className="mb-3 md:mb-4" />
+        <QuoteStepHeader step={step} isEditMode={isEditMode} />
 
-        <nav
-          className="mb-4 rounded-2xl border border-cdl-border bg-cdl-surface p-3 shadow-cdl sm:mb-5 sm:p-4"
-          aria-label="Etapas do wizard"
-        >
-          <div className="mb-3 flex items-center justify-between gap-3 px-0.5">
-            <p className="cdl-eyebrow">
-              Etapa {step + 1} de {STEPS.length}
-            </p>
-            <p className="truncate text-right text-sm font-bold uppercase tracking-wide text-cdl-brand">
-              {STEPS[step]}
-            </p>
-          </div>
-
-          <div
-            className="mb-3 flex h-1 gap-0.5 overflow-hidden rounded-full"
-            aria-hidden
-          >
-            {STEPS.map((label, index) => (
-              <div
-                key={`segment-${label}`}
-                className={`h-full flex-1 rounded-full transition-colors duration-300 ${stepSegmentClass(getStepVisualStatus(index, stepStatusCtx))}`}
-              />
-            ))}
-          </div>
-
-          <ol className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 snap-x snap-mandatory lg:mx-0 lg:grid lg:grid-cols-8 lg:gap-1.5 lg:overflow-visible lg:pb-0">
-            {STEPS.map((label, index) => {
-              const status = getStepVisualStatus(index, stepStatusCtx)
-              const isCurrent = index === step
-              const stepTitle =
-                index === 4 && additionalsCount > 0
-                  ? `${label} · ${additionalsCount} adicionais selecionados`
-                  : label
-
-              return (
-                <li
-                  key={label}
-                  className="min-w-[4.25rem] shrink-0 snap-start lg:min-w-0"
-                >
-                  <button
-                    type="button"
-                    onClick={() => setStep(index)}
-                    title={stepTitle}
-                    aria-current={isCurrent ? 'step' : undefined}
-                    className={`flex w-full flex-col items-center gap-1 rounded-xl px-1 py-2 transition-colors lg:px-1.5 lg:py-2.5 ${stepButtonClass(status, isCurrent)}`}
-                  >
-                    <span
-                      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-black lg:h-6 lg:w-6 lg:text-xs ${stepBadgeClass(status)}`}
-                    >
-                      {status === 'complete' ? '✓' : status === 'error' ? '!' : index + 1}
-                    </span>
-                    <span className="w-full text-center text-[8px] font-semibold uppercase leading-tight tracking-wide lg:text-[9px] xl:text-[10px]">
-                      {label}
-                    </span>
-                    {index === 4 && additionalsCount > 0 && (
-                      <span className="text-[7px] font-bold uppercase tracking-wide opacity-80 lg:text-[8px]">
-                        {additionalsCount} sel.
-                      </span>
-                    )}
-                  </button>
-                </li>
-              )
-            })}
-          </ol>
-        </nav>
+        <QuoteStepper
+          steps={STEPS}
+          currentStep={step}
+          additionalsCount={additionalsCount}
+          getStepStatus={(index) => getStepVisualStatus(index, stepStatusCtx)}
+          onStepClick={setStep}
+        />
 
         {fetchErrors.length > 0 && (
           <div className="mb-6 rounded-3xl border border-red-500/40 bg-cdl-surface p-4 text-sm text-red-400">
@@ -2831,22 +2725,8 @@ export default function QuoteWizard({
         )}
 
         {step === 2 && (
-          <div className="space-y-6">
-            <section className="rounded-2xl border border-cdl-border bg-cdl-surface p-7 shadow-cdl sm:p-9">
-              <h2 className="cdl-section-title !mb-0 !border-0 !pb-0">
-                Escolha o pacote
-              </h2>
-              <p className="mt-0.5 text-xs font-semibold uppercase tracking-wider text-cdl-muted">
-                Etapa 3 — Pacote
-              </p>
-              <p className="mt-2 text-sm text-cdl-muted">
-                Selecione o tipo de pacote, escolha a opção e confira os
-                detalhes antes de continuar
-              </p>
-            </section>
-
+          <div className="space-y-4">
             <QuotePackageStepExplorer
-              key={packageExplorerKey}
               packagesWithoutSides={packagesWithoutSides}
               packagesWithSides={packagesWithSides}
               allPackages={packages}

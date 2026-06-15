@@ -1,0 +1,98 @@
+'use client'
+
+import type { StepVisualStatus } from '@/app/quotes/new/wizardStepStatus'
+
+function stepSegmentClass(status: StepVisualStatus, isCurrent: boolean) {
+  if (isCurrent) return 'bg-cdl-accent'
+  if (status === 'complete') return 'bg-emerald-500'
+  if (status === 'error') return 'bg-red-500'
+  return 'bg-cdl-border'
+}
+
+function stepButtonClass(status: StepVisualStatus, isCurrent: boolean) {
+  if (status === 'error') {
+    return 'bg-red-50 text-red-800 ring-1 ring-red-200'
+  }
+  if (isCurrent) {
+    return 'bg-cdl-hover text-cdl-title ring-1 ring-cdl-accent-border'
+  }
+  if (status === 'complete') {
+    return 'bg-cdl-surface text-cdl-muted hover:bg-cdl-hover'
+  }
+  return 'bg-cdl-surface text-cdl-muted hover:bg-cdl-hover'
+}
+
+function stepBadgeClass(status: StepVisualStatus, isCurrent: boolean) {
+  if (isCurrent) return 'bg-cdl-accent text-cdl-on-accent'
+  if (status === 'complete') return 'bg-emerald-500 text-white'
+  if (status === 'error') return 'bg-red-500 text-white'
+  return 'bg-cdl-inset text-cdl-muted'
+}
+
+export default function QuoteStepper({
+  steps,
+  currentStep,
+  additionalsCount = 0,
+  getStepStatus,
+  onStepClick,
+}: {
+  steps: readonly string[]
+  currentStep: number
+  additionalsCount?: number
+  getStepStatus: (index: number) => StepVisualStatus
+  onStepClick: (index: number) => void
+}) {
+  return (
+    <nav
+      className="mb-4 rounded-2xl border border-cdl-border bg-cdl-surface p-2 shadow-cdl sm:p-3"
+      aria-label="Etapas do wizard"
+    >
+      <div
+        className="mb-2 flex h-1 gap-0.5 overflow-hidden rounded-full"
+        aria-hidden
+      >
+        {steps.map((label, index) => (
+          <div
+            key={`segment-${label}`}
+            className={`h-full flex-1 rounded-full transition-colors duration-300 ${stepSegmentClass(getStepStatus(index), index === currentStep)}`}
+          />
+        ))}
+      </div>
+
+      <ol className="-mx-0.5 flex gap-1 overflow-x-auto px-0.5 pb-0.5 snap-x snap-mandatory scroll-smooth lg:mx-0 lg:grid lg:grid-cols-8 lg:gap-1 lg:overflow-visible lg:pb-0">
+        {steps.map((label, index) => {
+          const status = getStepStatus(index)
+          const isCurrent = index === currentStep
+          const stepTitle =
+            index === 3 && additionalsCount > 0
+              ? `${label} · ${additionalsCount} adicionais`
+              : label
+
+          return (
+            <li
+              key={label}
+              className="min-w-[3.5rem] shrink-0 snap-center lg:min-w-0"
+            >
+              <button
+                type="button"
+                onClick={() => onStepClick(index)}
+                title={stepTitle}
+                aria-current={isCurrent ? 'step' : undefined}
+                className={`flex w-full flex-col items-center gap-0.5 rounded-lg px-0.5 py-1.5 transition-colors lg:py-2 ${stepButtonClass(status, isCurrent)}`}
+              >
+                <span
+                  className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[9px] font-black lg:h-5 lg:w-5 lg:text-[10px] ${stepBadgeClass(status, isCurrent)}`}
+                >
+                  {status === 'complete' ? '✓' : status === 'error' ? '!' : index + 1}
+                </span>
+                <span className="w-full text-center text-[7px] font-semibold uppercase leading-tight tracking-wide lg:text-[8px] xl:text-[9px]">
+                  {label}
+                </span>
+              </button>
+            </li>
+          )
+        })}
+      </ol>
+    </nav>
+  )
+}
