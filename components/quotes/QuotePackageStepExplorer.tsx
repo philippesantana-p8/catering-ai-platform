@@ -100,9 +100,7 @@ function PackageListWithInlineDetails({
                 language={language}
                 sidesPricePerPerson={sidesPricePerPerson}
                 optionGroups={optionGroups}
-                packageItems={packageItems}
                 packageSideItems={packageSideItems}
-                catalogItems={catalogItems}
                 selections={selections}
                 onSelectionChange={onSelectionChange}
                 pendingSelectionGroupIds={pendingSelectionGroupIds}
@@ -169,6 +167,23 @@ export default function QuotePackageStepExplorer({
     return null
   })
 
+  const selectedInWithSides = useMemo(
+    () =>
+      Boolean(
+        selectedPackageId &&
+          sortedWithSides.some((pkg) => pkg.id === selectedPackageId),
+      ),
+    [selectedPackageId, sortedWithSides],
+  )
+  const selectedInWithoutSides = useMemo(
+    () =>
+      Boolean(
+        selectedPackageId &&
+          sortedWithoutSides.some((pkg) => pkg.id === selectedPackageId),
+      ),
+    [selectedPackageId, sortedWithoutSides],
+  )
+
   useEffect(() => {
     if (!selectedPackage) return
     setExpandedGroup(getPackageHasGarnish(selectedPackage) ? 'with' : 'without')
@@ -214,9 +229,10 @@ export default function QuotePackageStepExplorer({
             count={sortedWithSides.length}
             badge="Com guarnições"
             expanded={expandedGroup === 'with'}
-            onClick={() =>
+            onClick={() => {
+              if (selectedInWithSides && expandedGroup === 'with') return
               setExpandedGroup((current) => (current === 'with' ? null : 'with'))
-            }
+            }}
           />
           {expandedGroup === 'with' ? (
             <div className="mt-3">
@@ -236,11 +252,12 @@ export default function QuotePackageStepExplorer({
             count={sortedWithoutSides.length}
             badge="Sem guarnições"
             expanded={expandedGroup === 'without'}
-            onClick={() =>
+            onClick={() => {
+              if (selectedInWithoutSides && expandedGroup === 'without') return
               setExpandedGroup((current) =>
                 current === 'without' ? null : 'without',
               )
-            }
+            }}
           />
           {expandedGroup === 'without' ? (
             <div className="mt-3">

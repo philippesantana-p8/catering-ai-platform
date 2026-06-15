@@ -1052,7 +1052,7 @@ function SectionCard({
   children,
   className = '',
 }: {
-  title: string
+  title?: string
   children: React.ReactNode
   className?: string
 }) {
@@ -1060,7 +1060,7 @@ function SectionCard({
     <section
       className={`rounded-2xl border border-cdl-border bg-cdl-surface p-7 shadow-cdl sm:p-9 ${className}`}
     >
-      <h2 className="cdl-section-title">{title}</h2>
+      {title ? <h2 className="cdl-section-title">{title}</h2> : null}
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">{children}</div>
     </section>
   )
@@ -2425,7 +2425,7 @@ export default function QuoteWizard({
         )}
 
         {step === 0 && isEditMode ? (
-          <SectionCard title="Etapa 1 — Cliente">
+          <SectionCard>
             <div className="sm:col-span-2">
               <label className="flex flex-col gap-2">
                 <span className="cdl-eyebrow">Idioma da cotação</span>
@@ -2470,7 +2470,7 @@ export default function QuoteWizard({
         ) : null}
 
         {step === 0 && !isEditMode && (
-          <SectionCard title="Etapa 1 — Cliente">
+          <SectionCard>
             <div className="sm:col-span-2">
               <label className="flex flex-col gap-2">
                 <span className="cdl-eyebrow">Idioma da cotação</span>
@@ -2645,7 +2645,7 @@ export default function QuoteWizard({
         )}
 
         {step === 1 && (
-          <SectionCard title="Etapa 2 — Evento">
+          <SectionCard>
             <div className="grid grid-cols-1 gap-4 sm:col-span-2 sm:grid-cols-2">
               <InputField
                 label="Event Name"
@@ -2760,24 +2760,6 @@ export default function QuoteWizard({
 
         {step === 3 && (
           <div className="space-y-6">
-            <section className="rounded-2xl border border-cdl-border bg-cdl-surface p-7 shadow-cdl sm:p-9">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <h2 className="cdl-section-title !mb-0 !border-0 !pb-0">
-                    Etapa 4 — Adicionais
-                  </h2>
-                  <p className="mt-1 text-sm text-cdl-muted">
-                    Clique em uma categoria para ver os itens com foto
-                  </p>
-                </div>
-                {additionalsCount > 0 && (
-                  <span className="inline-flex rounded-full border border-cdl-success-border bg-cdl-success-soft px-3 py-1 text-xs font-bold uppercase tracking-wider text-cdl-success">
-                    {additionalsCount} adicionais selecionados
-                  </span>
-                )}
-              </div>
-            </section>
-
             {additionalItemsByCategory.length === 0 ? (
               <p className="text-sm text-cdl-muted">Nenhum adicional disponível.</p>
             ) : (
@@ -2808,7 +2790,7 @@ export default function QuoteWizard({
         )}
 
         {step === 4 && (
-          <SectionCard title="Etapa 5 — Churrasqueira">
+          <SectionCard>
             <div className="grid grid-cols-1 gap-5 sm:col-span-2 sm:grid-cols-2">
               <CheckboxField
                 label="Cliente tem churrasqueira?"
@@ -2897,7 +2879,7 @@ export default function QuoteWizard({
         )}
 
         {step === 5 && (
-          <SectionCard title="Etapa 6 — Milhagem">
+          <SectionCard>
             <div className="sm:col-span-2 rounded-xl border border-cdl-warning-border bg-cdl-warning-soft px-4 py-3">
               <p className="text-sm leading-relaxed text-cdl-text-secondary">
                 Base atual: {commercialRules.mileageBaseLocation}. Até{' '}
@@ -2952,7 +2934,7 @@ export default function QuoteWizard({
         )}
 
         {step === 6 && (
-          <SectionCard title="Etapa 7 — Reserva">
+          <SectionCard>
             <div className="grid grid-cols-1 gap-4 sm:col-span-2 sm:grid-cols-2">
               <div className="sm:col-span-2">
                 <div className="rounded-2xl border border-cdl-accent-border bg-cdl-inset px-4 py-4">
@@ -3061,18 +3043,6 @@ export default function QuoteWizard({
 
         {step !== 7 && (
         <div className="mt-8 space-y-3">
-          {step === 2 && selectedPackage ? (
-            <p className="text-center text-sm text-cdl-muted sm:text-right">
-              Pacote selecionado:{' '}
-              <span className="font-semibold text-cdl-fg">
-                {getPackageDetailTitle(selectedPackage)}
-              </span>
-              {' — '}
-              <span className="font-semibold text-cdl-price">
-                {formatCurrency(packageUnitPrice)} / pessoa
-              </span>
-            </p>
-          ) : null}
           {step === 2 && packageStepMessage ? (
             <p className="text-center text-sm font-medium text-red-600 sm:text-right">
               {packageStepMessage}

@@ -1,16 +1,10 @@
 'use client'
 
-import CatalogImageFrame from '@/components/CatalogImageFrame'
 import {
-  resolveCatalogItemImageForLink,
-  type CatalogItemImageSource,
-} from '@/Lib/catalogItemVisual'
-import {
-  getOptionGroupTitle,
-  isRequiredOptionGroup,
-  type PackageOptionGroup,
-} from '@/Lib/packageOptionGroups'
-import { sortOptionGroupsForQuote } from '@/Lib/packageQuoteDisplay'
+  getCommercialOptionGroupLabel,
+  sortOptionGroupsForQuote,
+} from '@/Lib/packageQuoteDisplay'
+import { isRequiredOptionGroup, type PackageOptionGroup } from '@/Lib/packageOptionGroups'
 import type { QuoteLanguage } from '@/Lib/quoteWizardTypes'
 
 export default function PackageIncludedOptions({
@@ -20,7 +14,6 @@ export default function PackageIncludedOptions({
   language = 'pt',
   mode = 'select',
   pendingGroupIds = [],
-  catalogItems = [],
 }: {
   optionGroups: ReadonlyArray<PackageOptionGroup>
   selections: Record<string, string>
@@ -28,7 +21,6 @@ export default function PackageIncludedOptions({
   language?: QuoteLanguage
   mode?: 'select' | 'summary'
   pendingGroupIds?: string[]
-  catalogItems?: ReadonlyArray<CatalogItemImageSource & { id: string }>
 }) {
   const activeGroups = sortOptionGroupsForQuote(optionGroups)
 
@@ -38,64 +30,31 @@ export default function PackageIncludedOptions({
     const selectableGroups = activeGroups.filter(
       (group) => (group.items?.length ?? 0) > 0,
     )
-    const missingRequired = selectableGroups.some(
-      (group) =>
-        isRequiredOptionGroup(group) && !selections[group.id]?.trim(),
-    )
-
-    if (missingRequired) {
-      return (
-        <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-4">
-          <p className="text-sm font-bold text-amber-950">Escolhas inclusas</p>
-          <p className="mt-1 text-sm text-amber-900/90">
-            Selecione as opções obrigatórias para concluir o pacote.
-          </p>
-        </div>
-      )
-    }
 
     return (
-      <div className="space-y-3">
-        <p className="text-sm font-bold text-neutral-900">Escolhas obrigatórias</p>
-        <div className="space-y-3">
-          {selectableGroups.map((group) => {
-            const selectedId = selections[group.id]?.trim()
-            const item = group.items.find((row) => row.id === selectedId)
-            if (!item) return null
-            const label = item.label_pt?.trim() || item.option_item_key || '—'
-            const visual = resolveCatalogItemImageForLink(catalogItems, item)
-            return (
-              <div key={group.id} className="flex items-center gap-3">
-                <CatalogImageFrame
-                  src={visual.imageUrl}
-                  alt={label}
-                  variant="catalogItem"
-                  itemType={visual.itemType ?? 'PRODUCT'}
-                  categoryPt={visual.categoryPt}
-                  imageStatus={visual.imageStatus}
-                  size="thumbnail"
-                  rounded="all"
-                />
-                <p className="text-sm text-neutral-800">
-                  <span className="font-bold text-neutral-900">
-                    {group.label_pt?.trim() || getOptionGroupTitle(group, language)}:
-                  </span>{' '}
-                  {label}
-                </p>
-              </div>
-            )
-          })}
-        </div>
+      <div className="space-y-2">
+        {selectableGroups.map((group) => {
+          const selectedId = selections[group.id]?.trim()
+          const item = group.items.find((row) => row.id === selectedId)
+          if (!item) return null
+          const label = item.label_pt?.trim() || item.option_item_key || '—'
+          const groupLabel = getCommercialOptionGroupLabel(group)
+          return (
+            <p key={group.id} className="text-sm text-neutral-800">
+              <span className="font-semibold text-neutral-900">{groupLabel}:</span>{' '}
+              {label}
+            </p>
+          )
+        })}
       </div>
     )
   }
 
   return (
-    <div className="space-y-4">
-      <p className="text-sm font-bold text-neutral-900">Escolhas obrigatórias</p>
+    <div className="space-y-2.5">
       {activeGroups.map((group) => {
-        const groupTitle =
-          group.label_pt?.trim() || getOptionGroupTitle(group, language)
+        const groupLabel = getCommercialOptionGroupLabel(group)
+        const required = isRequiredOptionGroup(group)
         const selectedItemId = selections[group.id] ?? null
         const isPending = pendingGroupIds.includes(group.id)
         const items = group.items ?? []
@@ -103,58 +62,50 @@ export default function PackageIncludedOptions({
         return (
           <div
             key={group.id}
-            className={`space-y-2 rounded-lg p-2 transition ${
-              isPending ? 'bg-red-50 ring-2 ring-red-200' : ''
+            className={`rounded-xl border bg-white px-3 py-2.5 ${
+              isPending ? 'border-red-300 bg-red-50/40' : 'border-neutral-200'
             }`}
           >
-            <p className="text-xs font-bold uppercase tracking-wide text-neutral-800">
-              {groupTitle}
-              {isRequiredOptionGroup(group) ? (
-                <span className="ml-1 text-red-600">*</span>
+            <div className="mb-2 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+              <p className="text-sm font-bold text-neutral-900">{groupLabel}</p>
+              {required ? (
+                <span className="text-[10px] font-medium text-neutral-500">
+                  obrigatório
+                </span>
               ) : null}
-            </p>
+            </div>
+
             {isPending ? (
-              <p className="text-xs font-semibold text-red-700">
+              <p className="mb-2 text-xs text-red-700">
                 Escolha uma opção para continuar.
               </p>
             ) : null}
+
             {items.length === 0 ? (
-              <p className="text-xs font-semibold text-red-700">
-                Grupo encontrado, mas sem itens carregados.
-              </p>
+              <p className="text-xs text-neutral-500">Opções indisponíveis.</p>
             ) : (
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2" role="group" aria-label={groupTitle}>
+              <div
+                className="grid grid-cols-2 gap-2"
+                role="group"
+                aria-label={groupLabel}
+              >
                 {items.map((item) => {
                   const active = selectedItemId === item.id
                   const itemLabel =
                     item.label_pt?.trim() || item.option_item_key?.trim() || '—'
-                  const visual = resolveCatalogItemImageForLink(catalogItems, item)
                   return (
                     <button
                       key={`${group.id}-${item.id}`}
                       type="button"
                       onClick={() => onChange?.(group.id, item.id)}
                       aria-pressed={active}
-                      className={`flex items-center gap-3 rounded-xl border p-3 text-left transition ${
+                      className={`min-h-[2.5rem] rounded-lg border px-2 py-2 text-center text-xs font-semibold leading-tight transition sm:text-sm ${
                         active
-                          ? 'border-red-400 bg-red-50 ring-2 ring-red-200'
-                          : 'border-neutral-200 bg-white hover:border-neutral-300'
+                          ? 'border-red-500 bg-red-50 text-red-900 ring-1 ring-red-300'
+                          : 'border-neutral-200 bg-neutral-50 text-neutral-800 hover:border-neutral-300 hover:bg-white'
                       }`}
                     >
-                      <CatalogImageFrame
-                        src={visual.imageUrl}
-                        alt={itemLabel}
-                        variant="catalogItem"
-                        itemType={visual.itemType ?? 'PRODUCT'}
-                        categoryPt={visual.categoryPt}
-                        imageStatus={visual.imageStatus}
-                        size="thumbnail"
-                        rounded="all"
-                        className="!h-12 !w-12 !min-h-0 !max-h-12 shrink-0"
-                      />
-                      <span className="text-sm font-semibold text-neutral-900">
-                        {itemLabel}
-                      </span>
+                      {itemLabel}
                     </button>
                   )
                 })}

@@ -306,7 +306,6 @@ export default function QuotePackageSummary({
             onChange={onSelectionChange}
             language={language}
             mode="select"
-            catalogItems={catalogItems}
             pendingGroupIds={pendingSelectionGroupIds}
           />
         </section>
@@ -319,7 +318,6 @@ export default function QuotePackageSummary({
             selections={selections}
             language={language}
             mode="summary"
-            catalogItems={catalogItems}
           />
         </section>
       ) : null}

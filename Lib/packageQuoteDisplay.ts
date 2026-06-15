@@ -181,6 +181,22 @@ export function groupFixedPackageItemsForQuote({
   )
 }
 
+export function getCommercialOptionGroupLabel(
+  group: { option_group_key?: string | null; label_pt?: string | null },
+): string {
+  const key = group.option_group_key?.trim().toUpperCase() ?? ''
+  switch (key) {
+    case 'SEAFOOD_OPTION':
+      return 'Seafood'
+    case 'COSTELA_OPTION':
+      return 'Costela'
+    case 'SIDE_OPTION':
+      return 'Guarnição'
+    default:
+      return group.label_pt?.trim() || key || 'Opção'
+  }
+}
+
 export function getQuoteDisplaySideLabels(
   packageId: string,
   sides: ReadonlyArray<PackageSideItem>,
