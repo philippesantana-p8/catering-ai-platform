@@ -171,7 +171,7 @@ export default function SelectedPackageDetails({
       : null
 
   return (
-    <div className="mt-2 space-y-2.5 border-t border-cdl-border-subtle pt-2.5">
+    <div className="mt-2 space-y-2.5 border-t border-cdl-border-subtle pt-2.5 px-0">
       <PackageHeroImage
         src={image}
         alt={pkg.label_pt?.trim() || pkg.package_key || 'Pacote'}

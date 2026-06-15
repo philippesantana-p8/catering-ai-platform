@@ -11,7 +11,7 @@ export default function PackageHeroImage({
   src?: string | null
   alt: string
   fallbackLabel?: string
-  /** Expande levemente além do padding do card pai (Etapa 3). */
+  /** Expande além do padding do card pai (Etapa 3 / resumo). */
   expand?: boolean
 }) {
   const [lightboxOpen, setLightboxOpen] = useState(false)
@@ -35,17 +35,19 @@ export default function PackageHeroImage({
   }, [lightboxOpen])
 
   const frameClass = [
-    expand ? '-mx-2 sm:-mx-1' : '',
-    'my-3 overflow-hidden rounded-3xl bg-white shadow-lg ring-1 ring-black/5',
+    expand ? '-mx-4 my-4 sm:-mx-2 sm:my-3' : 'my-3',
+    'overflow-hidden rounded-3xl bg-white p-1 shadow-lg ring-1 ring-black/5',
     'md:mx-auto md:max-w-3xl lg:max-w-4xl',
   ]
     .filter(Boolean)
     .join(' ')
 
+  const openLightbox = () => setLightboxOpen(true)
+
   if (!normalizedSrc) {
     return (
       <div className={frameClass}>
-        <div className="flex min-h-[10rem] w-full items-center justify-center bg-gradient-to-br from-neutral-100 to-neutral-50 px-4 py-10">
+        <div className="flex min-h-[10rem] w-full items-center justify-center rounded-2xl bg-gradient-to-br from-neutral-100 to-neutral-50 px-4 py-10">
           <span className="text-center text-xs font-semibold uppercase tracking-wider text-neutral-500">
             {fallbackLabel}
           </span>
@@ -56,27 +58,24 @@ export default function PackageHeroImage({
 
   return (
     <>
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={() => setLightboxOpen(true)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault()
-            setLightboxOpen(true)
-          }
-        }}
-        className={`${frameClass} block w-full cursor-zoom-in text-left transition active:opacity-95`}
-        aria-label={`Ampliar imagem: ${alt}`}
-      >
+      <div className={frameClass}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={normalizedSrc}
           alt={alt}
-          className="h-auto max-h-[620px] w-full max-w-none object-contain md:max-h-[760px]"
+          onClick={openLightbox}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault()
+              openLightbox()
+            }
+          }}
+          role="button"
+          tabIndex={0}
+          className="h-auto max-h-[620px] w-full max-w-full cursor-zoom-in rounded-2xl object-contain md:max-h-[760px]"
           loading="lazy"
           decoding="async"
-          draggable={false}
+          aria-label={`Ampliar imagem: ${alt}`}
         />
       </div>
 

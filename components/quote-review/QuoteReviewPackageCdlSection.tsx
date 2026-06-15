@@ -100,7 +100,6 @@ export default function QuoteReviewPackageCdlSection({
         src={packageImageUrl}
         alt={packageName ?? 'Pacote'}
         fallbackLabel="Imagem do pacote não cadastrada"
-        expand={false}
       />
       {packageSelections.length > 0 ? (
         <div className="space-y-1">
