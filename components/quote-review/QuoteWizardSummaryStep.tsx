@@ -1,5 +1,6 @@
 'use client'
 
+import { getQuoteStrings } from '@/Lib/quoteTranslations'
 import Link from 'next/link'
 import { useMemo } from 'react'
 import type { PendingStepIssue, StepStatusContext } from '@/app/quotes/new/wizardStepStatus'
@@ -127,7 +128,8 @@ export default function QuoteWizardSummaryStep({
     [stepStatusCtx],
   )
   const saveDisabled = saving || hasMandatoryPending
-  const savingLabel = isEditMode ? 'Salvando…' : 'Criando cotação...'
+  const quoteStrings = getQuoteStrings(state.language)
+  const savingLabel = isEditMode ? quoteStrings.review.saving : quoteStrings.review.creating
 
   return (
     <div className="space-y-8">
@@ -157,14 +159,14 @@ export default function QuoteWizardSummaryStep({
             href={`/quotes/${quoteId}`}
             className="rounded-xl border border-cdl-border bg-cdl-surface px-6 py-3 text-center text-sm font-bold uppercase tracking-wider text-cdl-fg transition-colors hover:border-cdl-accent-border"
           >
-            Voltar para cotação
+            {quoteStrings.backToQuote}
           </Link>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <Link
               href={`/quotes/${quoteId}`}
               className="rounded-xl border border-cdl-border bg-cdl-surface px-6 py-3 text-center text-sm font-bold uppercase tracking-wider text-cdl-fg transition-colors hover:border-cdl-accent-border"
             >
-              Cancelar
+              {quoteStrings.review.cancel}
             </Link>
             <button
               type="button"
@@ -172,7 +174,7 @@ export default function QuoteWizardSummaryStep({
               disabled={saveDisabled}
               className="cdl-btn-primary disabled:cursor-not-allowed disabled:opacity-40"
             >
-              {saving ? savingLabel : 'Salvar alterações'}
+              {saving ? savingLabel : quoteStrings.review.saveChanges}
             </button>
           </div>
         </div>
@@ -184,7 +186,7 @@ export default function QuoteWizardSummaryStep({
             disabled={saving}
             className="rounded-xl border border-cdl-border bg-cdl-surface px-6 py-3 text-sm font-bold uppercase tracking-wider text-cdl-fg transition-colors hover:border-cdl-accent-border disabled:cursor-not-allowed disabled:opacity-40"
           >
-            Voltar
+            {quoteStrings.back}
           </button>
           <button
             type="button"
@@ -192,7 +194,7 @@ export default function QuoteWizardSummaryStep({
             disabled={saveDisabled}
             className="cdl-btn-primary disabled:cursor-not-allowed disabled:opacity-40"
           >
-            {saving ? savingLabel : 'Criar cotação'}
+            {saving ? savingLabel : quoteStrings.review.createQuote}
           </button>
           <button
             type="button"

@@ -1,6 +1,8 @@
 'use client'
 
 import type { StepVisualStatus } from '@/app/quotes/new/wizardStepStatus'
+import { getQuoteStrings } from '@/Lib/quoteTranslations'
+import type { QuoteLanguage } from '@/Lib/quoteWizardTypes'
 
 function stepSegmentClass(status: StepVisualStatus, isCurrent: boolean) {
   if (isCurrent) return 'bg-[var(--brand-primary)]'
@@ -33,15 +35,19 @@ export default function QuoteStepper({
   steps,
   currentStep,
   additionalsCount = 0,
+  language = 'pt',
   getStepStatus,
   onStepClick,
 }: {
   steps: readonly string[]
   currentStep: number
   additionalsCount?: number
+  language?: QuoteLanguage
   getStepStatus: (index: number) => StepVisualStatus
   onStepClick: (index: number) => void
 }) {
+  const t = getQuoteStrings(language)
+
   return (
     <nav
       className="mb-4 rounded-2xl border border-cdl-border bg-cdl-surface p-2 shadow-cdl sm:p-3"
@@ -65,7 +71,7 @@ export default function QuoteStepper({
           const isCurrent = index === currentStep
           const stepTitle =
             index === 3 && additionalsCount > 0
-              ? `${label} · ${additionalsCount} adicionais`
+              ? t.stepperAdditionals(additionalsCount)
               : label
 
           return (

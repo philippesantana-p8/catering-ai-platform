@@ -4,15 +4,20 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import TenantContextBar from '@/components/tenant/TenantContextBar'
+import { getQuoteStrings } from '@/Lib/quoteTranslations'
+import type { QuoteLanguage } from '@/Lib/quoteWizardTypes'
 
-const NAV_LINKS = [
-  { href: '/quotes', label: 'Cotações' },
-  { href: '/customers', label: 'Cadastros' },
-  { href: '/packages', label: 'Pacotes' },
-  { href: '/additional-items', label: 'Cadastro de itens' },
-  { href: '/commercial-rules', label: 'Regras' },
-  { href: '/packages/images', label: 'Imagens' },
-] as const
+function getNavLinks(language: QuoteLanguage = 'pt') {
+  const t = getQuoteStrings(language).nav
+  return [
+    { href: '/quotes', label: t.quotes },
+    { href: '/customers', label: t.customers },
+    { href: '/packages', label: t.packages },
+    { href: '/additional-items', label: t.itemCatalog },
+    { href: '/commercial-rules', label: t.rules },
+    { href: '/packages/images', label: t.images },
+  ] as const
+}
 
 function isNavActive(pathname: string, href: string) {
   if (href === '/quotes') {
@@ -48,8 +53,14 @@ function isNavActive(pathname: string, href: string) {
   return pathname === href
 }
 
-export default function AdminCompactMenu() {
+export default function AdminCompactMenu({
+  language = 'pt',
+}: {
+  language?: QuoteLanguage
+}) {
   const pathname = usePathname() ?? ''
+  const navLinks = getNavLinks(language)
+  const quoteStrings = getQuoteStrings(language)
   const [open, setOpen] = useState(false)
 
   useEffect(() => {
@@ -84,7 +95,7 @@ export default function AdminCompactMenu() {
         href="/quotes/new"
         className="inline-flex min-h-10 items-center rounded-xl border border-[var(--brand-primary)] bg-[var(--brand-primary)] px-3 py-2 text-xs font-bold uppercase tracking-wide text-white"
       >
-        Nova cotação
+        {quoteStrings.nav.newQuote}
       </Link>
 
       {open ? (
@@ -98,7 +109,7 @@ export default function AdminCompactMenu() {
           <div className="fixed left-3 right-3 top-14 z-50 max-h-[min(70vh,28rem)] overflow-y-auto rounded-2xl border border-cdl-border bg-cdl-surface p-3 shadow-xl sm:left-auto sm:right-4 sm:w-72">
             <TenantContextBar />
             <nav className="mt-3 flex flex-col gap-1" aria-label="Navegação administrativa">
-              {NAV_LINKS.map((link) => {
+              {navLinks.map((link) => {
                 const active = isNavActive(pathname, link.href)
                 return (
                   <Link

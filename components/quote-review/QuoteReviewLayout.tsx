@@ -25,6 +25,7 @@ import {
 import { IconCalendar, IconClock, IconLocation } from './QuoteReviewIcons'
 import QuoteProposalOverviewCard from './QuoteProposalOverviewCard'
 import type { QuoteReviewAdditional, QuoteReviewData } from './quoteReviewTypes'
+import { getQuoteStrings } from '@/Lib/quoteTranslations'
 
 function ProposalSection({
   title,
@@ -101,6 +102,7 @@ export default function QuoteReviewLayout({
   afterBody?: ReactNode
   showFooter?: boolean
 }) {
+  const t = getQuoteStrings(data.language ?? 'pt')
   const cityState = [data.city, data.state].filter(Boolean).join(', ')
   const eventLocation = [data.addressLine, cityState, data.zipCode]
     .filter(Boolean)
@@ -210,7 +212,7 @@ export default function QuoteReviewLayout({
         />
 
         <div className="quote-proposal-grid-2">
-          <ProposalSection title="Pacote CDL">
+          <ProposalSection title={t.review.packageSection}>
             <QuoteReviewPackageCdlSection
               packageName={data.packageName}
               packageImageUrl={data.packageImageUrl}
@@ -223,7 +225,7 @@ export default function QuoteReviewLayout({
             />
           </ProposalSection>
 
-          <ProposalSection title="Convidados e cobrança">
+          <ProposalSection title={t.review.guestsSection}>
             <GuestBreakdownPanel
               guestCounts={data.guestCounts}
               totals={{
@@ -234,24 +236,24 @@ export default function QuoteReviewLayout({
             />
           </ProposalSection>
 
-          <ProposalSection title="Evento">
+          <ProposalSection title={t.review.eventSection}>
             <p className="quote-proposal-event-name">
               {displayValue(data.eventName || data.customerName)}
             </p>
             <div className="quote-proposal-event-list">
               <EventRow
                 icon={<IconCalendar />}
-                label="Data"
+                label={t.review.date}
                 value={formatDate(data.eventDate)}
               />
               <EventRow
                 icon={<IconClock />}
-                label="Horário"
+                label={t.review.time}
                 value={eventTimeLabel}
               />
               <EventRow
                 icon={<IconLocation />}
-                label="Local"
+                label={t.review.location}
                 value={eventLocation || '—'}
               />
             </div>
@@ -259,7 +261,7 @@ export default function QuoteReviewLayout({
         </div>
 
         <div className="quote-proposal-grid-2">
-          <ProposalSection title="Churrasqueira">
+          <ProposalSection title={t.review.bbqSection}>
             <div className="quote-proposal-info-grid">
               <div className="quote-proposal-info-cell">
                 <span className="quote-proposal-label">Cliente tem churrasqueira?</span>
@@ -297,7 +299,7 @@ export default function QuoteReviewLayout({
             </div>
           </ProposalSection>
 
-          <ProposalSection title="Reserva">
+          <ProposalSection title={t.review.reservationSection}>
             <div className="quote-proposal-info-grid">
               <div className="quote-proposal-info-cell">
                 <span className="quote-proposal-label">Percentual de reserva</span>
@@ -323,7 +325,7 @@ export default function QuoteReviewLayout({
           </ProposalSection>
         </div>
 
-        <ProposalSection title="Milhagem" className="quote-proposal-section--compact">
+        <ProposalSection title={t.review.mileageSection} className="quote-proposal-section--compact">
           <div className="quote-proposal-mileage-grid">
             <div className="quote-proposal-info-cell">
               <span className="quote-proposal-label">Local base</span>
@@ -370,9 +372,9 @@ export default function QuoteReviewLayout({
           </div>
         </ProposalSection>
 
-        <ProposalSection title="Adicionais selecionados">
+        <ProposalSection title={t.review.additionalsSection}>
           {groupedAdditionals.length === 0 ? (
-            <p className="quote-proposal-muted">Nenhum adicional selecionado.</p>
+            <p className="quote-proposal-muted">{t.review.noAdditionals}</p>
           ) : (
             <div className="quote-proposal-additionals">
               {groupedAdditionals.map(({ category, items }) => (

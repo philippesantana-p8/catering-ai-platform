@@ -200,5 +200,6 @@ export function mapWizardToQuoteReview(
     balanceDue: quoteTotals.balanceDue,
     quoteTotal: quoteTotals.quoteTotal,
     additionals: reviewAdditionals,
+    language: state.language,
   }
 }

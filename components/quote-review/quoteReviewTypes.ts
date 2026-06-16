@@ -1,5 +1,6 @@
 import type { GuestCounts } from '@/Lib/calculateQuoteTotals'
 import type { PackageSelectionLabel } from '@/Lib/packageOptionGroups'
+import type { QuoteLanguage } from '@/Lib/quoteWizardTypes'
 import type { QuoteReviewPackageSummary } from './quoteReviewPackageSummary'
 
 export type QuoteReviewAdditional = {
@@ -15,6 +16,7 @@ export type QuoteReviewAdditional = {
 }
 
 export type QuoteReviewData = {
+  language?: QuoteLanguage
   quoteNumber?: string
   quoteStatus?: string | null
   preview?: boolean

@@ -9,6 +9,16 @@ import CatalogImageFrame from '../../../components/CatalogImageFrame'
 import QuoteStepHeader from '../../../components/quotes/QuoteStepHeader'
 import QuoteStepper from '../../../components/quotes/QuoteStepper'
 import QuotePackageStepExplorer from '../../../components/quotes/QuotePackageStepExplorer'
+import AdditionalCategorySection from '../../../components/quotes/additionals/AdditionalCategorySection'
+import {
+  calcAdditionalLineTotalForItem,
+  getAdditionalUnitPrice,
+  getLocalizedAdditionalLabel,
+  groupAdditionalItemsByCategory,
+  isPerPersonAdditional,
+  normalizeAdditionalQuantity,
+} from '../../../Lib/quoteAdditionalDisplay'
+import { getQuoteStrings } from '../../../Lib/quoteTranslations'
 import PackageOptionsDebugPanel from '../../../components/quotes/PackageOptionsDebugPanel'
 import { CDL_DEFAULT_COMPANY_ID } from '../../../Lib/cdlCompany'
 import type { PackageOptionQueryDebug } from '../../../Lib/fetchPackageOptionGroups'
@@ -35,7 +45,6 @@ import {
   CUSTOMER_DISPLAY_NAME_EMPTY,
   getCustomerDisplayName,
 } from '../../../Lib/getCustomerDisplayName'
-import { getAdditionalItemPrice } from '../../../Lib/getAdditionalItemPrice'
 import { getCatalogItemImageUrl } from '../../../Lib/catalogItemVisual'
 import { filterCatalogItems } from '../../../Lib/itemCatalog'
 import { isUsablePhone, normalizePhone } from '../../../Lib/normalizePhone'
@@ -153,16 +162,7 @@ export type AdditionalItem = {
 /** Item do catálogo mestre (`catalog_items`). */
 export type CatalogItem = AdditionalItem
 
-const STEPS = [
-  'Cliente',
-  'Evento',
-  'Pacote',
-  'Adicionais',
-  'Churrasco',
-  'Dados',
-  'Resumo',
-  'Confirmação',
-] as const
+const WIZARD_STEP_COUNT = 8
 
 function formatCurrency(value: number) {
   return `$${value.toFixed(2)}`
@@ -654,56 +654,11 @@ function getPackagePrice(pkg: Package) {
   )
 }
 
-function getAdditionalLabel(item: AdditionalItem) {
-  return (
-    item.item_name ??
-    item.label_pt ??
-    item.label_en ??
-    item.label_es ??
-    item.item_key ??
-    '—'
-  )
-}
-
-function isPerPersonAdditional(item: AdditionalItem) {
-  return (
-    item.pricing_type === 'PER_PERSON' || item.charge_type === 'PERSON'
-  )
-}
-
-function getAdditionalUnitPrice(item: AdditionalItem) {
-  return getAdditionalItemPrice(item)
-}
-
-function normalizeAdditionalQuantity(item: AdditionalItem, quantity: number) {
-  if (isPerPersonAdditional(item)) {
-    return quantity > 0 ? 1 : 0
-  }
-  return Math.max(0, quantity)
-}
-
-function calcAdditionalLineTotalForItem(
-  item: AdditionalItem,
-  quantity: number,
-  billableGuestCount: number,
-) {
-  const normalizedQty = normalizeAdditionalQuantity(item, quantity)
-  if (normalizedQty <= 0) return 0
-
-  return calcAdditionalLineTotal(
-    {
-      quantity: normalizedQty,
-      unitPrice: getAdditionalUnitPrice(item),
-      perPerson: isPerPersonAdditional(item),
-    },
-    billableGuestCount,
-  )
-}
-
 function mapSelectedAdditionalRow(
   item: AdditionalItem,
   quantity: number,
   billableGuestCount: number,
+  language: QuoteLanguage,
 ) {
   const normalizedQty = normalizeAdditionalQuantity(item, quantity)
   return {
@@ -712,86 +667,8 @@ function mapSelectedAdditionalRow(
     unitPrice: getAdditionalUnitPrice(item),
     perPerson: isPerPersonAdditional(item),
     totalPrice: calcAdditionalLineTotalForItem(item, normalizedQty, billableGuestCount),
+    categoryLabel: getLocalizedAdditionalLabel(item, language),
   }
-}
-
-function formatWeightUom(uom: string) {
-  if (uom === 'LB') return 'lb'
-  return uom.toLowerCase()
-}
-
-function getAdditionalPackLabel(item: AdditionalItem) {
-  const packQty = item.quantity ?? 1
-  const packUnit = item.unit_label ?? item.unit ?? 'UN'
-  const weight = item.quantity_2
-  const weightUom = item.uom_2
-
-  if (weight != null && weightUom) {
-    return `${packQty} ${packUnit} · ${weight} ${formatWeightUom(weightUom)}`
-  }
-  return `${packQty} ${packUnit}`
-}
-
-function getAdditionalTotalWeight(
-  item: AdditionalItem,
-  quantity: number,
-) {
-  const normalizedQty = normalizeAdditionalQuantity(item, quantity)
-  if (normalizedQty <= 0 || item.quantity_2 == null || !item.uom_2) {
-    return null
-  }
-  return {
-    amount: item.quantity_2 * normalizedQty,
-    uom: item.uom_2,
-  }
-}
-
-const ADDITIONAL_CATEGORY_ORDER = [
-  'Bovino Tradicional',
-  'Bovino Nobre',
-  'Frango',
-  'Porco',
-  'Linguiças',
-  'Frutos do Mar',
-  'Legumes e Saladas',
-] as const
-
-function normalizeCategory(value: string) {
-  return value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .trim()
-}
-
-const ADDITIONAL_CATEGORY_ALIASES: Record<string, string> = {
-  'beef traditional': 'bovino tradicional',
-  'premium beef': 'bovino nobre',
-  chicken: 'frango',
-  pork: 'porco',
-  sausages: 'linguiças',
-  seafood: 'frutos do mar',
-  vegetables: 'legumes e saladas',
-  bovino: 'bovino tradicional',
-  legumes: 'legumes e saladas',
-}
-
-function getAdditionalCategorySortIndex(category: string) {
-  const normalized =
-    ADDITIONAL_CATEGORY_ALIASES[normalizeCategory(category)] ??
-    normalizeCategory(category)
-  const index = ADDITIONAL_CATEGORY_ORDER.findIndex(
-    (name) => normalizeCategory(name) === normalized,
-  )
-  if (index !== -1) return index
-  return ADDITIONAL_CATEGORY_ORDER.length
-}
-
-function compareAdditionalCategories(a: string, b: string) {
-  const indexDiff =
-    getAdditionalCategorySortIndex(a) - getAdditionalCategorySortIndex(b)
-  if (indexDiff !== 0) return indexDiff
-  return a.localeCompare(b, 'pt-BR')
 }
 
 function WizardStepButton({
@@ -811,237 +688,6 @@ function WizardStepButton({
     >
       {label}
     </button>
-  )
-}
-
-function AdditionalItemCard({
-  item,
-  quantity,
-  billableGuestCount,
-  onChangeQty,
-}: {
-  item: AdditionalItem
-  quantity: number
-  billableGuestCount: number
-  onChangeQty: (qty: number) => void
-}) {
-  const image = getCatalogItemImageUrl(item)
-  const unitPrice = getAdditionalUnitPrice(item)
-  const perPerson = isPerPersonAdditional(item)
-  const normalizedQty = normalizeAdditionalQuantity(item, quantity)
-  const lineTotal = calcAdditionalLineTotalForItem(item, quantity, billableGuestCount)
-  const isSelected = normalizedQty > 0
-  const totalWeight = getAdditionalTotalWeight(item, quantity)
-  const packLabel = !perPerson ? getAdditionalPackLabel(item) : null
-
-  const cardClassName = `overflow-hidden rounded-2xl border text-left transition-colors ${
-    isSelected
-      ? 'border-cdl-accent bg-cdl-accent-soft'
-      : 'border-cdl-border bg-cdl-inset'
-  }`
-
-  const media = (
-    <CatalogImageFrame
-      src={image}
-      alt={getAdditionalLabel(item)}
-      variant="catalogItem"
-      itemType={item.item_type}
-      categoryPt={item.category_pt}
-      imageStatus={item.image_status}
-      className="shrink-0"
-    />
-  )
-
-  const header = (
-    <>
-      <h3 className="font-bold text-cdl-fg">{getAdditionalLabel(item)}</h3>
-      <p className="mt-1 text-sm font-bold text-cdl-price">
-        {formatCurrency(unitPrice)}
-        {perPerson ? (
-          <span className="ml-1 text-xs font-semibold text-cdl-text-secondary">/ pessoa</span>
-        ) : (
-          packLabel && (
-            <span className="ml-1 text-xs font-semibold text-cdl-text-secondary">
-              / {packLabel}
-            </span>
-          )
-        )}
-      </p>
-      {item.pricing_type && (
-        <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-cdl-muted">
-          {perPerson ? 'Por pessoa' : 'Por unidade'}
-        </p>
-      )}
-    </>
-  )
-
-  if (perPerson) {
-    return (
-      <button
-        type="button"
-        onClick={() => onChangeQty(isSelected ? 0 : 1)}
-        className={`${cardClassName} w-full`}
-      >
-        {media}
-        <div className="p-5">
-          {header}
-          <div className="mt-4 flex items-center justify-between gap-3">
-            <span className="flex items-center gap-3">
-              <span
-                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border ${
-                  isSelected
-                    ? 'border-cdl-accent bg-cdl-accent text-cdl-on-accent'
-                    : 'border-cdl-faint bg-cdl-surface'
-                }`}
-                aria-hidden
-              >
-                {isSelected ? '✓' : ''}
-              </span>
-              <span className="text-sm font-semibold text-cdl-fg">
-                {isSelected ? 'Selecionado' : 'Selecionar'}
-              </span>
-            </span>
-            {isSelected && (
-              <div className="text-right">
-                <span className="text-sm font-bold text-cdl-price">
-                  {formatCurrency(lineTotal)}
-                </span>
-                {billableGuestCount > 0 && (
-                  <p className="mt-0.5 text-xs text-cdl-subtle">
-                    {formatCurrency(unitPrice)} × {billableGuestCount}
-                  </p>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      </button>
-    )
-  }
-
-  return (
-    <article className={cardClassName}>
-      {media}
-      <div className="p-5">
-        {header}
-        {packLabel && (
-          <p className="mt-2 text-xs text-cdl-muted">
-            Cada unidade: {packLabel}
-          </p>
-        )}
-
-        <div className="mt-4 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => onChangeQty(normalizedQty - 1)}
-              disabled={normalizedQty === 0}
-              className="flex h-9 w-9 items-center justify-center rounded-lg border border-cdl-border bg-cdl-surface text-lg font-bold text-cdl-fg transition-colors hover:border-cdl-accent-border disabled:opacity-30"
-              aria-label="Remover unidade"
-            >
-              −
-            </button>
-            <div className="min-w-[3rem] text-center">
-              <span className="text-lg font-semibold text-cdl-fg">
-                {normalizedQty}
-              </span>
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-cdl-muted">
-                {item.unit_label ?? item.unit ?? 'UN'}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => onChangeQty(normalizedQty + 1)}
-              className="flex h-9 w-9 items-center justify-center rounded-lg border border-cdl-border bg-cdl-surface text-lg font-bold text-cdl-fg transition-colors hover:border-cdl-accent-border"
-              aria-label="Adicionar unidade"
-            >
-              +
-            </button>
-          </div>
-          {isSelected && (
-            <div className="text-right">
-              <span className="text-sm font-bold text-cdl-price">
-                {formatCurrency(lineTotal)}
-              </span>
-              {totalWeight && (
-                <p className="mt-0.5 text-xs font-semibold text-cdl-text-secondary">
-                  {totalWeight.amount} {formatWeightUom(totalWeight.uom)} total
-                </p>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-    </article>
-  )
-}
-
-function AdditionalCategorySection({
-  category,
-  items,
-  expanded,
-  selectedCount,
-  quantities,
-  billableGuestCount,
-  onToggle,
-  onChangeQty,
-}: {
-  category: string
-  items: AdditionalItem[]
-  expanded: boolean
-  selectedCount: number
-  quantities: Record<string, number>
-  billableGuestCount: number
-  onToggle: () => void
-  onChangeQty: (itemId: string, qty: number) => void
-}) {
-  return (
-    <section className="overflow-hidden rounded-2xl border border-cdl-border bg-cdl-surface shadow-cdl">
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={expanded}
-        className="flex w-full items-center justify-between gap-4 p-5 text-left transition-colors hover:bg-cdl-hover sm:p-6"
-      >
-        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1">
-          <span className="text-lg font-extrabold text-cdl-title sm:text-xl">
-            {category}
-          </span>
-          <span className="text-sm text-cdl-muted">
-            {items.length} {items.length === 1 ? 'item' : 'itens'}
-          </span>
-          {selectedCount > 0 && (
-            <span className="rounded-full bg-cdl-accent px-2.5 py-0.5 text-xs font-bold text-cdl-on-accent">
-              {selectedCount} selecionado{selectedCount !== 1 ? 's' : ''}
-            </span>
-          )}
-        </div>
-        <span
-          className={`shrink-0 text-sm text-cdl-accent transition-transform duration-200 ${
-            expanded ? 'rotate-180' : ''
-          }`}
-          aria-hidden
-        >
-          ▼
-        </span>
-      </button>
-
-      {expanded && (
-        <div className="border-t border-cdl-border-subtle p-5 sm:p-6">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {items.map((item) => (
-              <AdditionalItemCard
-                key={item.id}
-                item={item}
-                quantity={quantities[item.id] ?? 0}
-                billableGuestCount={billableGuestCount}
-                onChangeQty={(qty) => onChangeQty(item.id, qty)}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-    </section>
   )
 }
 
@@ -1358,7 +1004,7 @@ export default function QuoteWizard({
   const isEditMode = mode === 'edit' && Boolean(quoteId)
   const { branchId: tenantBranchId, companyId: tenantCompanyId } = useTenant()
   const [step, setStep] = useState(() =>
-    Math.min(Math.max(initialStep, 0), STEPS.length - 1),
+    Math.min(Math.max(initialStep, 0), WIZARD_STEP_COUNT - 1),
   )
   const [state, setState] = useState<WizardState>(
     () => initialState ?? createInitialWizardState(commercialRules),
@@ -1399,6 +1045,12 @@ export default function QuoteWizard({
   >(() => packageOptionGroupItems)
   const [packageOptionQueryDebugState, setPackageOptionQueryDebugState] =
     useState<PackageOptionQueryDebug | null>(() => packageOptionQueryDebug)
+  const quoteStrings = useMemo(
+    () => getQuoteStrings(state.language),
+    [state.language],
+  )
+  const wizardSteps = quoteStrings.wizardSteps
+
   const debugCompanyId =
     tenantCompanyId?.trim() || CDL_DEFAULT_COMPANY_ID
   const debugBranchId =
@@ -1682,37 +1334,15 @@ export default function QuoteWizard({
     [itemCatalog, blockedCatalogItemIds],
   )
 
-  const additionalItemsByCategory = useMemo(() => {
-    const grouped = visibleAdditionalItems.reduce(
-      (acc, item) => {
-        const category = item.category_pt || 'Outros'
-        if (!acc[category]) acc[category] = []
-        acc[category].push(item)
-        return acc
-      },
-      {} as Record<string, AdditionalItem[]>,
-    )
-
-    return Object.entries(grouped)
-      .sort(([a], [b]) => compareAdditionalCategories(a, b))
-      .map(([category, items]) => ({
-        category,
-        items: [...items].sort((a, b) => {
-          const priceDiff =
-            getAdditionalUnitPrice(b) - getAdditionalUnitPrice(a)
-          if (priceDiff !== 0) return priceDiff
-          return getAdditionalLabel(a).localeCompare(
-            getAdditionalLabel(b),
-            'pt-BR',
-          )
-        }),
-      }))
-  }, [visibleAdditionalItems])
+  const additionalItemsByCategory = useMemo(
+    () => groupAdditionalItemsByCategory(visibleAdditionalItems, state.language),
+    [visibleAdditionalItems, state.language],
+  )
 
   const selectedCountByCategory = useMemo(() => {
     const counts: Record<string, number> = {}
-    for (const { category, items } of additionalItemsByCategory) {
-      counts[category] = items.reduce(
+    for (const { categoryKey, items } of additionalItemsByCategory) {
+      counts[categoryKey] = items.reduce(
         (sum, item) => sum + (state.additionals[item.id] ?? 0),
         0,
       )
@@ -1803,8 +1433,9 @@ export default function QuoteWizard({
 
   const selectedAdditionalsByCategory = useMemo(() => {
     return additionalItemsByCategory
-      .map(({ category, items }) => ({
-        category,
+      .map(({ categoryKey, categoryLabel, items }) => ({
+        categoryKey,
+        categoryLabel,
         items: items
           .filter((item) => (state.additionals[item.id] ?? 0) > 0)
           .map((item) =>
@@ -1812,11 +1443,17 @@ export default function QuoteWizard({
               item,
               state.additionals[item.id] ?? 0,
               billableGuestCount,
+              state.language,
             ),
           ),
       }))
       .filter(({ items }) => items.length > 0)
-  }, [additionalItemsByCategory, state.additionals, billableGuestCount])
+  }, [
+    additionalItemsByCategory,
+    state.additionals,
+    billableGuestCount,
+    state.language,
+  ])
 
   const selectedAdditionals = useMemo(
     () => selectedAdditionalsByCategory.flatMap(({ items }) => items),
@@ -1825,11 +1462,11 @@ export default function QuoteWizard({
 
   const reviewAdditionals = useMemo(
     () =>
-      selectedAdditionalsByCategory.flatMap(({ category, items }) =>
+      selectedAdditionalsByCategory.flatMap(({ categoryLabel, items }) =>
         items.map(({ item, quantity, unitPrice, perPerson, totalPrice }) => ({
           id: item.id,
-          label: getAdditionalLabel(item),
-          category,
+          label: getLocalizedAdditionalLabel(item, state.language),
+          category: categoryLabel,
           quantity,
           unitPrice,
           totalPrice,
@@ -1839,7 +1476,7 @@ export default function QuoteWizard({
           perPerson,
         })),
       ),
-    [selectedAdditionalsByCategory],
+    [selectedAdditionalsByCategory, state.language],
   )
 
   const additionalTotal = quoteTotals.additionalTotal
@@ -2136,7 +1773,7 @@ export default function QuoteWizard({
     if (step === 4 && !state.grillSetupAnswered) {
       updateState({ grillSetupAnswered: true })
     }
-    if (step < STEPS.length - 1) setStep((s) => s + 1)
+    if (step < WIZARD_STEP_COUNT - 1) setStep((s) => s + 1)
   }
 
   useEffect(() => {
@@ -2397,21 +2034,26 @@ export default function QuoteWizard({
     <main className="quotes-pscs min-h-screen bg-cdl-bg px-4 py-4 pb-28 text-cdl-fg sm:px-8 sm:py-6 sm:pb-28">
       <div className="mx-auto max-w-6xl">
         <div className="mb-3 flex flex-col gap-2">
-          <AdminCompactMenu />
+          <AdminCompactMenu language={state.language} />
           <Link
             href={isEditMode && quoteId ? `/quotes/${quoteId}` : '/quotes'}
             className="inline-flex items-center text-sm text-cdl-muted transition-colors hover:text-cdl-brand"
           >
-            {isEditMode ? '← Voltar para cotação' : '← Voltar às cotações'}
+            {isEditMode ? quoteStrings.backToQuote : quoteStrings.backToQuotes}
           </Link>
         </div>
 
-        <QuoteStepHeader step={step} isEditMode={isEditMode} />
+        <QuoteStepHeader
+          step={step}
+          language={state.language}
+          isEditMode={isEditMode}
+        />
 
         <QuoteStepper
-          steps={STEPS}
+          steps={wizardSteps}
           currentStep={step}
           additionalsCount={additionalsCount}
+          language={state.language}
           getStepStatus={(index) => getStepVisualStatus(index, stepStatusCtx)}
           onStepClick={setStep}
         />
@@ -2769,30 +2411,39 @@ export default function QuoteWizard({
         )}
 
         {step === 3 && (
-          <div className="space-y-6">
+          <div className="space-y-6 pb-28">
+            <p className="text-sm text-cdl-muted">
+              {quoteStrings.additionalsStepHint}
+            </p>
             {additionalItemsByCategory.length === 0 ? (
-              <p className="text-sm text-cdl-muted">Nenhum adicional disponível.</p>
+              <p className="text-sm text-cdl-muted">
+                {quoteStrings.noAdditionalsAvailable}
+              </p>
             ) : (
               <div className="space-y-3">
-                {additionalItemsByCategory.map(({ category, items }) => (
+                {additionalItemsByCategory.map(
+                  ({ categoryKey, categoryLabel, items }) => (
                   <AdditionalCategorySection
-                    key={category}
-                    category={category}
+                    key={categoryKey}
+                    categoryKey={categoryKey}
+                    categoryLabel={categoryLabel}
                     items={items}
-                    expanded={openAdditionalCategories.has(category)}
-                    selectedCount={selectedCountByCategory[category] ?? 0}
+                    expanded={openAdditionalCategories.has(categoryKey)}
+                    selectedCount={selectedCountByCategory[categoryKey] ?? 0}
                     quantities={state.additionals}
                     billableGuestCount={billableGuestCount}
-                    onToggle={() => toggleAdditionalCategory(category)}
+                    language={state.language}
+                    onToggle={() => toggleAdditionalCategory(categoryKey)}
                     onChangeQty={setAdditionalQty}
                   />
-                ))}
+                ),
+                )}
               </div>
             )}
 
             <div className="flex justify-end rounded-2xl border border-cdl-border bg-cdl-surface p-7 shadow-cdl sm:p-9">
               <WizardStepButton
-                label="Continuar para Churrasqueira →"
+                label={quoteStrings.continueToBbq}
                 onClick={() => setStep(4)}
               />
             </div>
@@ -3065,19 +2716,23 @@ export default function QuoteWizard({
               disabled={step === 0}
               className="rounded-xl border border-cdl-border bg-cdl-surface px-6 py-3 text-sm font-bold uppercase tracking-wider text-cdl-fg transition-colors hover:border-cdl-accent-border disabled:cursor-not-allowed disabled:opacity-40"
             >
-              Voltar
+              {quoteStrings.back}
             </button>
             {step === 2 && state.packageId ? null : (
             <span className="relative inline-flex w-full sm:w-auto">
               {step === 2 && packageStepNextDisabled ? (
                 <button
                   type="button"
-                  aria-label="Próximo — complete as opções obrigatórias"
+                  aria-label={`${quoteStrings.next} — complete required options`}
                   className="absolute inset-0 z-10 cursor-not-allowed rounded-xl"
                   onClick={() => {
                     if (!state.packageId) {
                       setPackageStepMessage(
-                        'Selecione um pacote para continuar.',
+                        state.language === 'en'
+                          ? 'Select a package to continue.'
+                          : state.language === 'es'
+                            ? 'Seleccione un paquete para continuar.'
+                            : 'Selecione um pacote para continuar.',
                       )
                       return
                     }
@@ -3089,12 +2744,12 @@ export default function QuoteWizard({
                 type="button"
                 onClick={goNext}
                 disabled={
-                  step === STEPS.length - 1 ||
+                  step === WIZARD_STEP_COUNT - 1 ||
                   (step === 2 && packageStepNextDisabled)
                 }
                 className="cdl-btn-primary w-full disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto"
               >
-                Próximo
+                {quoteStrings.next}
               </button>
             </span>
             )}
