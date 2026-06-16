@@ -63,7 +63,7 @@ export default function AdditionalCategorySection({
 
       {expanded ? (
         <div className="border-t border-cdl-border-subtle p-3 sm:p-4">
-          <div className="grid grid-cols-2 min-[390px]:grid-cols-3 gap-3 md:grid-cols-4 lg:grid-cols-5">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
             {items.map((item) => (
               <AdditionalItemCard
                 key={item.id}
